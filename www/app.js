@@ -25,6 +25,14 @@ const logOutput = document.getElementById("log-output");
 const mboxCmdSelect = document.getElementById("mbox-cmd");
 const btnMboxSend = document.getElementById("btn-mbox-send");
 const mboxResponse = document.getElementById("mbox-response");
+const mboxParams = document.getElementById("mbox-params");
+const mboxShaAlgo = document.getElementById("mbox-sha-algo");
+const mboxShaInput = document.getElementById("mbox-sha-input");
+
+// Show/hide CM SHA params based on selected command
+mboxCmdSelect.addEventListener("change", () => {
+  mboxParams.style.display = mboxCmdSelect.value === "CM_SHA_HASH" ? "block" : "none";
+});
 
 // State
 let emulator = null;
@@ -375,6 +383,129 @@ function makeHeaderOnlyRequest(cmdId) {
   return buf;
 }
 
+function writeU32LE(buf, offset, value) {
+  buf[offset] = value & 0xff;
+  buf[offset + 1] = (value >>> 8) & 0xff;
+  buf[offset + 2] = (value >>> 16) & 0xff;
+  buf[offset + 3] = (value >>> 24) & 0xff;
+}
+
+function makeChecksummedRequest(cmdId, payloadAfterChecksum) {
+  const buf = new Uint8Array(4 + payloadAfterChecksum.length);
+  buf.set(payloadAfterChecksum, 4);
+  const chksum = calcChecksum(cmdId, payloadAfterChecksum);
+  writeU32LE(buf, 0, chksum);
+  return buf;
+}
+
+// --- CM SHA constants ---
+const CM_SHA_CONTEXT_SIZE = 200;
+const CM_SHA_MAX_INPUT = 4096;
+const CMD_CM_SHA_INIT   = 0x434D5349;
+const CMD_CM_SHA_UPDATE = 0x434D5355;
+const CMD_CM_SHA_FINAL  = 0x434D5346;
+
+// Build a CM_SHA_INIT request: [chksum:4][hash_algorithm:4][input_size:4][input:N]
+function makeCmShaInitReq(hashAlgo, inputBytes) {
+  const payload = new Uint8Array(4 + 4 + inputBytes.length);
+  writeU32LE(payload, 0, hashAlgo);
+  writeU32LE(payload, 4, inputBytes.length);
+  payload.set(inputBytes, 8);
+  return makeChecksummedRequest(CMD_CM_SHA_INIT, payload);
+}
+
+// Build a CM_SHA_UPDATE request: [chksum:4][context:200][input_size:4][input:N]
+function makeCmShaUpdateReq(context, inputBytes) {
+  const payload = new Uint8Array(CM_SHA_CONTEXT_SIZE + 4 + inputBytes.length);
+  payload.set(context, 0);
+  writeU32LE(payload, CM_SHA_CONTEXT_SIZE, inputBytes.length);
+  payload.set(inputBytes, CM_SHA_CONTEXT_SIZE + 4);
+  return makeChecksummedRequest(CMD_CM_SHA_UPDATE, payload);
+}
+
+// Build a CM_SHA_FINAL request: [chksum:4][context:200][input_size:4][input:N]
+function makeCmShaFinalReq(context, inputBytes) {
+  const payload = new Uint8Array(CM_SHA_CONTEXT_SIZE + 4 + inputBytes.length);
+  payload.set(context, 0);
+  writeU32LE(payload, CM_SHA_CONTEXT_SIZE, inputBytes.length);
+  payload.set(inputBytes, CM_SHA_CONTEXT_SIZE + 4);
+  return makeChecksummedRequest(CMD_CM_SHA_FINAL, payload);
+}
+
+// Execute CM SHA INIT→(UPDATE)*→FINAL and return formatted result
+function executeCmShaHash(emu) {
+  const hashAlgo = parseInt(mboxShaAlgo.value);
+  const algoName = hashAlgo === 1 ? "SHA-384" : "SHA-512";
+  const digestLen = hashAlgo === 1 ? 48 : 64;
+  const inputText = mboxShaInput.value;
+  const inputBytes = new TextEncoder().encode(inputText);
+
+  let s = `CM SHA Hash (${algoName})\n`;
+  s += `  Input: "${inputText}" (${inputBytes.length} bytes)\n\n`;
+
+  // Split input into chunks of CM_SHA_MAX_INPUT
+  const chunks = [];
+  for (let i = 0; i < inputBytes.length; i += CM_SHA_MAX_INPUT) {
+    chunks.push(inputBytes.slice(i, i + CM_SHA_MAX_INPUT));
+  }
+
+  // INIT with first chunk (or empty if no data)
+  const firstChunk = chunks.length > 0 ? chunks[0] : new Uint8Array(0);
+  s += `  → CM_SHA_INIT (${firstChunk.length} bytes)...\n`;
+  const initReq = makeCmShaInitReq(hashAlgo, firstChunk);
+  const initResp = emu.mailbox_execute(CMD_CM_SHA_INIT, initReq);
+  if (initResp == null || initResp.length < 8 + CM_SHA_CONTEXT_SIZE) {
+    s += `  ✗ INIT failed (got ${initResp ? initResp.length : 0} bytes)\n`;
+    return s;
+  }
+  const initBuf = new Uint8Array(initResp);
+  const initFips = readU32LE(initBuf, 4);
+  if (initFips !== 0) {
+    s += `  ✗ INIT fips_status: ${initFips}\n`;
+    return s;
+  }
+  let context = initBuf.slice(8, 8 + CM_SHA_CONTEXT_SIZE);
+  s += `  ✓ INIT OK\n`;
+
+  // UPDATE with middle chunks
+  for (let i = 1; i < chunks.length - 1; i++) {
+    s += `  → CM_SHA_UPDATE chunk ${i} (${chunks[i].length} bytes)...\n`;
+    const updateReq = makeCmShaUpdateReq(context, chunks[i]);
+    const updateResp = emu.mailbox_execute(CMD_CM_SHA_UPDATE, updateReq);
+    if (updateResp == null || updateResp.length < 8 + CM_SHA_CONTEXT_SIZE) {
+      s += `  ✗ UPDATE failed\n`;
+      return s;
+    }
+    const updateBuf = new Uint8Array(updateResp);
+    context = updateBuf.slice(8, 8 + CM_SHA_CONTEXT_SIZE);
+    s += `  ✓ UPDATE OK\n`;
+  }
+
+  // FINAL with last chunk (or empty if only one chunk was used in INIT)
+  const lastChunk = chunks.length > 1 ? chunks[chunks.length - 1] : new Uint8Array(0);
+  s += `  → CM_SHA_FINAL (${lastChunk.length} bytes)...\n`;
+  const finalReq = makeCmShaFinalReq(context, lastChunk);
+  const finalResp = emu.mailbox_execute(CMD_CM_SHA_FINAL, finalReq);
+  if (finalResp == null || finalResp.length < 12) {
+    s += `  ✗ FINAL failed (got ${finalResp ? finalResp.length : 0} bytes)\n`;
+    return s;
+  }
+  const finalBuf = new Uint8Array(finalResp);
+  const finalFips = readU32LE(finalBuf, 4);
+  if (finalFips !== 0) {
+    s += `  ✗ FINAL fips_status: ${finalFips}\n`;
+    return s;
+  }
+  // Response: [chksum:4][fips_status:4][data_len:4][hash:...]
+  const dataLen = readU32LE(finalBuf, 8);
+  const hash = finalBuf.slice(12, 12 + Math.min(dataLen, digestLen));
+  s += `  ✓ FINAL OK\n\n`;
+  s += `  ${algoName} digest (${hash.length} bytes):\n`;
+  s += `  ${hexBytes(hash, 0, hash.length)}\n`;
+
+  return s;
+}
+
 function readU32LE(buf, offset) {
   return (
     buf[offset] |
@@ -483,11 +614,6 @@ btnMboxSend.addEventListener("click", () => {
   }
 
   const cmdKey = mboxCmdSelect.value;
-  const cmd = MBOX_COMMANDS[cmdKey];
-  if (!cmd) {
-    mboxResponse.textContent = `Unknown command: ${cmdKey}`;
-    return;
-  }
 
   // Pause the run loop while executing the mailbox command
   const wasRunning = running;
@@ -499,11 +625,26 @@ btnMboxSend.addEventListener("click", () => {
     }
   }
 
-  mboxResponse.textContent = `Sending ${cmd.name} (0x${cmd.id.toString(16).padStart(8, "0")})...\n`;
-
   try {
-    const reqData = cmd.makeRequest();
-    const respData = emulator.mailbox_execute(cmd.id, reqData);
+    if (cmdKey === "CM_SHA_HASH") {
+      mboxResponse.textContent = executeCmShaHash(emulator);
+    } else {
+      const cmd = MBOX_COMMANDS[cmdKey];
+      if (!cmd) {
+        mboxResponse.textContent = `Unknown command: ${cmdKey}`;
+        return;
+      }
+      mboxResponse.textContent = `Sending ${cmd.name} (0x${cmd.id.toString(16).padStart(8, "0")})...\n`;
+      const reqData = cmd.makeRequest();
+      const respData = emulator.mailbox_execute(cmd.id, reqData);
+
+      if (respData == null) {
+        mboxResponse.textContent += "Command succeeded (no response data)\n";
+      } else {
+        const buf = new Uint8Array(respData);
+        mboxResponse.textContent += cmd.formatResponse(buf);
+      }
+    }
 
     // Drain any UART/log output produced during command execution
     const uart = emulator.get_uart_output();
@@ -515,13 +656,6 @@ btnMboxSend.addEventListener("click", () => {
     if (log) {
       logOutput.textContent += log;
       logOutput.scrollTop = logOutput.scrollHeight;
-    }
-
-    if (respData == null) {
-      mboxResponse.textContent += "Command succeeded (no response data)\n";
-    } else {
-      const buf = new Uint8Array(respData);
-      mboxResponse.textContent += cmd.formatResponse(buf);
     }
   } catch (err) {
     mboxResponse.textContent += `Error: ${err}\n`;

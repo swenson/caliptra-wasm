@@ -298,8 +298,22 @@
       <option value="FW_INFO">FW_INFO (0x494E464F)</option>
       <option value="FIPS_VERSION">FIPS_VERSION (0x46505652)</option>
       <option value="CAPABILITIES">CAPABILITIES (0x43415053)</option>
+      <option value="CM_SHA_HASH">CM SHA Hash (INIT→UPDATE→FINAL)</option>
     </select>
     <button id="btn-mbox-send" disabled>Send</button>
+  </div>
+  <div id="mbox-params" style="display:none; margin-bottom: 10px;">
+    <div class="form-row">
+      <label for="mbox-sha-algo">Hash Algorithm:</label>
+      <select id="mbox-sha-algo">
+        <option value="1">SHA-384</option>
+        <option value="2">SHA-512</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="mbox-sha-input">Input Data:</label>
+      <input type="text" id="mbox-sha-input" placeholder="Text to hash (UTF-8)" value="hello world" spellcheck="false">
+    </div>
   </div>
   <div id="mbox-response" style="
     background: #11111b;
