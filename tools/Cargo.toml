@@ -1,0 +1,25 @@
+# Licensed under the Apache-2.0 license
+# Helper tool to extract PK hashes from a Caliptra FW image bundle.
+
+[package]
+name = "caliptra-wasm-hash-tool"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "build-default-assets"
+path = "src/build_default_assets.rs"
+
+[[bin]]
+name = "extract-pk-hashes"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+caliptra-builder = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056", default-features = false, features = ["rustcrypto"] }
+caliptra-image-types = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056", default-features = false, package = "caliptra-image-types", features = ["std"] }
+sha2 = "0.10"
+zerocopy = { version = "0.8", features = ["derive"] }
+
+[patch.crates-io]
+openssl = { git = "https://github.com/clundin25/rust-openssl.git", rev = "4ada1c1d7c264e052e7bb71ecddbd196a5c2a0c7" }
