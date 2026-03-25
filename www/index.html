@@ -244,16 +244,22 @@
   <div class="form-row">
     <label for="lifecycle">Device Lifecycle:</label>
     <select id="lifecycle">
-      <option value="manufacturing" selected>Manufacturing</option>
+      <option value="production" selected>Production</option>
+      <option value="manufacturing">Manufacturing</option>
       <option value="unprovisioned">Unprovisioned</option>
-      <option value="production">Production</option>
     </select>
   </div>
 
   <div class="form-row">
     <label for="subsystem-mode">Subsystem Mode:</label>
-    <input type="checkbox" id="subsystem-mode">
+    <input type="checkbox" id="subsystem-mode" checked>
     <span class="rom-info">Enable SoC/subsystem boot flow</span>
+  </div>
+
+  <div class="form-row">
+    <label for="ocp-lock">OCP Lock:</label>
+    <input type="checkbox" id="ocp-lock" checked>
+    <span class="rom-info">Enable OCP lock</span>
   </div>
 
   <p class="help">

@@ -85,6 +85,7 @@ impl CaliptraEmulator {
     /// * `soc_manifest` - Optional SoC manifest (authorization manifest bytes)
     /// * `lifecycle` - Device lifecycle: "unprovisioned", "manufacturing", or "production"
     /// * `subsystem_mode` - Whether to boot the emulator in subsystem mode
+    /// * `ocp_lock` - Whether to enable OCP lock
     /// * `mcu_fw` - Optional MCU firmware image for subsystem mode
     #[wasm_bindgen(constructor)]
     #[allow(clippy::too_many_arguments)]
@@ -96,6 +97,7 @@ impl CaliptraEmulator {
         soc_manifest: Option<Vec<u8>>,
         lifecycle: &str,
         subsystem_mode: bool,
+        ocp_lock: bool,
         mcu_fw: Option<Vec<u8>>,
     ) -> Result<CaliptraEmulator, JsValue> {
         // Parse PK hashes
@@ -132,6 +134,7 @@ impl CaliptraEmulator {
             log_writer: Box::new(log_buffer.clone()),
             security_state: *SecurityState::default().set_device_lifecycle(device_lifecycle),
             subsystem_mode,
+            ocp_lock_en: ocp_lock,
             cptra_obf_key: DEFAULT_CPTRA_OBF_KEY,
             csr_hmac_key: DEFAULT_CSR_HMAC_KEY,
             itrng_nibbles,

@@ -14,6 +14,7 @@ const vendorPkInput = document.getElementById("vendor-pk");
 const ownerPkInput = document.getElementById("owner-pk");
 const lifecycleSelect = document.getElementById("lifecycle");
 const subsystemModeInput = document.getElementById("subsystem-mode");
+const ocpLockInput = document.getElementById("ocp-lock");
 const btnRun = document.getElementById("btn-run");
 const btnStop = document.getElementById("btn-stop");
 const btnReset = document.getElementById("btn-reset");
@@ -172,6 +173,7 @@ function createEmulator() {
   const mcuFw = getMcuFw();
   const lifecycle = lifecycleSelect.value;
   const subsystemMode = subsystemModeInput.checked;
+  const ocpLock = ocpLockInput.checked;
 
   try {
     // Free previous emulator if any
@@ -187,6 +189,7 @@ function createEmulator() {
       socManifest,
       lifecycle,
       subsystemMode,
+      ocpLock,
       mcuFw
     );
 
@@ -270,6 +273,7 @@ btnRun.addEventListener("click", () => {
   ownerPkInput.disabled = true;
   lifecycleSelect.disabled = true;
   subsystemModeInput.disabled = true;
+  ocpLockInput.disabled = true;
 
   animFrameId = requestAnimationFrame(runLoop);
 });
@@ -309,6 +313,7 @@ btnReset.addEventListener("click", () => {
   ownerPkInput.disabled = false;
   lifecycleSelect.disabled = false;
   subsystemModeInput.disabled = false;
+  ocpLockInput.disabled = false;
 });
 
 function setStatus(text, className) {
