@@ -1,7 +1,7 @@
 // Licensed under the Apache-2.0 license
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use caliptra_builder::firmware;
@@ -28,7 +28,7 @@ fn main() -> Result<()> {
     result
 }
 
-fn build_assets(output_dir: &PathBuf) -> Result<()> {
+fn build_assets(output_dir: &Path) -> Result<()> {
     let rom = caliptra_builder::build_firmware_rom(&firmware::ROM_WITH_UART)
         .context("Failed to build default ROM image")?;
     let rom_path = output_dir.join("default-rom.bin");
