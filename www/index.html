@@ -289,6 +289,36 @@
   <div id="uart-output"></div>
 </div>
 
+<!-- Mailbox Commands -->
+<div class="panel">
+  <h2>Mailbox Commands</h2>
+  <div class="form-row">
+    <label for="mbox-cmd">Command:</label>
+    <select id="mbox-cmd">
+      <option value="FW_INFO">FW_INFO (0x494E464F)</option>
+      <option value="FIPS_VERSION">FIPS_VERSION (0x46505652)</option>
+      <option value="CAPABILITIES">CAPABILITIES (0x43415053)</option>
+    </select>
+    <button id="btn-mbox-send" disabled>Send</button>
+  </div>
+  <div id="mbox-response" style="
+    background: #11111b;
+    color: #89b4fa;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    min-height: 60px;
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-top: 8px;
+  "></div>
+</div>
+
 <!-- Log Output (collapsible) -->
 <div class="panel">
   <details>

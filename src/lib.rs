@@ -222,4 +222,22 @@ impl CaliptraEmulator {
     pub fn boot_error(&self) -> Option<String> {
         self.boot_error.clone()
     }
+
+    /// Execute a mailbox command.
+    ///
+    /// Sends a raw mailbox command with the given opcode and request payload,
+    /// steps the emulator until the command completes, and returns the raw
+    /// response bytes. The request payload should include the MailboxReqHeader
+    /// (4-byte checksum) if the firmware expects it.
+    ///
+    /// Returns the response bytes on success, or a JS error string on failure.
+    pub fn mailbox_execute(
+        &mut self,
+        cmd: u32,
+        request: &[u8],
+    ) -> Result<Option<Vec<u8>>, JsValue> {
+        self.model
+            .mailbox_execute(cmd, request)
+            .map_err(|e| JsValue::from_str(&format!("Mailbox error: {e:?}")))
+    }
 }

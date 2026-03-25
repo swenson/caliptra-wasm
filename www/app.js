@@ -22,6 +22,9 @@ const statusEl = document.getElementById("status");
 const statsEl = document.getElementById("stats");
 const uartOutput = document.getElementById("uart-output");
 const logOutput = document.getElementById("log-output");
+const mboxCmdSelect = document.getElementById("mbox-cmd");
+const btnMboxSend = document.getElementById("btn-mbox-send");
+const mboxResponse = document.getElementById("mbox-response");
 
 // State
 let emulator = null;
@@ -246,6 +249,7 @@ function runLoop() {
     );
     btnRun.disabled = true;
     btnStop.disabled = true;
+    btnMboxSend.disabled = false;
     return;
   }
 
@@ -274,6 +278,7 @@ btnRun.addEventListener("click", () => {
   lifecycleSelect.disabled = true;
   subsystemModeInput.disabled = true;
   ocpLockInput.disabled = true;
+  btnMboxSend.disabled = true;
 
   animFrameId = requestAnimationFrame(runLoop);
 });
@@ -287,6 +292,7 @@ btnStop.addEventListener("click", () => {
   setStatus("Stopped", "stopped");
   btnRun.disabled = false;
   btnStop.disabled = true;
+  btnMboxSend.disabled = false;
 });
 
 btnReset.addEventListener("click", () => {
@@ -301,10 +307,12 @@ btnReset.addEventListener("click", () => {
   }
   uartOutput.textContent = "";
   logOutput.textContent = "";
+  mboxResponse.textContent = "";
   statsEl.textContent = "";
   setStatus("Ready", "");
   btnRun.disabled = false;
   btnStop.disabled = true;
+  btnMboxSend.disabled = true;
   romFileInput.disabled = false;
   fwFileInput.disabled = false;
   socManifestFileInput.disabled = false;
@@ -320,6 +328,172 @@ function setStatus(text, className) {
   statusEl.textContent = text;
   statusEl.className = "status" + (className ? " " + className : "");
 }
+
+// --- Mailbox command definitions ---
+
+const MBOX_COMMANDS = {
+  FW_INFO: {
+    id: 0x494E464F,
+    name: "FW_INFO",
+    makeRequest: () => new Uint8Array(4), // MailboxReqHeader (checksum=0)
+    formatResponse: formatFwInfoResp,
+  },
+  FIPS_VERSION: {
+    id: 0x46505652,
+    name: "FIPS_VERSION",
+    makeRequest: () => new Uint8Array(4),
+    formatResponse: formatFipsVersionResp,
+  },
+  CAPABILITIES: {
+    id: 0x43415053,
+    name: "CAPABILITIES",
+    makeRequest: () => new Uint8Array(4),
+    formatResponse: formatCapabilitiesResp,
+  },
+};
+
+function readU32LE(buf, offset) {
+  return (
+    buf[offset] |
+    (buf[offset + 1] << 8) |
+    (buf[offset + 2] << 16) |
+    (buf[offset + 3] << 24)
+  ) >>> 0;
+}
+
+function hexBytes(buf, offset, len) {
+  return Array.from(buf.slice(offset, offset + len))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function hexU32BE(words, offset, count) {
+  let s = "";
+  for (let i = 0; i < count; i++) {
+    s += words[i + offset].toString(16).padStart(8, "0");
+  }
+  return s;
+}
+
+function readU32LEArray(buf, offset, count) {
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    result.push(readU32LE(buf, offset + i * 4));
+  }
+  return result;
+}
+
+function formatRespHeader(buf) {
+  const chksum = readU32LE(buf, 0);
+  const fipsStatus = readU32LE(buf, 4);
+  return `  chksum:      0x${chksum.toString(16).padStart(8, "0")}\n` +
+         `  fips_status: ${fipsStatus === 0 ? "APPROVED (0)" : fipsStatus}\n`;
+}
+
+function formatFwInfoResp(buf) {
+  if (buf.length < 8) return "Error: response too short";
+  let s = "FwInfoResp:\n" + formatRespHeader(buf);
+  if (buf.length < 196) {
+    s += `  (truncated — got ${buf.length} bytes, expected ≥196)\n`;
+    s += `  raw: ${hexBytes(buf, 8, buf.length - 8)}\n`;
+    return s;
+  }
+  let off = 8;
+  s += `  pl0_pauser:              ${readU32LE(buf, off)}\n`; off += 4;
+  s += `  fw_svn:                  ${readU32LE(buf, off)}\n`; off += 4;
+  s += `  min_fw_svn:              ${readU32LE(buf, off)}\n`; off += 4;
+  s += `  cold_boot_fw_svn:        ${readU32LE(buf, off)}\n`; off += 4;
+  s += `  attestation_disabled:    ${readU32LE(buf, off)}\n`; off += 4;
+  s += `  rom_revision:            ${hexBytes(buf, off, 20)}\n`; off += 20;
+  s += `  fmc_revision:            ${hexBytes(buf, off, 20)}\n`; off += 20;
+  s += `  runtime_revision:        ${hexBytes(buf, off, 20)}\n`; off += 20;
+  const romDigest = readU32LEArray(buf, off, 8); off += 32;
+  s += `  rom_sha256_digest:       ${hexU32BE(romDigest, 0, 8)}\n`;
+  const fmcDigest = readU32LEArray(buf, off, 12); off += 48;
+  s += `  fmc_sha384_digest:       ${hexU32BE(fmcDigest, 0, 12)}\n`;
+  const rtDigest = readU32LEArray(buf, off, 12); off += 48;
+  s += `  runtime_sha384_digest:   ${hexU32BE(rtDigest, 0, 12)}\n`;
+  const ownerPk = readU32LEArray(buf, off, 12); off += 48;
+  s += `  owner_pub_key_hash:      ${hexU32BE(ownerPk, 0, 12)}\n`;
+  const authmanDigest = readU32LEArray(buf, off, 12); off += 48;
+  s += `  authman_sha384_digest:   ${hexU32BE(authmanDigest, 0, 12)}\n`;
+  s += `  most_recent_fw_error:    0x${readU32LE(buf, off).toString(16).padStart(8, "0")}\n`;
+  return s;
+}
+
+function formatFipsVersionResp(buf) {
+  if (buf.length < 8) return "Error: response too short";
+  let s = "FipsVersionResp:\n" + formatRespHeader(buf);
+  if (buf.length < 32) {
+    s += `  (truncated — got ${buf.length} bytes)\n`;
+    return s;
+  }
+  let off = 8;
+  s += `  mode:     ${readU32LE(buf, off)}\n`; off += 4;
+  const rev0 = readU32LE(buf, off); off += 4;
+  const rev1 = readU32LE(buf, off); off += 4;
+  const rev2 = readU32LE(buf, off); off += 4;
+  s += `  fips_rev: [${rev0}, ${rev1}, ${rev2}]\n`;
+  const nameBytes = buf.slice(off, off + 12);
+  const name = new TextDecoder().decode(nameBytes).replace(/\0+$/, "");
+  s += `  name:     "${name}"\n`;
+  return s;
+}
+
+function formatCapabilitiesResp(buf) {
+  if (buf.length < 8) return "Error: response too short";
+  let s = "CapabilitiesResp:\n" + formatRespHeader(buf);
+  if (buf.length < 24) {
+    s += `  (truncated — got ${buf.length} bytes)\n`;
+    return s;
+  }
+  s += `  capabilities: ${hexBytes(buf, 8, 16)}\n`;
+  return s;
+}
+
+// --- Mailbox Send handler ---
+
+btnMboxSend.addEventListener("click", () => {
+  if (!emulator) {
+    mboxResponse.textContent = "Error: no emulator instance";
+    return;
+  }
+
+  const cmdKey = mboxCmdSelect.value;
+  const cmd = MBOX_COMMANDS[cmdKey];
+  if (!cmd) {
+    mboxResponse.textContent = `Unknown command: ${cmdKey}`;
+    return;
+  }
+
+  mboxResponse.textContent = `Sending ${cmd.name} (0x${cmd.id.toString(16).padStart(8, "0")})...\n`;
+
+  try {
+    const reqData = cmd.makeRequest();
+    const respData = emulator.mailbox_execute(cmd.id, reqData);
+
+    // Drain any UART/log output produced during command execution
+    const uart = emulator.get_uart_output();
+    if (uart) {
+      uartOutput.textContent += uart;
+      uartOutput.scrollTop = uartOutput.scrollHeight;
+    }
+    const log = emulator.get_log();
+    if (log) {
+      logOutput.textContent += log;
+      logOutput.scrollTop = logOutput.scrollHeight;
+    }
+
+    if (respData == null) {
+      mboxResponse.textContent += "Command succeeded (no response data)\n";
+    } else {
+      const buf = new Uint8Array(respData);
+      mboxResponse.textContent += cmd.formatResponse(buf);
+    }
+  } catch (err) {
+    mboxResponse.textContent += `Error: ${err}\n`;
+  }
+});
 
 // Start
 startup();
