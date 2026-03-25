@@ -84,7 +84,10 @@ impl CaliptraEmulator {
     /// * `fw_image` - Optional firmware image bundle (serialized ImageBundle)
     /// * `soc_manifest` - Optional SoC manifest (authorization manifest bytes)
     /// * `lifecycle` - Device lifecycle: "unprovisioned", "manufacturing", or "production"
+    /// * `subsystem_mode` - Whether to boot the emulator in subsystem mode
+    /// * `mcu_fw` - Optional MCU firmware image for subsystem mode
     #[wasm_bindgen(constructor)]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rom: &[u8],
         vendor_pk_hash_hex: &str,
@@ -92,6 +95,8 @@ impl CaliptraEmulator {
         fw_image: Option<Vec<u8>>,
         soc_manifest: Option<Vec<u8>>,
         lifecycle: &str,
+        subsystem_mode: bool,
+        mcu_fw: Option<Vec<u8>>,
     ) -> Result<CaliptraEmulator, JsValue> {
         // Parse PK hashes
         let vendor_pk_hash =
@@ -126,6 +131,7 @@ impl CaliptraEmulator {
             fuses,
             log_writer: Box::new(log_buffer.clone()),
             security_state: *SecurityState::default().set_device_lifecycle(device_lifecycle),
+            subsystem_mode,
             cptra_obf_key: DEFAULT_CPTRA_OBF_KEY,
             csr_hmac_key: DEFAULT_CSR_HMAC_KEY,
             itrng_nibbles,
@@ -140,6 +146,7 @@ impl CaliptraEmulator {
         let boot_params = BootParams {
             fw_image: fw_image.as_deref(),
             soc_manifest: soc_manifest.as_deref(),
+            mcu_fw_image: mcu_fw.as_deref(),
             ..Default::default()
         };
 

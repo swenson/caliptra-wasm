@@ -91,6 +91,10 @@
   input[type="file"] {
     cursor: pointer;
   }
+  input[type="checkbox"] {
+    accent-color: var(--accent);
+    transform: scale(1.1);
+  }
   .rom-info {
     font-size: 0.75rem;
     color: var(--muted);
@@ -216,7 +220,13 @@
   <div class="form-row">
     <label for="soc-manifest-file">SoC Manifest:</label>
     <input type="file" id="soc-manifest-file" accept=".bin,.manifest">
-    <span class="rom-info" id="soc-manifest-info">(optional)</span>
+    <span class="rom-info" id="soc-manifest-info">(optional — default loaded for subsystem mode)</span>
+  </div>
+
+  <div class="form-row">
+    <label for="mcu-fw-file">MCU Firmware:</label>
+    <input type="file" id="mcu-fw-file" accept=".bin">
+    <span class="rom-info" id="mcu-fw-info">(optional — default loaded for subsystem mode)</span>
   </div>
 
   <div class="form-row">
@@ -240,11 +250,17 @@
     </select>
   </div>
 
+  <div class="form-row">
+    <label for="subsystem-mode">Subsystem Mode:</label>
+    <input type="checkbox" id="subsystem-mode">
+    <span class="rom-info">Enable SoC/subsystem boot flow</span>
+  </div>
+
   <p class="help">
     Leave PK hashes empty for all-zeros (unprovisioned mode).
     Default ROM is the frozen 2.1 release with UART logging.
     Default FW bundle is built with test keys (vendor PK hash pre-filled).
-    SoC manifest is only needed for subsystem mode.
+    Enable subsystem mode to boot through the subsystem flow; SoC manifest is only needed in that mode.
     Manufacturing lifecycle validates PK hashes; Unprovisioned skips validation.
   </p>
 </div>

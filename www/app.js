@@ -8,9 +8,12 @@ const fwFileInput = document.getElementById("fw-file");
 const fwInfo = document.getElementById("fw-info");
 const socManifestFileInput = document.getElementById("soc-manifest-file");
 const socManifestInfo = document.getElementById("soc-manifest-info");
+const mcuFwFileInput = document.getElementById("mcu-fw-file");
+const mcuFwInfo = document.getElementById("mcu-fw-info");
 const vendorPkInput = document.getElementById("vendor-pk");
 const ownerPkInput = document.getElementById("owner-pk");
 const lifecycleSelect = document.getElementById("lifecycle");
+const subsystemModeInput = document.getElementById("subsystem-mode");
 const btnRun = document.getElementById("btn-run");
 const btnStop = document.getElementById("btn-stop");
 const btnReset = document.getElementById("btn-reset");
@@ -28,6 +31,9 @@ let customRom = null;
 let defaultFw = null;
 let customFw = null;
 let customSocManifest = null;
+let defaultSocManifest = null;
+let defaultMcuFw = null;
+let customMcuFw = null;
 let startTime = 0;
 
 // Steps per animation frame — balance between speed and UI responsiveness
@@ -40,10 +46,12 @@ async function startup() {
     setStatus("Loading defaults...", "");
 
     // Load default ROM, FW, and hash defaults in parallel
-    const [romResp, fwResp, defaultsResp] = await Promise.allSettled([
+    const [romResp, fwResp, defaultsResp, socManifestResp, mcuFwResp] = await Promise.allSettled([
       fetch("default-rom.bin"),
       fetch("default-fw.bin"),
       fetch("defaults.json"),
+      fetch("default-soc-manifest.bin"),
+      fetch("default-mcu-fw.bin"),
     ]);
 
     if (romResp.status === "fulfilled" && romResp.value.ok) {
@@ -68,6 +76,14 @@ async function startup() {
       if (defaults.owner_pk_hash && defaults.owner_pk_hash !== "0".repeat(96)) {
         ownerPkInput.value = defaults.owner_pk_hash;
       }
+    }
+
+    if (socManifestResp.status === "fulfilled" && socManifestResp.value.ok) {
+      defaultSocManifest = new Uint8Array(await socManifestResp.value.arrayBuffer());
+    }
+
+    if (mcuFwResp.status === "fulfilled" && mcuFwResp.value.ok) {
+      defaultMcuFw = new Uint8Array(await mcuFwResp.value.arrayBuffer());
     }
 
     setStatus("Ready", "");
@@ -115,6 +131,18 @@ socManifestFileInput.addEventListener("change", (e) => {
   reader.readAsArrayBuffer(file);
 });
 
+// Handle MCU firmware file upload
+mcuFwFileInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    customMcuFw = new Uint8Array(reader.result);
+    mcuFwInfo.textContent = `${file.name} (${customMcuFw.length} bytes)`;
+  };
+  reader.readAsArrayBuffer(file);
+});
+
 // Get the ROM/FW to use (custom upload takes priority)
 function getRom() {
   return customRom || defaultRom;
@@ -123,7 +151,10 @@ function getFw() {
   return customFw || defaultFw || null;
 }
 function getSocManifest() {
-  return customSocManifest || null;
+  return customSocManifest || defaultSocManifest || null;
+}
+function getMcuFw() {
+  return customMcuFw || defaultMcuFw || null;
 }
 
 // Create emulator instance
@@ -138,7 +169,9 @@ function createEmulator() {
   const ownerPk = ownerPkInput.value.trim();
   const fw = getFw();
   const socManifest = getSocManifest();
+  const mcuFw = getMcuFw();
   const lifecycle = lifecycleSelect.value;
+  const subsystemMode = subsystemModeInput.checked;
 
   try {
     // Free previous emulator if any
@@ -146,7 +179,16 @@ function createEmulator() {
       emulator.free();
       emulator = null;
     }
-    emulator = new CaliptraEmulator(rom, vendorPk, ownerPk, fw, socManifest, lifecycle);
+    emulator = new CaliptraEmulator(
+      rom,
+      vendorPk,
+      ownerPk,
+      fw,
+      socManifest,
+      lifecycle,
+      subsystemMode,
+      mcuFw
+    );
 
     // Check for boot error — show logs even if boot failed
     const bootErr = emulator.boot_error();
@@ -223,9 +265,11 @@ btnRun.addEventListener("click", () => {
   romFileInput.disabled = true;
   fwFileInput.disabled = true;
   socManifestFileInput.disabled = true;
+  mcuFwFileInput.disabled = true;
   vendorPkInput.disabled = true;
   ownerPkInput.disabled = true;
   lifecycleSelect.disabled = true;
+  subsystemModeInput.disabled = true;
 
   animFrameId = requestAnimationFrame(runLoop);
 });
@@ -260,9 +304,11 @@ btnReset.addEventListener("click", () => {
   romFileInput.disabled = false;
   fwFileInput.disabled = false;
   socManifestFileInput.disabled = false;
+  mcuFwFileInput.disabled = false;
   vendorPkInput.disabled = false;
   ownerPkInput.disabled = false;
   lifecycleSelect.disabled = false;
+  subsystemModeInput.disabled = false;
 });
 
 function setStatus(text, className) {

@@ -4,10 +4,13 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use caliptra_auth_man_gen::default_test_manifest::{default_test_soc_manifest, DEFAULT_MCU_FW};
 use caliptra_builder::firmware;
 use caliptra_builder::version;
 use caliptra_builder::ImageOptions;
+use caliptra_image_crypto::RustCrypto;
 use caliptra_image_types::FwVerificationPqcKeyType;
+use zerocopy::IntoBytes;
 
 fn main() -> Result<()> {
     let output_dir = env::args_os()
@@ -74,6 +77,33 @@ fn build_assets(output_dir: &Path) -> Result<()> {
     )
     .with_context(|| format!("Failed to write {}", defaults_path.display()))?;
     println!("Wrote {}", defaults_path.display());
+
+    // Generate default SoC manifest for subsystem mode (signed with test keys).
+    // Must use the same PQC key type as the FW image above.
+    let soc_manifest = default_test_soc_manifest(
+        &DEFAULT_MCU_FW,
+        FwVerificationPqcKeyType::MLDSA,
+        1,
+        RustCrypto::default(),
+    );
+    let soc_manifest_path = output_dir.join("default-soc-manifest.bin");
+    std::fs::write(&soc_manifest_path, soc_manifest.as_bytes())
+        .with_context(|| format!("Failed to write {}", soc_manifest_path.display()))?;
+    println!(
+        "Wrote {} ({} bytes)",
+        soc_manifest_path.display(),
+        soc_manifest.as_bytes().len()
+    );
+
+    // Write default MCU firmware (infinite loop) for subsystem mode
+    let mcu_fw_path = output_dir.join("default-mcu-fw.bin");
+    std::fs::write(&mcu_fw_path, DEFAULT_MCU_FW)
+        .with_context(|| format!("Failed to write {}", mcu_fw_path.display()))?;
+    println!(
+        "Wrote {} ({} bytes)",
+        mcu_fw_path.display(),
+        DEFAULT_MCU_FW.len()
+    );
 
     Ok(())
 }
