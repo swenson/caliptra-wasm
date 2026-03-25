@@ -207,6 +207,7 @@ function createEmulator() {
       logOutput.textContent = "";
     }
     statsEl.textContent = "";
+    btnMboxSend.disabled = false;
     return true;
   } catch (err) {
     setStatus(`Error: ${err}`, "exited");
@@ -249,7 +250,6 @@ function runLoop() {
     );
     btnRun.disabled = true;
     btnStop.disabled = true;
-    btnMboxSend.disabled = false;
     return;
   }
 
@@ -278,7 +278,6 @@ btnRun.addEventListener("click", () => {
   lifecycleSelect.disabled = true;
   subsystemModeInput.disabled = true;
   ocpLockInput.disabled = true;
-  btnMboxSend.disabled = true;
 
   animFrameId = requestAnimationFrame(runLoop);
 });
@@ -292,7 +291,6 @@ btnStop.addEventListener("click", () => {
   setStatus("Stopped", "stopped");
   btnRun.disabled = false;
   btnStop.disabled = true;
-  btnMboxSend.disabled = false;
 });
 
 btnReset.addEventListener("click", () => {
@@ -335,22 +333,47 @@ const MBOX_COMMANDS = {
   FW_INFO: {
     id: 0x494E464F,
     name: "FW_INFO",
-    makeRequest: () => new Uint8Array(4), // MailboxReqHeader (checksum=0)
+    makeRequest: () => makeHeaderOnlyRequest(0x494E464F),
     formatResponse: formatFwInfoResp,
   },
   FIPS_VERSION: {
     id: 0x46505652,
     name: "FIPS_VERSION",
-    makeRequest: () => new Uint8Array(4),
+    makeRequest: () => makeHeaderOnlyRequest(0x46505652),
     formatResponse: formatFipsVersionResp,
   },
   CAPABILITIES: {
     id: 0x43415053,
     name: "CAPABILITIES",
-    makeRequest: () => new Uint8Array(4),
+    makeRequest: () => makeHeaderOnlyRequest(0x43415053),
     formatResponse: formatCapabilitiesResp,
   },
 };
+
+// Caliptra checksum: 0 - (SUM(cmd LE bytes) + SUM(payload after checksum field))
+function calcChecksum(cmdId, payloadAfterChecksum) {
+  let sum = 0;
+  // Add command ID bytes (little-endian)
+  for (let i = 0; i < 4; i++) {
+    sum = (sum + ((cmdId >>> (i * 8)) & 0xff)) >>> 0;
+  }
+  // Add payload bytes after the checksum field
+  for (const b of payloadAfterChecksum) {
+    sum = (sum + b) >>> 0;
+  }
+  return (0x100000000 - sum) >>> 0;
+}
+
+function makeHeaderOnlyRequest(cmdId) {
+  // MailboxReqHeader is just a 4-byte checksum; no payload after it
+  const buf = new Uint8Array(4);
+  const chksum = calcChecksum(cmdId, new Uint8Array(0));
+  buf[0] = chksum & 0xff;
+  buf[1] = (chksum >>> 8) & 0xff;
+  buf[2] = (chksum >>> 16) & 0xff;
+  buf[3] = (chksum >>> 24) & 0xff;
+  return buf;
+}
 
 function readU32LE(buf, offset) {
   return (
@@ -466,6 +489,16 @@ btnMboxSend.addEventListener("click", () => {
     return;
   }
 
+  // Pause the run loop while executing the mailbox command
+  const wasRunning = running;
+  if (wasRunning) {
+    running = false;
+    if (animFrameId) {
+      cancelAnimationFrame(animFrameId);
+      animFrameId = null;
+    }
+  }
+
   mboxResponse.textContent = `Sending ${cmd.name} (0x${cmd.id.toString(16).padStart(8, "0")})...\n`;
 
   try {
@@ -492,6 +525,12 @@ btnMboxSend.addEventListener("click", () => {
     }
   } catch (err) {
     mboxResponse.textContent += `Error: ${err}\n`;
+  }
+
+  // Resume the run loop if it was running
+  if (wasRunning) {
+    running = true;
+    animFrameId = requestAnimationFrame(runLoop);
   }
 });
 
