@@ -241,3 +241,95 @@ impl CaliptraEmulator {
             .map_err(|e| JsValue::from_str(&format!("Mailbox error: {e:?}")))
     }
 }
+
+// ---------------------------------------------------------------------------
+// MCU Emulator (combined Caliptra + MCU subsystem)
+// ---------------------------------------------------------------------------
+
+/// The MCU emulator wrapping both Caliptra and MCU CPUs, exposed to JavaScript.
+#[wasm_bindgen]
+pub struct McuEmulator {
+    model: mcu_hw_model::ModelEmulated,
+    log_buffer: SharedBuffer,
+    total_steps: u64,
+}
+
+#[wasm_bindgen]
+impl McuEmulator {
+    /// Create a new MCU emulator instance.
+    ///
+    /// # Arguments
+    /// * `caliptra_rom` - The Caliptra ROM binary
+    /// * `caliptra_fw` - The Caliptra firmware bundle
+    /// * `soc_manifest` - The SoC authorization manifest
+    /// * `mcu_rom` - The MCU ROM binary
+    /// * `mcu_firmware` - The MCU runtime firmware
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        caliptra_rom: &[u8],
+        caliptra_fw: &[u8],
+        soc_manifest: &[u8],
+        mcu_rom: &[u8],
+        mcu_firmware: &[u8],
+    ) -> Result<McuEmulator, JsValue> {
+        let log_buffer = SharedBuffer(Rc::new(RefCell::new(Vec::new())));
+
+        let trng_seed: u64 = 42;
+        let itrng_nibbles: Box<dyn Iterator<Item = u8> + Send> =
+            Box::new(RandomNibbles(StdRng::seed_from_u64(trng_seed)));
+        let etrng_responses: Box<dyn Iterator<Item = EtrngResponse> + Send> =
+            Box::new(RandomEtrngResponses(StdRng::seed_from_u64(trng_seed)));
+
+        let init_params = mcu_hw_model::InitParams {
+            caliptra_rom,
+            caliptra_firmware: caliptra_fw,
+            soc_manifest,
+            mcu_rom,
+            mcu_firmware,
+            log_writer: Box::new(log_buffer.clone()),
+            itrng_nibbles,
+            etrng_responses,
+            random_sram_puf: false,
+            ..Default::default()
+        };
+
+        let model = {
+            use mcu_hw_model::McuHwModel;
+            mcu_hw_model::ModelEmulated::new_unbooted(init_params)
+                .map_err(|e| JsValue::from_str(&format!("Failed to create MCU emulator: {e}")))?
+        };
+
+        Ok(McuEmulator {
+            model,
+            log_buffer,
+            total_steps: 0,
+        })
+    }
+
+    /// Step both CPUs by `n` clock cycles.
+    pub fn step(&mut self, n: u32) {
+        use mcu_hw_model::McuHwModel;
+        for _ in 0..n {
+            self.model.step();
+            self.total_steps += 1;
+        }
+    }
+
+    /// Get accumulated UART output text since the last call.
+    pub fn get_uart_output(&mut self) -> String {
+        use mcu_hw_model::McuHwModel;
+        self.model.output().take(usize::MAX)
+    }
+
+    /// Get the full log buffer contents.
+    pub fn get_log(&mut self) -> String {
+        let bytes = self.log_buffer.0.borrow().clone();
+        self.log_buffer.0.borrow_mut().clear();
+        String::from_utf8_lossy(&bytes).into_owned()
+    }
+
+    /// Get total steps executed.
+    pub fn total_steps(&self) -> u64 {
+        self.total_steps
+    }
+}
