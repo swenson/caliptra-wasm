@@ -75,6 +75,26 @@
     outline: none;
     border-color: var(--accent);
   }
+  textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 6px 10px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    width: 100%;
+    min-height: 60px;
+    resize: vertical;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  textarea:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
   select {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -295,12 +315,168 @@
   <div class="form-row">
     <label for="mbox-cmd">Command:</label>
     <select id="mbox-cmd">
-      <option value="FW_INFO">FW_INFO (0x494E464F)</option>
-      <option value="FIPS_VERSION">FIPS_VERSION (0x46505652)</option>
-      <option value="CAPABILITIES">CAPABILITIES (0x43415053)</option>
-      <option value="CM_SHA_HASH">CM SHA Hash (INIT→UPDATE→FINAL)</option>
+      <optgroup label="FIPS Commands">
+        <option value="VERSION">VERSION (0x46505652)</option>
+        <option value="SELF_TEST_START">SELF_TEST_START (0x46504C54)</option>
+        <option value="SELF_TEST_GET_RESULTS">SELF_TEST_GET_RESULTS (0x46504C67)</option>
+        <option value="SHUTDOWN">SHUTDOWN (0x46505344)</option>
+      </optgroup>
+      <optgroup label="Info / Status">
+        <option value="FW_INFO">FW_INFO (0x494E464F)</option>
+        <option value="CAPABILITIES">CAPABILITIES (0x43415053)</option>
+        <option value="GET_IMAGE_INFO">GET_IMAGE_INFO (0x494D4530)</option>
+        <option value="GET_MCU_FW_SIZE">GET_MCU_FW_SIZE (0x474D4653)</option>
+      </optgroup>
+      <optgroup label="Certificate Commands (ECC384)">
+        <option value="GET_IDEV_ECC384_CERT">GET_IDEV_ECC384_CERT (0x49444543)</option>
+        <option value="GET_IDEV_ECC384_INFO">GET_IDEV_ECC384_INFO (0x49444549)</option>
+        <option value="POPULATE_IDEV_ECC384_CERT">POPULATE_IDEV_ECC384_CERT (0x49444550)</option>
+        <option value="GET_LDEV_ECC384_CERT">GET_LDEV_ECC384_CERT (0x4C444556)</option>
+        <option value="GET_FMC_ALIAS_ECC384_CERT">GET_FMC_ALIAS_ECC384_CERT (0x43455246)</option>
+        <option value="GET_RT_ALIAS_ECC384_CERT">GET_RT_ALIAS_ECC384_CERT (0x43455252)</option>
+        <option value="GET_IDEV_ECC384_CSR">GET_IDEV_ECC384_CSR (0x49444352)</option>
+        <option value="GET_FMC_ALIAS_ECC384_CSR">GET_FMC_ALIAS_ECC384_CSR (0x464D4352)</option>
+        <option value="GET_ATTESTED_ECC384_CSR">GET_ATTESTED_ECC384_CSR (0x41454352)</option>
+      </optgroup>
+      <optgroup label="Certificate Commands (MLDSA87)">
+        <option value="GET_IDEV_MLDSA87_CERT">GET_IDEV_MLDSA87_CERT (0x49444D43)</option>
+        <option value="GET_IDEV_MLDSA87_INFO">GET_IDEV_MLDSA87_INFO (0x49444D49)</option>
+        <option value="POPULATE_IDEV_MLDSA87_CERT">POPULATE_IDEV_MLDSA87_CERT (0x49444D50)</option>
+        <option value="GET_LDEV_MLDSA87_CERT">GET_LDEV_MLDSA87_CERT (0x4C444D43)</option>
+        <option value="GET_FMC_ALIAS_MLDSA87_CERT">GET_FMC_ALIAS_MLDSA87_CERT (0x434D4346)</option>
+        <option value="GET_RT_ALIAS_MLDSA87_CERT">GET_RT_ALIAS_MLDSA87_CERT (0x434D4352)</option>
+        <option value="GET_IDEV_MLDSA87_CSR">GET_IDEV_MLDSA87_CSR (0x49444D52)</option>
+        <option value="GET_FMC_ALIAS_MLDSA87_CSR">GET_FMC_ALIAS_MLDSA87_CSR (0x464D4452)</option>
+        <option value="GET_ATTESTED_MLDSA87_CSR">GET_ATTESTED_MLDSA87_CSR (0x414D4352)</option>
+      </optgroup>
+      <optgroup label="Signature Verification">
+        <option value="ECDSA384_SIGNATURE_VERIFY">ECDSA384_SIGNATURE_VERIFY (0x45435632)</option>
+        <option value="LMS_SIGNATURE_VERIFY">LMS_SIGNATURE_VERIFY (0x4C4D5632)</option>
+        <option value="MLDSA87_SIGNATURE_VERIFY">MLDSA87_SIGNATURE_VERIFY (0x4D4C5632)</option>
+      </optgroup>
+      <optgroup label="Measurement / DPE">
+        <option value="STASH_MEASUREMENT">STASH_MEASUREMENT (0x4D454153)</option>
+        <option value="INVOKE_DPE_ECC384">INVOKE_DPE_ECC384 (0x44504543)</option>
+        <option value="INVOKE_DPE_MLDSA87">INVOKE_DPE_MLDSA87 (0x4450454D)</option>
+        <option value="DPE_TAG_TCI">DPE_TAG_TCI (0x54514754)</option>
+        <option value="DPE_GET_TAGGED_TCI">DPE_GET_TAGGED_TCI (0x47544744)</option>
+        <option value="REALLOCATE_DPE_CONTEXT_LIMITS">REALLOCATE_DPE_CONTEXT_LIMITS (0x52435458)</option>
+      </optgroup>
+      <optgroup label="PCR">
+        <option value="INCREMENT_PCR_RESET_COUNTER">INCREMENT_PCR_RESET_COUNTER (0x50435252)</option>
+        <option value="QUOTE_PCRS_ECC384">QUOTE_PCRS_ECC384 (0x50435251)</option>
+        <option value="QUOTE_PCRS_MLDSA87">QUOTE_PCRS_MLDSA87 (0x5043524D)</option>
+        <option value="EXTEND_PCR">EXTEND_PCR (0x50435245)</option>
+        <option value="GET_PCR_LOG">GET_PCR_LOG (0x504C4F47)</option>
+      </optgroup>
+      <optgroup label="Attestation">
+        <option value="DISABLE_ATTESTATION">DISABLE_ATTESTATION (0x4453424C)</option>
+        <option value="ADD_SUBJECT_ALT_NAME">ADD_SUBJECT_ALT_NAME (0x414C544E)</option>
+        <option value="CERTIFY_KEY_EXTENDED_ECC384">CERTIFY_KEY_EXTENDED_ECC384 (0x434B4558)</option>
+        <option value="CERTIFY_KEY_EXTENDED_MLDSA87">CERTIFY_KEY_EXTENDED_MLDSA87 (0x434B584D)</option>
+      </optgroup>
+      <optgroup label="Firmware">
+        <option value="ACTIVATE_FIRMWARE">ACTIVATE_FIRMWARE (0x41435446)</option>
+        <option value="FIRMWARE_LOAD">FIRMWARE_LOAD (0x46574C44)</option>
+        <option value="FIRMWARE_VERIFY">FIRMWARE_VERIFY (0x46575652)</option>
+      </optgroup>
+      <optgroup label="Auth Manifest">
+        <option value="SET_AUTH_MANIFEST">SET_AUTH_MANIFEST (0x41544D4E)</option>
+        <option value="VERIFY_AUTH_MANIFEST">VERIFY_AUTH_MANIFEST (0x4154564D)</option>
+        <option value="AUTHORIZE_AND_STASH">AUTHORIZE_AND_STASH (0x41545348)</option>
+      </optgroup>
+      <optgroup label="Recovery">
+        <option value="RI_DOWNLOAD_FIRMWARE">RI_DOWNLOAD_FIRMWARE (0x52494644)</option>
+        <option value="RI_DOWNLOAD_ENCRYPTED_FIRMWARE">RI_DOWNLOAD_ENCRYPTED_FIRMWARE (0x52494645)</option>
+      </optgroup>
+      <optgroup label="Key Management">
+        <option value="SIGN_WITH_EXPORTED_ECDSA">SIGN_WITH_EXPORTED_ECDSA (0x53574545)</option>
+        <option value="SIGN_WITH_EXPORTED_MLDSA">SIGN_WITH_EXPORTED_MLDSA (0x53574D4C)</option>
+        <option value="REVOKE_EXPORTED_CDI_HANDLE">REVOKE_EXPORTED_CDI_HANDLE (0x52564348)</option>
+        <option value="INSTALL_OWNER_PK_HASH">INSTALL_OWNER_PK_HASH (0x4F574E50)</option>
+        <option value="ZEROIZE_UDS_FE">ZEROIZE_UDS_FE (0x5A455546)</option>
+        <option value="FE_PROG">FE_PROG (0x46455052)</option>
+      </optgroup>
+      <optgroup label="Crypto Manager (CM)">
+        <option value="CM_SHA_HASH">CM SHA Hash — composite (INIT→UPDATE→FINAL)</option>
+        <option value="CM_STATUS">CM_STATUS (0x434D5354)</option>
+        <option value="CM_IMPORT">CM_IMPORT (0x434D494D)</option>
+        <option value="CM_DELETE">CM_DELETE (0x434D444C)</option>
+        <option value="CM_CLEAR">CM_CLEAR (0x434D434C)</option>
+        <option value="CM_SHA">CM_SHA (0x434D5348)</option>
+        <option value="CM_SHA_INIT">CM_SHA_INIT (0x434D5349)</option>
+        <option value="CM_SHA_UPDATE">CM_SHA_UPDATE (0x434D5355)</option>
+        <option value="CM_SHA_FINAL">CM_SHA_FINAL (0x434D5346)</option>
+        <option value="CM_SHAKE256_INIT">CM_SHAKE256_INIT (0x434D5849)</option>
+        <option value="CM_SHAKE256_UPDATE">CM_SHAKE256_UPDATE (0x434D5855)</option>
+        <option value="CM_SHAKE256_FINAL">CM_SHAKE256_FINAL (0x434D5846)</option>
+        <option value="CM_RANDOM_GENERATE">CM_RANDOM_GENERATE (0x434D5247)</option>
+        <option value="CM_RANDOM_STIR">CM_RANDOM_STIR (0x434D5253)</option>
+        <option value="CM_AES_ENCRYPT_INIT">CM_AES_ENCRYPT_INIT (0x434D4149)</option>
+        <option value="CM_AES_ENCRYPT_UPDATE">CM_AES_ENCRYPT_UPDATE (0x434D4155)</option>
+        <option value="CM_AES_DECRYPT_INIT">CM_AES_DECRYPT_INIT (0x434D414A)</option>
+        <option value="CM_AES_DECRYPT_UPDATE">CM_AES_DECRYPT_UPDATE (0x434D4156)</option>
+        <option value="CM_AES_GCM_ENCRYPT_INIT">CM_AES_GCM_ENCRYPT_INIT (0x434D4749)</option>
+        <option value="CM_AES_GCM_SPDM_ENCRYPT_INIT">CM_AES_GCM_SPDM_ENCRYPT_INIT (0x434D5345)</option>
+        <option value="CM_AES_GCM_ENCRYPT_UPDATE">CM_AES_GCM_ENCRYPT_UPDATE (0x434D4755)</option>
+        <option value="CM_AES_GCM_ENCRYPT_FINAL">CM_AES_GCM_ENCRYPT_FINAL (0x434D4746)</option>
+        <option value="CM_AES_GCM_DECRYPT_INIT">CM_AES_GCM_DECRYPT_INIT (0x434D4449)</option>
+        <option value="CM_AES_GCM_SPDM_DECRYPT_INIT">CM_AES_GCM_SPDM_DECRYPT_INIT (0x434D5344)</option>
+        <option value="CM_AES_GCM_DECRYPT_UPDATE">CM_AES_GCM_DECRYPT_UPDATE (0x434D4455)</option>
+        <option value="CM_AES_GCM_DECRYPT_FINAL">CM_AES_GCM_DECRYPT_FINAL (0x434D4446)</option>
+        <option value="CM_AES_GCM_DECRYPT_DMA">CM_AES_GCM_DECRYPT_DMA (0x434D4444)</option>
+        <option value="CM_ECDH_GENERATE">CM_ECDH_GENERATE (0x434D4547)</option>
+        <option value="CM_ECDH_FINISH">CM_ECDH_FINISH (0x434D4546)</option>
+        <option value="CM_HMAC">CM_HMAC (0x434D484D)</option>
+        <option value="CM_HMAC_KDF_COUNTER">CM_HMAC_KDF_COUNTER (0x434D4B43)</option>
+        <option value="CM_HKDF_EXTRACT">CM_HKDF_EXTRACT (0x434D4B54)</option>
+        <option value="CM_HKDF_EXPAND">CM_HKDF_EXPAND (0x434D4B50)</option>
+        <option value="CM_MLDSA_PUBLIC_KEY">CM_MLDSA_PUBLIC_KEY (0x434D4D50)</option>
+        <option value="CM_MLDSA_SIGN">CM_MLDSA_SIGN (0x434D4D53)</option>
+        <option value="CM_MLDSA_VERIFY">CM_MLDSA_VERIFY (0x434D4D56)</option>
+        <option value="CM_ECDSA_PUBLIC_KEY">CM_ECDSA_PUBLIC_KEY (0x434D4550)</option>
+        <option value="CM_ECDSA_SIGN">CM_ECDSA_SIGN (0x434D4553)</option>
+        <option value="CM_ECDSA_VERIFY">CM_ECDSA_VERIFY (0x434D4556)</option>
+        <option value="CM_DERIVE_STABLE_KEY">CM_DERIVE_STABLE_KEY (0x494D4453)</option>
+        <option value="CM_MLKEM_KEY_GEN">CM_MLKEM_KEY_GEN (0x434D4C4B)</option>
+        <option value="CM_MLKEM_ENCAPSULATE">CM_MLKEM_ENCAPSULATE (0x434D4C45)</option>
+        <option value="CM_MLKEM_DECAPSULATE">CM_MLKEM_DECAPSULATE (0x434D4C44)</option>
+      </optgroup>
+      <optgroup label="Debug">
+        <option value="MANUF_DEBUG_UNLOCK_REQ_TOKEN">MANUF_DEBUG_UNLOCK_REQ_TOKEN (0x4D445554)</option>
+        <option value="PRODUCTION_AUTH_DEBUG_UNLOCK_REQ">PRODUCTION_AUTH_DEBUG_UNLOCK_REQ (0x50445552)</option>
+        <option value="PRODUCTION_AUTH_DEBUG_UNLOCK_TOKEN">PRODUCTION_AUTH_DEBUG_UNLOCK_TOKEN (0x50445554)</option>
+        <option value="EXTERNAL_MAILBOX_CMD">EXTERNAL_MAILBOX_CMD (0x4558544D)</option>
+      </optgroup>
+      <optgroup label="OCP Lock">
+        <option value="OCP_LOCK_REPORT_HEK_METADATA">OCP_LOCK_REPORT_HEK_METADATA (0x52484D54)</option>
+        <option value="OCP_LOCK_GET_ALGORITHMS">OCP_LOCK_GET_ALGORITHMS (0x47414C47)</option>
+        <option value="OCP_LOCK_INITIALIZE_MEK_SECRET">OCP_LOCK_INITIALIZE_MEK_SECRET (0x494D4B53)</option>
+        <option value="OCP_LOCK_MIX_MPK">OCP_LOCK_MIX_MPK (0x4D4D504B)</option>
+        <option value="OCP_LOCK_DERIVE_MEK">OCP_LOCK_DERIVE_MEK (0x444D454B)</option>
+        <option value="OCP_LOCK_ENUMERATE_HPKE_HANDLES">OCP_LOCK_ENUMERATE_HPKE_HANDLES (0x4548444C)</option>
+        <option value="OCP_LOCK_ROTATE_HPKE_KEY">OCP_LOCK_ROTATE_HPKE_KEY (0x5248504B)</option>
+        <option value="OCP_LOCK_GENERATE_MEK">OCP_LOCK_GENERATE_MEK (0x474D454B)</option>
+        <option value="OCP_LOCK_GET_HPKE_PUB_KEY">OCP_LOCK_GET_HPKE_PUB_KEY (0x4748504B)</option>
+        <option value="OCP_LOCK_GENERATE_MPK">OCP_LOCK_GENERATE_MPK (0x474D504B)</option>
+        <option value="OCP_LOCK_REWRAP_MPK">OCP_LOCK_REWRAP_MPK (0x52455750)</option>
+        <option value="OCP_LOCK_ENABLE_MPK">OCP_LOCK_ENABLE_MPK (0x524D504B)</option>
+        <option value="OCP_LOCK_TEST_ACCESS_KEY">OCP_LOCK_TEST_ACCESS_KEY (0x5441434B)</option>
+        <option value="OCP_LOCK_CLEAR_KEY_CACHE">OCP_LOCK_CLEAR_KEY_CACHE (0x434C4B43)</option>
+        <option value="OCP_LOCK_GET_STATUS">OCP_LOCK_GET_STATUS (0x47535441)</option>
+        <option value="OCP_LOCK_UNLOAD_MEK">OCP_LOCK_UNLOAD_MEK (0x554D454B)</option>
+        <option value="OCP_LOCK_LOAD_MEK">OCP_LOCK_LOAD_MEK (0x4C4D454B)</option>
+      </optgroup>
     </select>
     <button id="btn-mbox-send" disabled>Send</button>
+  </div>
+  <div id="mbox-payload-section" style="margin-bottom: 10px;">
+    <div class="form-row">
+      <label for="mbox-payload">Request Payload (hex):</label>
+    </div>
+    <textarea id="mbox-payload" rows="3"
+      placeholder="Header-only command — no payload needed" disabled
+      spellcheck="false"></textarea>
   </div>
   <div id="mbox-params" style="display:none; margin-bottom: 10px;">
     <div class="form-row">

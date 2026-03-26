@@ -28,10 +28,28 @@ const mboxResponse = document.getElementById("mbox-response");
 const mboxParams = document.getElementById("mbox-params");
 const mboxShaAlgo = document.getElementById("mbox-sha-algo");
 const mboxShaInput = document.getElementById("mbox-sha-input");
+const mboxPayloadSection = document.getElementById("mbox-payload-section");
+const mboxPayload = document.getElementById("mbox-payload");
 
-// Show/hide CM SHA params based on selected command
+// Show/hide payload textarea vs CM SHA params based on selected command
 mboxCmdSelect.addEventListener("change", () => {
-  mboxParams.style.display = mboxCmdSelect.value === "CM_SHA_HASH" ? "block" : "none";
+  const val = mboxCmdSelect.value;
+  if (val === "CM_SHA_HASH") {
+    mboxParams.style.display = "block";
+    mboxPayloadSection.style.display = "none";
+  } else {
+    mboxParams.style.display = "none";
+    mboxPayloadSection.style.display = "block";
+    const cmd = COMMAND_INFO[val];
+    if (cmd && cmd.hasInput) {
+      mboxPayload.placeholder = "Enter payload hex bytes after checksum (e.g., 01020304)";
+      mboxPayload.disabled = false;
+    } else {
+      mboxPayload.placeholder = "Header-only command — no payload needed";
+      mboxPayload.disabled = true;
+    }
+    mboxPayload.value = "";
+  }
 });
 
 // State
@@ -337,25 +355,145 @@ function setStatus(text, className) {
 
 // --- Mailbox command definitions ---
 
-const MBOX_COMMANDS = {
-  FW_INFO: {
-    id: 0x494E464F,
-    name: "FW_INFO",
-    makeRequest: () => makeHeaderOnlyRequest(0x494E464F),
-    formatResponse: formatFwInfoResp,
-  },
-  FIPS_VERSION: {
-    id: 0x46505652,
-    name: "FIPS_VERSION",
-    makeRequest: () => makeHeaderOnlyRequest(0x46505652),
-    formatResponse: formatFipsVersionResp,
-  },
-  CAPABILITIES: {
-    id: 0x43415053,
-    name: "CAPABILITIES",
-    makeRequest: () => makeHeaderOnlyRequest(0x43415053),
-    formatResponse: formatCapabilitiesResp,
-  },
+// --- Command registry: every mailbox command ---
+
+const COMMAND_INFO = {
+  // FIPS Commands
+  VERSION:                { id: 0x46505652, hasInput: false },
+  SELF_TEST_START:        { id: 0x46504C54, hasInput: false },
+  SELF_TEST_GET_RESULTS:  { id: 0x46504C67, hasInput: false },
+  SHUTDOWN:               { id: 0x46505344, hasInput: false },
+  // Info / Status
+  FW_INFO:                { id: 0x494E464F, hasInput: false },
+  CAPABILITIES:           { id: 0x43415053, hasInput: false },
+  GET_IMAGE_INFO:         { id: 0x494D4530, hasInput: true },
+  GET_MCU_FW_SIZE:        { id: 0x474D4653, hasInput: false },
+  // Certificate Commands (ECC384)
+  GET_IDEV_ECC384_CERT:         { id: 0x49444543, hasInput: true },
+  GET_IDEV_ECC384_INFO:         { id: 0x49444549, hasInput: false },
+  POPULATE_IDEV_ECC384_CERT:    { id: 0x49444550, hasInput: true },
+  GET_LDEV_ECC384_CERT:         { id: 0x4C444556, hasInput: true },
+  GET_FMC_ALIAS_ECC384_CERT:    { id: 0x43455246, hasInput: true },
+  GET_RT_ALIAS_ECC384_CERT:     { id: 0x43455252, hasInput: true },
+  GET_IDEV_ECC384_CSR:          { id: 0x49444352, hasInput: true },
+  GET_FMC_ALIAS_ECC384_CSR:     { id: 0x464D4352, hasInput: true },
+  GET_ATTESTED_ECC384_CSR:      { id: 0x41454352, hasInput: true },
+  // Certificate Commands (MLDSA87)
+  GET_IDEV_MLDSA87_CERT:        { id: 0x49444D43, hasInput: true },
+  GET_IDEV_MLDSA87_INFO:        { id: 0x49444D49, hasInput: false },
+  POPULATE_IDEV_MLDSA87_CERT:   { id: 0x49444D50, hasInput: true },
+  GET_LDEV_MLDSA87_CERT:        { id: 0x4C444D43, hasInput: true },
+  GET_FMC_ALIAS_MLDSA87_CERT:   { id: 0x434D4346, hasInput: true },
+  GET_RT_ALIAS_MLDSA87_CERT:    { id: 0x434D4352, hasInput: true },
+  GET_IDEV_MLDSA87_CSR:         { id: 0x49444D52, hasInput: true },
+  GET_FMC_ALIAS_MLDSA87_CSR:    { id: 0x464D4452, hasInput: true },
+  GET_ATTESTED_MLDSA87_CSR:     { id: 0x414D4352, hasInput: true },
+  // Signature Verification
+  ECDSA384_SIGNATURE_VERIFY:    { id: 0x45435632, hasInput: true },
+  LMS_SIGNATURE_VERIFY:         { id: 0x4C4D5632, hasInput: true },
+  MLDSA87_SIGNATURE_VERIFY:     { id: 0x4D4C5632, hasInput: true },
+  // Measurement / DPE
+  STASH_MEASUREMENT:             { id: 0x4D454153, hasInput: true },
+  INVOKE_DPE_ECC384:             { id: 0x44504543, hasInput: true },
+  INVOKE_DPE_MLDSA87:            { id: 0x4450454D, hasInput: true },
+  DPE_TAG_TCI:                   { id: 0x54514754, hasInput: true },
+  DPE_GET_TAGGED_TCI:            { id: 0x47544744, hasInput: true },
+  REALLOCATE_DPE_CONTEXT_LIMITS: { id: 0x52435458, hasInput: true },
+  // PCR
+  INCREMENT_PCR_RESET_COUNTER:   { id: 0x50435252, hasInput: true },
+  QUOTE_PCRS_ECC384:             { id: 0x50435251, hasInput: true },
+  QUOTE_PCRS_MLDSA87:            { id: 0x5043524D, hasInput: true },
+  EXTEND_PCR:                    { id: 0x50435245, hasInput: true },
+  GET_PCR_LOG:                   { id: 0x504C4F47, hasInput: false },
+  // Attestation
+  DISABLE_ATTESTATION:           { id: 0x4453424C, hasInput: false },
+  ADD_SUBJECT_ALT_NAME:          { id: 0x414C544E, hasInput: true },
+  CERTIFY_KEY_EXTENDED_ECC384:   { id: 0x434B4558, hasInput: true },
+  CERTIFY_KEY_EXTENDED_MLDSA87:  { id: 0x434B584D, hasInput: true },
+  // Firmware
+  ACTIVATE_FIRMWARE:             { id: 0x41435446, hasInput: false },
+  FIRMWARE_LOAD:                 { id: 0x46574C44, hasInput: true },
+  FIRMWARE_VERIFY:               { id: 0x46575652, hasInput: false },
+  // Auth Manifest
+  SET_AUTH_MANIFEST:             { id: 0x41544D4E, hasInput: true },
+  VERIFY_AUTH_MANIFEST:          { id: 0x4154564D, hasInput: true },
+  AUTHORIZE_AND_STASH:           { id: 0x41545348, hasInput: true },
+  // Recovery
+  RI_DOWNLOAD_FIRMWARE:          { id: 0x52494644, hasInput: true },
+  RI_DOWNLOAD_ENCRYPTED_FIRMWARE:{ id: 0x52494645, hasInput: true },
+  // Key Management
+  SIGN_WITH_EXPORTED_ECDSA:      { id: 0x53574545, hasInput: true },
+  SIGN_WITH_EXPORTED_MLDSA:      { id: 0x53574D4C, hasInput: true },
+  REVOKE_EXPORTED_CDI_HANDLE:    { id: 0x52564348, hasInput: true },
+  INSTALL_OWNER_PK_HASH:         { id: 0x4F574E50, hasInput: true },
+  ZEROIZE_UDS_FE:                { id: 0x5A455546, hasInput: false },
+  FE_PROG:                       { id: 0x46455052, hasInput: true },
+  // Crypto Manager (CM) — individual commands (composite CM_SHA_HASH handled separately)
+  CM_STATUS:                     { id: 0x434D5354, hasInput: false },
+  CM_IMPORT:                     { id: 0x434D494D, hasInput: true },
+  CM_DELETE:                     { id: 0x434D444C, hasInput: true },
+  CM_CLEAR:                      { id: 0x434D434C, hasInput: false },
+  CM_SHA:                        { id: 0x434D5348, hasInput: true },
+  CM_SHA_INIT:                   { id: 0x434D5349, hasInput: true },
+  CM_SHA_UPDATE:                 { id: 0x434D5355, hasInput: true },
+  CM_SHA_FINAL:                  { id: 0x434D5346, hasInput: true },
+  CM_SHAKE256_INIT:              { id: 0x434D5849, hasInput: true },
+  CM_SHAKE256_UPDATE:            { id: 0x434D5855, hasInput: true },
+  CM_SHAKE256_FINAL:             { id: 0x434D5846, hasInput: true },
+  CM_RANDOM_GENERATE:            { id: 0x434D5247, hasInput: true },
+  CM_RANDOM_STIR:                { id: 0x434D5253, hasInput: true },
+  CM_AES_ENCRYPT_INIT:           { id: 0x434D4149, hasInput: true },
+  CM_AES_ENCRYPT_UPDATE:         { id: 0x434D4155, hasInput: true },
+  CM_AES_DECRYPT_INIT:           { id: 0x434D414A, hasInput: true },
+  CM_AES_DECRYPT_UPDATE:         { id: 0x434D4156, hasInput: true },
+  CM_AES_GCM_ENCRYPT_INIT:       { id: 0x434D4749, hasInput: true },
+  CM_AES_GCM_SPDM_ENCRYPT_INIT: { id: 0x434D5345, hasInput: true },
+  CM_AES_GCM_ENCRYPT_UPDATE:     { id: 0x434D4755, hasInput: true },
+  CM_AES_GCM_ENCRYPT_FINAL:      { id: 0x434D4746, hasInput: true },
+  CM_AES_GCM_DECRYPT_INIT:       { id: 0x434D4449, hasInput: true },
+  CM_AES_GCM_SPDM_DECRYPT_INIT: { id: 0x434D5344, hasInput: true },
+  CM_AES_GCM_DECRYPT_UPDATE:     { id: 0x434D4455, hasInput: true },
+  CM_AES_GCM_DECRYPT_FINAL:      { id: 0x434D4446, hasInput: true },
+  CM_AES_GCM_DECRYPT_DMA:        { id: 0x434D4444, hasInput: true },
+  CM_ECDH_GENERATE:              { id: 0x434D4547, hasInput: true },
+  CM_ECDH_FINISH:                { id: 0x434D4546, hasInput: true },
+  CM_HMAC:                       { id: 0x434D484D, hasInput: true },
+  CM_HMAC_KDF_COUNTER:           { id: 0x434D4B43, hasInput: true },
+  CM_HKDF_EXTRACT:               { id: 0x434D4B54, hasInput: true },
+  CM_HKDF_EXPAND:                { id: 0x434D4B50, hasInput: true },
+  CM_MLDSA_PUBLIC_KEY:           { id: 0x434D4D50, hasInput: true },
+  CM_MLDSA_SIGN:                 { id: 0x434D4D53, hasInput: true },
+  CM_MLDSA_VERIFY:               { id: 0x434D4D56, hasInput: true },
+  CM_ECDSA_PUBLIC_KEY:           { id: 0x434D4550, hasInput: true },
+  CM_ECDSA_SIGN:                 { id: 0x434D4553, hasInput: true },
+  CM_ECDSA_VERIFY:               { id: 0x434D4556, hasInput: true },
+  CM_DERIVE_STABLE_KEY:          { id: 0x494D4453, hasInput: true },
+  CM_MLKEM_KEY_GEN:              { id: 0x434D4C4B, hasInput: true },
+  CM_MLKEM_ENCAPSULATE:          { id: 0x434D4C45, hasInput: true },
+  CM_MLKEM_DECAPSULATE:          { id: 0x434D4C44, hasInput: true },
+  // Debug
+  MANUF_DEBUG_UNLOCK_REQ_TOKEN:       { id: 0x4D445554, hasInput: false },
+  PRODUCTION_AUTH_DEBUG_UNLOCK_REQ:    { id: 0x50445552, hasInput: true },
+  PRODUCTION_AUTH_DEBUG_UNLOCK_TOKEN:  { id: 0x50445554, hasInput: true },
+  EXTERNAL_MAILBOX_CMD:               { id: 0x4558544D, hasInput: true },
+  // OCP Lock
+  OCP_LOCK_REPORT_HEK_METADATA:      { id: 0x52484D54, hasInput: true },
+  OCP_LOCK_GET_ALGORITHMS:            { id: 0x47414C47, hasInput: false },
+  OCP_LOCK_INITIALIZE_MEK_SECRET:     { id: 0x494D4B53, hasInput: true },
+  OCP_LOCK_MIX_MPK:                   { id: 0x4D4D504B, hasInput: true },
+  OCP_LOCK_DERIVE_MEK:                { id: 0x444D454B, hasInput: true },
+  OCP_LOCK_ENUMERATE_HPKE_HANDLES:    { id: 0x4548444C, hasInput: false },
+  OCP_LOCK_ROTATE_HPKE_KEY:           { id: 0x5248504B, hasInput: true },
+  OCP_LOCK_GENERATE_MEK:              { id: 0x474D454B, hasInput: true },
+  OCP_LOCK_GET_HPKE_PUB_KEY:          { id: 0x4748504B, hasInput: true },
+  OCP_LOCK_GENERATE_MPK:              { id: 0x474D504B, hasInput: true },
+  OCP_LOCK_REWRAP_MPK:                { id: 0x52455750, hasInput: true },
+  OCP_LOCK_ENABLE_MPK:                { id: 0x524D504B, hasInput: true },
+  OCP_LOCK_TEST_ACCESS_KEY:           { id: 0x5441434B, hasInput: true },
+  OCP_LOCK_CLEAR_KEY_CACHE:           { id: 0x434C4B43, hasInput: false },
+  OCP_LOCK_GET_STATUS:                { id: 0x47535441, hasInput: false },
+  OCP_LOCK_UNLOAD_MEK:                { id: 0x554D454B, hasInput: true },
+  OCP_LOCK_LOAD_MEK:                  { id: 0x4C4D454B, hasInput: true },
 };
 
 // Caliptra checksum: 0 - (SUM(cmd LE bytes) + SUM(payload after checksum field))
@@ -453,44 +591,53 @@ function executeCmShaHash(emu) {
   const firstChunk = chunks.length > 0 ? chunks[0] : new Uint8Array(0);
   s += `  → CM_SHA_INIT (${firstChunk.length} bytes)...\n`;
   const initReq = makeCmShaInitReq(hashAlgo, firstChunk);
+  s += formatRawRequest(initReq);
   const initResp = emu.mailbox_execute(CMD_CM_SHA_INIT, initReq);
   if (initResp == null || initResp.length < 8 + CM_SHA_CONTEXT_SIZE) {
     s += `  ✗ INIT failed (got ${initResp ? initResp.length : 0} bytes)\n`;
+    if (initResp) s += formatRawResponse(new Uint8Array(initResp));
     return s;
   }
   const initBuf = new Uint8Array(initResp);
+  s += formatRawResponse(initBuf);
   const initFips = readU32LE(initBuf, 4);
   if (initFips !== 0) {
     s += `  ✗ INIT fips_status: ${initFips}\n`;
     return s;
   }
   let context = initBuf.slice(8, 8 + CM_SHA_CONTEXT_SIZE);
-  s += `  ✓ INIT OK\n`;
+  s += `  ✓ INIT OK\n\n`;
 
   // UPDATE with middle chunks
   for (let i = 1; i < chunks.length - 1; i++) {
     s += `  → CM_SHA_UPDATE chunk ${i} (${chunks[i].length} bytes)...\n`;
     const updateReq = makeCmShaUpdateReq(context, chunks[i]);
+    s += formatRawRequest(updateReq);
     const updateResp = emu.mailbox_execute(CMD_CM_SHA_UPDATE, updateReq);
     if (updateResp == null || updateResp.length < 8 + CM_SHA_CONTEXT_SIZE) {
       s += `  ✗ UPDATE failed\n`;
+      if (updateResp) s += formatRawResponse(new Uint8Array(updateResp));
       return s;
     }
     const updateBuf = new Uint8Array(updateResp);
+    s += formatRawResponse(updateBuf);
     context = updateBuf.slice(8, 8 + CM_SHA_CONTEXT_SIZE);
-    s += `  ✓ UPDATE OK\n`;
+    s += `  ✓ UPDATE OK\n\n`;
   }
 
   // FINAL with last chunk (or empty if only one chunk was used in INIT)
   const lastChunk = chunks.length > 1 ? chunks[chunks.length - 1] : new Uint8Array(0);
   s += `  → CM_SHA_FINAL (${lastChunk.length} bytes)...\n`;
   const finalReq = makeCmShaFinalReq(context, lastChunk);
+  s += formatRawRequest(finalReq);
   const finalResp = emu.mailbox_execute(CMD_CM_SHA_FINAL, finalReq);
   if (finalResp == null || finalResp.length < 12) {
     s += `  ✗ FINAL failed (got ${finalResp ? finalResp.length : 0} bytes)\n`;
+    if (finalResp) s += formatRawResponse(new Uint8Array(finalResp));
     return s;
   }
   const finalBuf = new Uint8Array(finalResp);
+  s += formatRawResponse(finalBuf);
   const finalFips = readU32LE(finalBuf, 4);
   if (finalFips !== 0) {
     s += `  ✗ FINAL fips_status: ${finalFips}\n`;
@@ -605,6 +752,60 @@ function formatCapabilitiesResp(buf) {
   return s;
 }
 
+// Custom formatters keyed by command ID
+const CUSTOM_FORMATTERS = {
+  0x494E464F: formatFwInfoResp,
+  0x46505652: formatFipsVersionResp,
+  0x43415053: formatCapabilitiesResp,
+};
+
+// Raw request/response display helpers
+function formatRawRequest(reqBuf) {
+  const n = reqBuf.length;
+  let s = `Request (${n} bytes):\n`;
+  if (n >= 4) {
+    const chksum = readU32LE(reqBuf, 0);
+    s += `  chksum: 0x${chksum.toString(16).padStart(8, "0")}\n`;
+  }
+  if (n > 4) {
+    s += `  payload: ${hexBytes(reqBuf, 4, n - 4)}\n`;
+  }
+  return s;
+}
+
+function formatRawResponse(respBuf) {
+  if (!respBuf || respBuf.length === 0) {
+    return "Response: (empty)\n";
+  }
+  const n = respBuf.length;
+  let s = `Response (${n} bytes):\n`;
+  if (n >= 4) {
+    const chksum = readU32LE(respBuf, 0);
+    s += `  chksum: 0x${chksum.toString(16).padStart(8, "0")}\n`;
+  }
+  if (n >= 8) {
+    const fips = readU32LE(respBuf, 4);
+    s += `  fips_status: ${fips === 0 ? "APPROVED (0)" : `0x${fips.toString(16).padStart(8, "0")} (${fips})`}\n`;
+  }
+  if (n > 8) {
+    s += `  data: ${hexBytes(respBuf, 8, n - 8)}\n`;
+  }
+  return s;
+}
+
+function parseHexPayload(hexStr) {
+  const cleaned = hexStr.replace(/[\s,]/g, "");
+  if (cleaned.length === 0) return new Uint8Array(0);
+  if (cleaned.length % 2 !== 0) throw new Error("Hex string must have even number of characters");
+  const bytes = new Uint8Array(cleaned.length / 2);
+  for (let i = 0; i < cleaned.length; i += 2) {
+    const b = parseInt(cleaned.substring(i, i + 2), 16);
+    if (isNaN(b)) throw new Error(`Invalid hex at position ${i}: "${cleaned.substring(i, i + 2)}"`);
+    bytes[i / 2] = b;
+  }
+  return bytes;
+}
+
 // --- Mailbox Send handler ---
 
 btnMboxSend.addEventListener("click", () => {
@@ -629,21 +830,44 @@ btnMboxSend.addEventListener("click", () => {
     if (cmdKey === "CM_SHA_HASH") {
       mboxResponse.textContent = executeCmShaHash(emulator);
     } else {
-      const cmd = MBOX_COMMANDS[cmdKey];
+      const cmd = COMMAND_INFO[cmdKey];
       if (!cmd) {
         mboxResponse.textContent = `Unknown command: ${cmdKey}`;
         return;
       }
-      mboxResponse.textContent = `Sending ${cmd.name} (0x${cmd.id.toString(16).padStart(8, "0")})...\n`;
-      const reqData = cmd.makeRequest();
+
+      let output = `Sending ${cmdKey} (0x${cmd.id.toString(16).padStart(8, "0")})...\n\n`;
+
+      // Build request
+      let reqData;
+      if (cmd.hasInput) {
+        const payloadHex = mboxPayload.value.trim();
+        const payloadBytes = parseHexPayload(payloadHex);
+        reqData = makeChecksummedRequest(cmd.id, payloadBytes);
+      } else {
+        reqData = makeHeaderOnlyRequest(cmd.id);
+      }
+
+      output += formatRawRequest(reqData);
+      output += "\n";
+
+      // Execute
       const respData = emulator.mailbox_execute(cmd.id, reqData);
 
       if (respData == null) {
-        mboxResponse.textContent += "Command succeeded (no response data)\n";
+        output += "Response: (no data returned)\n";
       } else {
         const buf = new Uint8Array(respData);
-        mboxResponse.textContent += cmd.formatResponse(buf);
+        output += formatRawResponse(buf);
+
+        // Decoded fields for commands with custom formatters
+        const formatter = CUSTOM_FORMATTERS[cmd.id];
+        if (formatter) {
+          output += "\n--- Decoded ---\n" + formatter(buf);
+        }
       }
+
+      mboxResponse.textContent = output;
     }
 
     // Drain any UART/log output produced during command execution
