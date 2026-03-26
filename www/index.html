@@ -60,7 +60,7 @@
     min-width: 120px;
     color: var(--text);
   }
-  input[type="text"], input[type="file"] {
+  input[type="text"], input[type="number"], input[type="file"] {
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -470,25 +470,33 @@
     </select>
     <button id="btn-mbox-send" disabled>Send</button>
   </div>
-  <div id="mbox-payload-section" style="margin-bottom: 10px;">
-    <div class="form-row">
-      <label for="mbox-payload">Request Payload (hex):</label>
+  <div id="mbox-input-section" style="margin-bottom: 10px;">
+    <div class="form-row" style="margin-bottom: 8px;">
+      <label>Input Mode:</label>
+      <label style="min-width: auto;"><input type="radio" name="mbox-input-mode" value="form" checked> Form</label>
+      <label style="min-width: auto;"><input type="radio" name="mbox-input-mode" value="raw"> Raw Hex</label>
     </div>
-    <textarea id="mbox-payload" rows="3"
-      placeholder="Header-only command — no payload needed" disabled
-      spellcheck="false"></textarea>
-  </div>
-  <div id="mbox-params" style="display:none; margin-bottom: 10px;">
-    <div class="form-row">
-      <label for="mbox-sha-algo">Hash Algorithm:</label>
-      <select id="mbox-sha-algo">
-        <option value="1">SHA-384</option>
-        <option value="2">SHA-512</option>
-      </select>
+    <div id="mbox-form-fields"></div>
+    <div id="mbox-raw-input" style="display: none;">
+      <div class="form-row">
+        <label for="mbox-payload">Request Payload (hex):</label>
+      </div>
+      <textarea id="mbox-payload" rows="3"
+        placeholder="Enter payload hex bytes after checksum (e.g., 01020304)"
+        spellcheck="false"></textarea>
     </div>
-    <div class="form-row">
-      <label for="mbox-sha-input">Input Data:</label>
-      <input type="text" id="mbox-sha-input" placeholder="Text to hash (UTF-8)" value="hello world" spellcheck="false">
+    <div id="mbox-params" style="display:none; margin-bottom: 10px;">
+      <div class="form-row">
+        <label for="mbox-sha-algo">Hash Algorithm:</label>
+        <select id="mbox-sha-algo">
+          <option value="1">SHA-384</option>
+          <option value="2">SHA-512</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="mbox-sha-input">Input Data:</label>
+        <input type="text" id="mbox-sha-input" placeholder="Text to hash (UTF-8)" value="hello world" spellcheck="false">
+      </div>
     </div>
   </div>
   <div id="mbox-response" style="

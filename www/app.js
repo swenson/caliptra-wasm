@@ -28,20 +28,28 @@ const mboxResponse = document.getElementById("mbox-response");
 const mboxParams = document.getElementById("mbox-params");
 const mboxShaAlgo = document.getElementById("mbox-sha-algo");
 const mboxShaInput = document.getElementById("mbox-sha-input");
-const mboxPayloadSection = document.getElementById("mbox-payload-section");
 const mboxPayload = document.getElementById("mbox-payload");
+const mboxFormFields = document.getElementById("mbox-form-fields");
+const mboxRawInput = document.getElementById("mbox-raw-input");
 
-// Show/hide payload textarea vs CM SHA params based on selected command
-mboxCmdSelect.addEventListener("change", () => {
-  const val = mboxCmdSelect.value;
-  if (val === "CM_SHA_HASH") {
-    mboxParams.style.display = "block";
-    mboxPayloadSection.style.display = "none";
+function getInputMode() {
+  const r = document.querySelector('input[name="mbox-input-mode"]:checked');
+  return r ? r.value : "form";
+}
+
+function updateInputSection(cmdKey, mode) {
+  const fields = COMMAND_FIELDS[cmdKey] || [];
+  const hasFields = fields.length > 0;
+
+  if (mode === "form") {
+    mboxRawInput.style.display = "none";
+    mboxFormFields.style.display = "block";
+    renderFormFields(fields);
   } else {
-    mboxParams.style.display = "none";
-    mboxPayloadSection.style.display = "block";
-    const cmd = COMMAND_INFO[val];
-    if (cmd && cmd.hasInput) {
+    mboxFormFields.style.display = "none";
+    mboxRawInput.style.display = "block";
+    const cmd = COMMAND_INFO[cmdKey];
+    if (hasFields || (cmd && cmd.hasInput)) {
       mboxPayload.placeholder = "Enter payload hex bytes after checksum (e.g., 01020304)";
       mboxPayload.disabled = false;
     } else {
@@ -50,6 +58,124 @@ mboxCmdSelect.addEventListener("change", () => {
     }
     mboxPayload.value = "";
   }
+}
+
+function renderFormFields(fields) {
+  mboxFormFields.innerHTML = "";
+  if (fields.length === 0) {
+    const msg = document.createElement("div");
+    msg.style.cssText = "color: var(--muted); font-size: 0.85rem; padding: 8px 0;";
+    msg.textContent = "Header-only command \u2014 no additional parameters";
+    mboxFormFields.appendChild(msg);
+    return;
+  }
+  for (const field of fields) {
+    const row = document.createElement("div");
+    row.className = "form-row";
+    row.style.marginBottom = "8px";
+
+    const label = document.createElement("label");
+    label.textContent = field.desc || field.name;
+    label.title = `${field.name} (${field.type}${field.size ? ", " + field.size + " bytes" : ""})`;
+    row.appendChild(label);
+
+    let input;
+    if (field.type === "u32") {
+      input = document.createElement("input");
+      input.type = "number";
+      input.value = "0";
+      input.min = "0";
+      input.max = "4294967295";
+      input.dataset.fieldName = field.name;
+      input.dataset.fieldType = "u32";
+    } else if (field.type === "enum") {
+      input = document.createElement("select");
+      for (const opt of field.options) {
+        const o = document.createElement("option");
+        o.value = opt.value;
+        o.textContent = opt.label;
+        input.appendChild(o);
+      }
+      input.dataset.fieldName = field.name;
+      input.dataset.fieldType = "enum";
+    } else if (field.type === "hex") {
+      const placeholder = "00".repeat(Math.min(field.size, 8)) + (field.size > 8 ? "\u2026" : "");
+      if (field.size > 32) {
+        input = document.createElement("textarea");
+        input.rows = Math.min(3, Math.ceil(field.size / 32));
+        input.placeholder = placeholder;
+      } else {
+        input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = placeholder;
+      }
+      input.spellcheck = false;
+      input.dataset.fieldName = field.name;
+      input.dataset.fieldType = "hex";
+      input.dataset.fieldSize = field.size;
+    }
+
+    row.appendChild(input);
+    mboxFormFields.appendChild(row);
+  }
+}
+
+function serializeFormFields(cmdKey) {
+  const fields = COMMAND_FIELDS[cmdKey] || [];
+  if (fields.length === 0) return new Uint8Array(0);
+
+  const parts = [];
+  for (const field of fields) {
+    const el = mboxFormFields.querySelector(`[data-field-name="${field.name}"]`);
+    if (!el) throw new Error(`Form field not found: ${field.name}`);
+
+    if (field.type === "u32") {
+      const val = (parseInt(el.value) || 0) >>> 0;
+      const buf = new Uint8Array(4);
+      writeU32LE(buf, 0, val);
+      parts.push(buf);
+    } else if (field.type === "enum") {
+      const val = (parseInt(el.value) || 0) >>> 0;
+      const buf = new Uint8Array(4);
+      writeU32LE(buf, 0, val);
+      parts.push(buf);
+    } else if (field.type === "hex") {
+      const hexStr = (el.value || "").trim();
+      const bytes = hexStr.length > 0 ? parseHexPayload(hexStr) : new Uint8Array(0);
+      const buf = new Uint8Array(field.size);
+      buf.set(bytes.slice(0, field.size));
+      parts.push(buf);
+    }
+  }
+  const totalLen = parts.reduce((s, p) => s + p.length, 0);
+  const result = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const part of parts) {
+    result.set(part, offset);
+    offset += part.length;
+  }
+  return result;
+}
+
+// Show/hide fields based on selected command and input mode
+mboxCmdSelect.addEventListener("change", () => {
+  const val = mboxCmdSelect.value;
+  if (val === "CM_SHA_HASH") {
+    mboxParams.style.display = "block";
+    mboxRawInput.style.display = "none";
+    mboxFormFields.style.display = "none";
+  } else {
+    mboxParams.style.display = "none";
+    updateInputSection(val, getInputMode());
+  }
+});
+
+document.querySelectorAll('input[name="mbox-input-mode"]').forEach(radio => {
+  radio.addEventListener("change", () => {
+    const val = mboxCmdSelect.value;
+    if (val === "CM_SHA_HASH") return;
+    updateInputSection(val, radio.value);
+  });
 });
 
 // State
@@ -411,7 +537,7 @@ const COMMAND_INFO = {
   CERTIFY_KEY_EXTENDED_ECC384:   { id: 0x434B4558, hasInput: true },
   CERTIFY_KEY_EXTENDED_MLDSA87:  { id: 0x434B584D, hasInput: true },
   // Firmware
-  ACTIVATE_FIRMWARE:             { id: 0x41435446, hasInput: false },
+  ACTIVATE_FIRMWARE:             { id: 0x41435446, hasInput: true },
   FIRMWARE_LOAD:                 { id: 0x46574C44, hasInput: true },
   FIRMWARE_VERIFY:               { id: 0x46575652, hasInput: false },
   // Auth Manifest
@@ -426,7 +552,7 @@ const COMMAND_INFO = {
   SIGN_WITH_EXPORTED_MLDSA:      { id: 0x53574D4C, hasInput: true },
   REVOKE_EXPORTED_CDI_HANDLE:    { id: 0x52564348, hasInput: true },
   INSTALL_OWNER_PK_HASH:         { id: 0x4F574E50, hasInput: true },
-  ZEROIZE_UDS_FE:                { id: 0x5A455546, hasInput: false },
+  ZEROIZE_UDS_FE:                { id: 0x5A455546, hasInput: true },
   FE_PROG:                       { id: 0x46455052, hasInput: true },
   // Crypto Manager (CM) — individual commands (composite CM_SHA_HASH handled separately)
   CM_STATUS:                     { id: 0x434D5354, hasInput: false },
@@ -472,7 +598,7 @@ const COMMAND_INFO = {
   CM_MLKEM_ENCAPSULATE:          { id: 0x434D4C45, hasInput: true },
   CM_MLKEM_DECAPSULATE:          { id: 0x434D4C44, hasInput: true },
   // Debug
-  MANUF_DEBUG_UNLOCK_REQ_TOKEN:       { id: 0x4D445554, hasInput: false },
+  MANUF_DEBUG_UNLOCK_REQ_TOKEN:       { id: 0x4D445554, hasInput: true },
   PRODUCTION_AUTH_DEBUG_UNLOCK_REQ:    { id: 0x50445552, hasInput: true },
   PRODUCTION_AUTH_DEBUG_UNLOCK_TOKEN:  { id: 0x50445554, hasInput: true },
   EXTERNAL_MAILBOX_CMD:               { id: 0x4558544D, hasInput: true },
@@ -482,7 +608,7 @@ const COMMAND_INFO = {
   OCP_LOCK_INITIALIZE_MEK_SECRET:     { id: 0x494D4B53, hasInput: true },
   OCP_LOCK_MIX_MPK:                   { id: 0x4D4D504B, hasInput: true },
   OCP_LOCK_DERIVE_MEK:                { id: 0x444D454B, hasInput: true },
-  OCP_LOCK_ENUMERATE_HPKE_HANDLES:    { id: 0x4548444C, hasInput: false },
+  OCP_LOCK_ENUMERATE_HPKE_HANDLES:    { id: 0x4548444C, hasInput: true },
   OCP_LOCK_ROTATE_HPKE_KEY:           { id: 0x5248504B, hasInput: true },
   OCP_LOCK_GENERATE_MEK:              { id: 0x474D454B, hasInput: true },
   OCP_LOCK_GET_HPKE_PUB_KEY:          { id: 0x4748504B, hasInput: true },
@@ -490,10 +616,546 @@ const COMMAND_INFO = {
   OCP_LOCK_REWRAP_MPK:                { id: 0x52455750, hasInput: true },
   OCP_LOCK_ENABLE_MPK:                { id: 0x524D504B, hasInput: true },
   OCP_LOCK_TEST_ACCESS_KEY:           { id: 0x5441434B, hasInput: true },
-  OCP_LOCK_CLEAR_KEY_CACHE:           { id: 0x434C4B43, hasInput: false },
+  OCP_LOCK_CLEAR_KEY_CACHE:           { id: 0x434C4B43, hasInput: true },
   OCP_LOCK_GET_STATUS:                { id: 0x47535441, hasInput: false },
   OCP_LOCK_UNLOAD_MEK:                { id: 0x554D454B, hasInput: true },
   OCP_LOCK_LOAD_MEK:                  { id: 0x4C4D454B, hasInput: true },
+};
+
+// --- Field schemas for structured form input ---
+const COMMAND_FIELDS = {
+  // Header-only commands
+  VERSION: [],
+  SELF_TEST_START: [],
+  SELF_TEST_GET_RESULTS: [],
+  SHUTDOWN: [],
+  FW_INFO: [],
+  CAPABILITIES: [],
+  GET_MCU_FW_SIZE: [],
+  GET_IDEV_ECC384_INFO: [],
+  GET_IDEV_MLDSA87_INFO: [],
+  GET_PCR_LOG: [],
+  DISABLE_ATTESTATION: [],
+  FIRMWARE_VERIFY: [],
+  CM_STATUS: [],
+  CM_CLEAR: [],
+  OCP_LOCK_GET_ALGORITHMS: [],
+  OCP_LOCK_GET_STATUS: [],
+  GET_LDEV_ECC384_CERT: [],
+  GET_FMC_ALIAS_ECC384_CERT: [],
+  GET_RT_ALIAS_ECC384_CERT: [],
+  GET_IDEV_ECC384_CSR: [],
+  GET_FMC_ALIAS_ECC384_CSR: [],
+  GET_LDEV_MLDSA87_CERT: [],
+  GET_FMC_ALIAS_MLDSA87_CERT: [],
+  GET_RT_ALIAS_MLDSA87_CERT: [],
+  GET_IDEV_MLDSA87_CSR: [],
+  GET_FMC_ALIAS_MLDSA87_CSR: [],
+
+  // Complex commands — use raw hex
+  FIRMWARE_LOAD: [],
+  RI_DOWNLOAD_FIRMWARE: [],
+  RI_DOWNLOAD_ENCRYPTED_FIRMWARE: [],
+  OCP_LOCK_INITIALIZE_MEK_SECRET: [],
+  OCP_LOCK_MIX_MPK: [],
+  OCP_LOCK_DERIVE_MEK: [],
+  OCP_LOCK_GENERATE_MPK: [],
+  OCP_LOCK_REWRAP_MPK: [],
+  OCP_LOCK_ENABLE_MPK: [],
+  OCP_LOCK_TEST_ACCESS_KEY: [],
+  OCP_LOCK_UNLOAD_MEK: [],
+  OCP_LOCK_LOAD_MEK: [],
+
+  // --- Commands with fields ---
+
+  ACTIVATE_FIRMWARE: [
+    {name: "fw_id_count", type: "u32", desc: "Number of FW IDs"},
+    {name: "fw_ids", type: "hex", size: 128, desc: "FW ID array (u32[32])"},
+    {name: "mcu_fw_image_size", type: "u32", desc: "MCU FW image size"},
+  ],
+
+  GET_IDEV_ECC384_CERT: [
+    {name: "tbs_size", type: "u32", desc: "TBS data size"},
+    {name: "signature_r", type: "hex", size: 48, desc: "ECDSA signature R"},
+    {name: "signature_s", type: "hex", size: 48, desc: "ECDSA signature S"},
+    {name: "tbs", type: "hex", size: 512, desc: "TBS certificate data"},
+  ],
+
+  GET_IDEV_MLDSA87_CERT: [
+    {name: "tbs_size", type: "u32", desc: "TBS data size"},
+    {name: "signature", type: "hex", size: 4628, desc: "MLDSA87 signature"},
+    {name: "tbs", type: "hex", size: 512, desc: "TBS certificate data"},
+  ],
+
+  POPULATE_IDEV_ECC384_CERT: [
+    {name: "cert_size", type: "u32", desc: "Certificate size"},
+    {name: "cert", type: "hex", size: 1024, desc: "Certificate data"},
+  ],
+
+  POPULATE_IDEV_MLDSA87_CERT: [
+    {name: "cert_size", type: "u32", desc: "Certificate size"},
+    {name: "cert", type: "hex", size: 1024, desc: "Certificate data"},
+  ],
+
+  GET_ATTESTED_ECC384_CSR: [
+    {name: "key_id", type: "u32", desc: "Key ID"},
+    {name: "nonce", type: "hex", size: 32, desc: "Nonce (32 bytes)"},
+  ],
+
+  GET_ATTESTED_MLDSA87_CSR: [
+    {name: "key_id", type: "u32", desc: "Key ID"},
+    {name: "nonce", type: "hex", size: 32, desc: "Nonce (32 bytes)"},
+  ],
+
+  ECDSA384_SIGNATURE_VERIFY: [
+    {name: "pub_key_x", type: "hex", size: 48, desc: "Public key X"},
+    {name: "pub_key_y", type: "hex", size: 48, desc: "Public key Y"},
+    {name: "signature_r", type: "hex", size: 48, desc: "Signature R"},
+    {name: "signature_s", type: "hex", size: 48, desc: "Signature S"},
+    {name: "hash", type: "hex", size: 48, desc: "SHA-384 hash to verify"},
+  ],
+
+  LMS_SIGNATURE_VERIFY: [
+    {name: "pub_key_tree_type", type: "u32", desc: "Tree type"},
+    {name: "pub_key_ots_type", type: "u32", desc: "OTS type"},
+    {name: "pub_key_id", type: "hex", size: 16, desc: "Public key ID"},
+    {name: "pub_key_digest", type: "hex", size: 24, desc: "Public key digest"},
+    {name: "signature_q", type: "u32", desc: "Signature Q"},
+    {name: "signature_ots", type: "hex", size: 1252, desc: "OTS signature"},
+    {name: "signature_tree_type", type: "u32", desc: "Signature tree type"},
+    {name: "signature_tree_path", type: "hex", size: 360, desc: "Tree path"},
+    {name: "hash", type: "hex", size: 48, desc: "Hash to verify"},
+  ],
+
+  MLDSA87_SIGNATURE_VERIFY: [
+    {name: "pub_key", type: "hex", size: 2592, desc: "MLDSA87 public key"},
+    {name: "signature", type: "hex", size: 4628, desc: "MLDSA87 signature"},
+    {name: "message_size", type: "u32", desc: "Message size"},
+    {name: "message", type: "hex", size: 4096, desc: "Message"},
+  ],
+
+  STASH_MEASUREMENT: [
+    {name: "metadata", type: "hex", size: 4, desc: "Metadata"},
+    {name: "measurement", type: "hex", size: 48, desc: "Measurement (SHA-384)"},
+    {name: "context", type: "hex", size: 48, desc: "Context (SHA-384)"},
+    {name: "svn", type: "u32", desc: "Security Version Number"},
+  ],
+
+  INVOKE_DPE_ECC384: [
+    {name: "data_size", type: "u32", desc: "DPE command data size"},
+    {name: "data", type: "hex", size: 512, desc: "DPE command data"},
+  ],
+
+  INVOKE_DPE_MLDSA87: [
+    {name: "flags", type: "u32", desc: "Flags"},
+    {name: "axi_addr_lo", type: "u32", desc: "AXI response address (low)"},
+    {name: "axi_addr_hi", type: "u32", desc: "AXI response address (high)"},
+    {name: "data_size", type: "u32", desc: "DPE command data size"},
+    {name: "data", type: "hex", size: 512, desc: "DPE command data"},
+  ],
+
+  EXTEND_PCR: [
+    {name: "pcr_idx", type: "u32", desc: "PCR index"},
+    {name: "data", type: "hex", size: 48, desc: "Data to extend (SHA-384)"},
+  ],
+
+  ADD_SUBJECT_ALT_NAME: [
+    {name: "dmtf_device_info_size", type: "u32", desc: "Device info size"},
+    {name: "dmtf_device_info", type: "hex", size: 128, desc: "DMTF device info"},
+  ],
+
+  DPE_TAG_TCI: [
+    {name: "handle", type: "hex", size: 16, desc: "DPE context handle"},
+    {name: "tag", type: "u32", desc: "Tag value"},
+  ],
+
+  DPE_GET_TAGGED_TCI: [
+    {name: "tag", type: "u32", desc: "Tag to look up"},
+  ],
+
+  INCREMENT_PCR_RESET_COUNTER: [
+    {name: "index", type: "u32", desc: "PCR index"},
+  ],
+
+  QUOTE_PCRS_ECC384: [
+    {name: "nonce", type: "hex", size: 32, desc: "Nonce (32 bytes)"},
+  ],
+
+  QUOTE_PCRS_MLDSA87: [
+    {name: "nonce", type: "hex", size: 32, desc: "Nonce (32 bytes)"},
+  ],
+
+  AUTHORIZE_AND_STASH: [
+    {name: "fw_id", type: "hex", size: 4, desc: "Firmware ID"},
+    {name: "measurement", type: "hex", size: 48, desc: "Image digest (SHA-384)"},
+    {name: "context", type: "hex", size: 48, desc: "Context (SHA-384)"},
+    {name: "svn", type: "u32", desc: "Security Version Number"},
+    {name: "flags", type: "u32", desc: "Flags"},
+    {name: "source", type: "u32", desc: "Image source"},
+    {name: "image_size", type: "u32", desc: "Image size in bytes"},
+  ],
+
+  GET_IMAGE_INFO: [
+    {name: "fw_id", type: "hex", size: 4, desc: "Firmware ID"},
+  ],
+
+  INSTALL_OWNER_PK_HASH: [
+    {name: "digest", type: "hex", size: 48, desc: "Owner PK hash (u32[12])"},
+  ],
+
+  REALLOCATE_DPE_CONTEXT_LIMITS: [
+    {name: "pl0_context_limit", type: "u32", desc: "PL0 context limit"},
+  ],
+
+  ZEROIZE_UDS_FE: [
+    {name: "flags", type: "u32", desc: "Flags"},
+  ],
+
+  FE_PROG: [
+    {name: "partition", type: "u32", desc: "Partition"},
+  ],
+
+  MANUF_DEBUG_UNLOCK_REQ_TOKEN: [
+    {name: "token", type: "hex", size: 32, desc: "Unlock token (32 bytes)"},
+  ],
+
+  EXTERNAL_MAILBOX_CMD: [
+    {name: "command_id", type: "u32", desc: "Command ID"},
+    {name: "command_size", type: "u32", desc: "Command size"},
+    {name: "axi_address_start_low", type: "u32", desc: "AXI address (low)"},
+    {name: "axi_address_start_high", type: "u32", desc: "AXI address (high)"},
+  ],
+
+  CERTIFY_KEY_EXTENDED_ECC384: [
+    {name: "flags", type: "u32", desc: "CertifyKeyExtendedFlags"},
+    {name: "certify_key_req", type: "hex", size: 72, desc: "Inner CertifyKey request data"},
+  ],
+
+  CERTIFY_KEY_EXTENDED_MLDSA87: [
+    {name: "flags", type: "u32", desc: "CertifyKeyExtendedFlags"},
+    {name: "axi_addr_lo", type: "u32", desc: "AXI response address (low)"},
+    {name: "axi_addr_hi", type: "u32", desc: "AXI response address (high)"},
+    {name: "certify_key_req", type: "hex", size: 72, desc: "Inner CertifyKey request data"},
+  ],
+
+  PRODUCTION_AUTH_DEBUG_UNLOCK_REQ: [
+    {name: "length", type: "u32", desc: "Length (in DWORDs)"},
+    {name: "unlock_level", type: "u32", desc: "Debug unlock level (1-8)"},
+  ],
+
+  PRODUCTION_AUTH_DEBUG_UNLOCK_TOKEN: [
+    {name: "token_size", type: "u32", desc: "Token size"},
+    {name: "token", type: "hex", size: 4096, desc: "Token data"},
+  ],
+
+  SET_AUTH_MANIFEST: [
+    {name: "manifest_size", type: "u32", desc: "Manifest size"},
+    {name: "manifest", type: "hex", size: 16384, desc: "Auth manifest data"},
+  ],
+
+  VERIFY_AUTH_MANIFEST: [
+    {name: "manifest_size", type: "u32", desc: "Manifest size"},
+    {name: "manifest", type: "hex", size: 16384, desc: "Auth manifest data"},
+  ],
+
+  SIGN_WITH_EXPORTED_ECDSA: [
+    {name: "exported_cdi_handle", type: "hex", size: 64, desc: "Exported CDI handle"},
+    {name: "tbs", type: "hex", size: 48, desc: "TBS digest"},
+  ],
+
+  SIGN_WITH_EXPORTED_MLDSA: [
+    {name: "exported_cdi_handle", type: "hex", size: 64, desc: "Exported CDI handle"},
+    {name: "tbs", type: "hex", size: 48, desc: "TBS digest"},
+  ],
+
+  REVOKE_EXPORTED_CDI_HANDLE: [
+    {name: "exported_cdi_handle", type: "hex", size: 64, desc: "Exported CDI handle"},
+  ],
+
+  // --- Crypto Manager (CM) commands ---
+
+  CM_IMPORT: [
+    {name: "key_usage", type: "u32", desc: "Key usage flags"},
+    {name: "input_size", type: "u32", desc: "Input size"},
+    {name: "input", type: "hex", size: 128, desc: "Key data"},
+  ],
+
+  CM_DELETE: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+  ],
+
+  CM_SHA_INIT: [
+    {name: "hash_algorithm", type: "enum", desc: "Hash algorithm", options: [{value: 1, label: "SHA-384"}, {value: 2, label: "SHA-512"}]},
+    {name: "input_size", type: "u32", desc: "Input data size"},
+    {name: "input", type: "hex", size: 4096, desc: "Input data"},
+  ],
+
+  CM_SHA_UPDATE: [
+    {name: "context", type: "hex", size: 200, desc: "SHA context (from INIT/previous UPDATE)"},
+    {name: "input_size", type: "u32", desc: "Input data size"},
+    {name: "input", type: "hex", size: 4096, desc: "Input data"},
+  ],
+
+  CM_SHA_FINAL: [
+    {name: "context", type: "hex", size: 200, desc: "SHA context"},
+    {name: "input_size", type: "u32", desc: "Input data size"},
+    {name: "input", type: "hex", size: 4096, desc: "Input data"},
+  ],
+
+  CM_SHA: [
+    {name: "hash_algorithm", type: "enum", desc: "Hash algorithm", options: [{value: 1, label: "SHA-384"}, {value: 2, label: "SHA-512"}]},
+    {name: "input_size", type: "u32", desc: "Input data size"},
+    {name: "input", type: "hex", size: 262132, desc: "Input data"},
+  ],
+
+  CM_SHAKE256_INIT: [
+    {name: "input_size", type: "u32", desc: "Input data size"},
+    {name: "input", type: "hex", size: 4096, desc: "Input data"},
+  ],
+
+  CM_SHAKE256_UPDATE: [
+    {name: "context", type: "hex", size: 44, desc: "SHAKE256 context"},
+    {name: "input_size", type: "u32", desc: "Input data size"},
+    {name: "input", type: "hex", size: 4096, desc: "Input data"},
+  ],
+
+  CM_SHAKE256_FINAL: [
+    {name: "context", type: "hex", size: 44, desc: "SHAKE256 context"},
+    {name: "input_size", type: "u32", desc: "Input data size"},
+    {name: "input", type: "hex", size: 4096, desc: "Input data"},
+  ],
+
+  CM_RANDOM_GENERATE: [
+    {name: "size", type: "u32", desc: "Number of random bytes to generate"},
+  ],
+
+  CM_RANDOM_STIR: [
+    {name: "input_size", type: "u32", desc: "Entropy data size"},
+    {name: "input", type: "hex", size: 4096, desc: "Entropy data"},
+  ],
+
+  CM_AES_ENCRYPT_INIT: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "mode", type: "enum", desc: "AES mode", options: [{value: 0, label: "ECB"}, {value: 1, label: "CBC"}, {value: 2, label: "CTR"}]},
+    {name: "plaintext_size", type: "u32", desc: "Plaintext size"},
+    {name: "plaintext", type: "hex", size: 4096, desc: "Plaintext data"},
+  ],
+
+  CM_AES_ENCRYPT_UPDATE: [
+    {name: "context", type: "hex", size: 156, desc: "AES context"},
+    {name: "plaintext_size", type: "u32", desc: "Plaintext size"},
+    {name: "plaintext", type: "hex", size: 4096, desc: "Plaintext data"},
+  ],
+
+  CM_AES_DECRYPT_INIT: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "mode", type: "enum", desc: "AES mode", options: [{value: 0, label: "ECB"}, {value: 1, label: "CBC"}, {value: 2, label: "CTR"}]},
+    {name: "iv", type: "hex", size: 16, desc: "Initialization vector"},
+    {name: "ciphertext_size", type: "u32", desc: "Ciphertext size"},
+    {name: "ciphertext", type: "hex", size: 4096, desc: "Ciphertext data"},
+  ],
+
+  CM_AES_DECRYPT_UPDATE: [
+    {name: "context", type: "hex", size: 156, desc: "AES context"},
+    {name: "ciphertext_size", type: "u32", desc: "Ciphertext size"},
+    {name: "ciphertext", type: "hex", size: 4096, desc: "Ciphertext data"},
+  ],
+
+  CM_AES_GCM_ENCRYPT_INIT: [
+    {name: "flags", type: "u32", desc: "Flags"},
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "aad_size", type: "u32", desc: "AAD size"},
+    {name: "aad", type: "hex", size: 4096, desc: "Additional authenticated data"},
+  ],
+
+  CM_AES_GCM_SPDM_ENCRYPT_INIT: [
+    {name: "spdm_flags", type: "u32", desc: "SPDM flags"},
+    {name: "spdm_counter", type: "hex", size: 8, desc: "SPDM counter"},
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "aad_size", type: "u32", desc: "AAD size"},
+    {name: "aad", type: "hex", size: 4096, desc: "Additional authenticated data"},
+  ],
+
+  CM_AES_GCM_ENCRYPT_UPDATE: [
+    {name: "context", type: "hex", size: 128, desc: "AES-GCM context"},
+    {name: "plaintext_size", type: "u32", desc: "Plaintext size"},
+    {name: "plaintext", type: "hex", size: 4096, desc: "Plaintext data"},
+  ],
+
+  CM_AES_GCM_ENCRYPT_FINAL: [
+    {name: "context", type: "hex", size: 128, desc: "AES-GCM context"},
+    {name: "plaintext_size", type: "u32", desc: "Plaintext size"},
+    {name: "plaintext", type: "hex", size: 4096, desc: "Plaintext data"},
+  ],
+
+  CM_AES_GCM_DECRYPT_INIT: [
+    {name: "flags", type: "u32", desc: "Flags"},
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "iv", type: "hex", size: 12, desc: "IV (u32[3])"},
+    {name: "aad_size", type: "u32", desc: "AAD size"},
+    {name: "aad", type: "hex", size: 4096, desc: "Additional authenticated data"},
+  ],
+
+  CM_AES_GCM_SPDM_DECRYPT_INIT: [
+    {name: "spdm_flags", type: "u32", desc: "SPDM flags"},
+    {name: "spdm_counter", type: "hex", size: 8, desc: "SPDM counter"},
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "aad_size", type: "u32", desc: "AAD size"},
+    {name: "aad", type: "hex", size: 4096, desc: "Additional authenticated data"},
+  ],
+
+  CM_AES_GCM_DECRYPT_UPDATE: [
+    {name: "context", type: "hex", size: 128, desc: "AES-GCM context"},
+    {name: "ciphertext_size", type: "u32", desc: "Ciphertext size"},
+    {name: "ciphertext", type: "hex", size: 4096, desc: "Ciphertext data"},
+  ],
+
+  CM_AES_GCM_DECRYPT_FINAL: [
+    {name: "context", type: "hex", size: 128, desc: "AES-GCM context"},
+    {name: "tag_len", type: "u32", desc: "Tag length"},
+    {name: "tag", type: "hex", size: 16, desc: "GCM tag (u32[4])"},
+    {name: "ciphertext_size", type: "u32", desc: "Ciphertext size"},
+    {name: "ciphertext", type: "hex", size: 4096, desc: "Ciphertext data"},
+  ],
+
+  CM_AES_GCM_DECRYPT_DMA: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "iv", type: "hex", size: 12, desc: "IV (u32[3])"},
+    {name: "tag", type: "hex", size: 16, desc: "GCM tag (u32[4])"},
+    {name: "encrypted_data_sha384", type: "hex", size: 48, desc: "SHA-384 of encrypted data"},
+    {name: "axi_addr_lo", type: "u32", desc: "AXI address (low)"},
+    {name: "axi_addr_hi", type: "u32", desc: "AXI address (high)"},
+    {name: "length", type: "u32", desc: "Data length"},
+    {name: "aad_length", type: "u32", desc: "AAD length"},
+    {name: "aad", type: "hex", size: 4096, desc: "Additional authenticated data"},
+  ],
+
+  CM_ECDH_GENERATE: [
+    {name: "key_usage", type: "u32", desc: "Key usage flags"},
+  ],
+
+  CM_ECDH_FINISH: [
+    {name: "context", type: "hex", size: 76, desc: "ECDH context"},
+    {name: "key_usage", type: "u32", desc: "Key usage flags"},
+    {name: "incoming_exchange_data", type: "hex", size: 96, desc: "Incoming ECDH exchange data"},
+  ],
+
+  CM_HMAC: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "hash_algorithm", type: "enum", desc: "Hash algorithm", options: [{value: 1, label: "SHA-384"}, {value: 2, label: "SHA-512"}]},
+    {name: "data_size", type: "u32", desc: "Data size"},
+    {name: "data", type: "hex", size: 4096, desc: "Data to HMAC"},
+  ],
+
+  CM_HMAC_KDF_COUNTER: [
+    {name: "kin", type: "hex", size: 128, desc: "Input key (CM Key handle)"},
+    {name: "hash_algorithm", type: "enum", desc: "Hash algorithm", options: [{value: 1, label: "SHA-384"}, {value: 2, label: "SHA-512"}]},
+    {name: "key_usage", type: "u32", desc: "Output key usage"},
+    {name: "key_size", type: "u32", desc: "Output key size"},
+    {name: "label_size", type: "u32", desc: "Label size"},
+    {name: "label", type: "hex", size: 4096, desc: "KDF label"},
+  ],
+
+  CM_HKDF_EXTRACT: [
+    {name: "hash_algorithm", type: "enum", desc: "Hash algorithm", options: [{value: 1, label: "SHA-384"}, {value: 2, label: "SHA-512"}]},
+    {name: "salt", type: "hex", size: 128, desc: "Salt (CM Key handle)"},
+    {name: "ikm", type: "hex", size: 128, desc: "Input keying material (CM Key handle)"},
+  ],
+
+  CM_HKDF_EXPAND: [
+    {name: "prk", type: "hex", size: 128, desc: "PRK (CM Key handle)"},
+    {name: "hash_algorithm", type: "enum", desc: "Hash algorithm", options: [{value: 1, label: "SHA-384"}, {value: 2, label: "SHA-512"}]},
+    {name: "key_usage", type: "u32", desc: "Output key usage"},
+    {name: "key_size", type: "u32", desc: "Output key size"},
+    {name: "info_size", type: "u32", desc: "Info size"},
+    {name: "info", type: "hex", size: 4096, desc: "HKDF info"},
+  ],
+
+  CM_MLDSA_PUBLIC_KEY: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+  ],
+
+  CM_MLDSA_SIGN: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "message_size", type: "u32", desc: "Message size"},
+    {name: "message", type: "hex", size: 4096, desc: "Message to sign"},
+  ],
+
+  CM_MLDSA_VERIFY: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle (public key)"},
+    {name: "signature", type: "hex", size: 4628, desc: "MLDSA87 signature"},
+    {name: "message_size", type: "u32", desc: "Message size"},
+    {name: "message", type: "hex", size: 4096, desc: "Message"},
+  ],
+
+  CM_ECDSA_PUBLIC_KEY: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+  ],
+
+  CM_ECDSA_SIGN: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "message_size", type: "u32", desc: "Message size"},
+    {name: "message", type: "hex", size: 4096, desc: "Message to sign"},
+  ],
+
+  CM_ECDSA_VERIFY: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle (public key)"},
+    {name: "signature_r", type: "hex", size: 48, desc: "Signature R"},
+    {name: "signature_s", type: "hex", size: 48, desc: "Signature S"},
+    {name: "message_size", type: "u32", desc: "Message size"},
+    {name: "message", type: "hex", size: 4096, desc: "Message"},
+  ],
+
+  CM_DERIVE_STABLE_KEY: [
+    {name: "key_type", type: "u32", desc: "Key type"},
+    {name: "info", type: "hex", size: 32, desc: "Derivation info"},
+  ],
+
+  CM_MLKEM_KEY_GEN: [
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle (seed)"},
+  ],
+
+  CM_MLKEM_ENCAPSULATE: [
+    {name: "key_usage", type: "u32", desc: "Key usage flags"},
+    {name: "encaps_key", type: "hex", size: 1568, desc: "Encapsulation key"},
+  ],
+
+  CM_MLKEM_DECAPSULATE: [
+    {name: "key_usage", type: "u32", desc: "Key usage flags"},
+    {name: "cmk", type: "hex", size: 128, desc: "CM Key handle"},
+    {name: "ciphertext", type: "hex", size: 1568, desc: "Ciphertext"},
+  ],
+
+  // --- OCP Lock commands ---
+
+  OCP_LOCK_REPORT_HEK_METADATA: [
+    {name: "reserved0", type: "u32", desc: "Reserved"},
+    {name: "total_slots", type: "u32", desc: "Total slots (u16) + Active slots (u16)"},
+    {name: "seed_state", type: "u32", desc: "Seed state (u16) + padding (u16)"},
+  ],
+
+  OCP_LOCK_ENUMERATE_HPKE_HANDLES: [
+    {name: "reserved", type: "u32", desc: "Reserved (0)"},
+  ],
+
+  OCP_LOCK_ROTATE_HPKE_KEY: [
+    {name: "reserved", type: "u32", desc: "Reserved (0)"},
+    {name: "hpke_handle", type: "u32", desc: "HPKE handle"},
+  ],
+
+  OCP_LOCK_GENERATE_MEK: [
+    {name: "reserved", type: "u32", desc: "Reserved (0)"},
+  ],
+
+  OCP_LOCK_GET_HPKE_PUB_KEY: [
+    {name: "reserved", type: "u32", desc: "Reserved (0)"},
+    {name: "hpke_handle", type: "u32", desc: "HPKE handle"},
+  ],
+
+  OCP_LOCK_CLEAR_KEY_CACHE: [
+    {name: "reserved", type: "u32", desc: "Reserved (0)"},
+    {name: "cmd_timeout", type: "u32", desc: "Command timeout"},
+  ],
 };
 
 // Caliptra checksum: 0 - (SUM(cmd LE bytes) + SUM(payload after checksum field))
@@ -840,10 +1502,20 @@ btnMboxSend.addEventListener("click", () => {
 
       // Build request
       let reqData;
-      if (cmd.hasInput) {
-        const payloadHex = mboxPayload.value.trim();
-        const payloadBytes = parseHexPayload(payloadHex);
+      const inputMode = getInputMode();
+      const fields = COMMAND_FIELDS[cmdKey] || [];
+
+      if (inputMode === "form" && fields.length > 0) {
+        const payloadBytes = serializeFormFields(cmdKey);
         reqData = makeChecksummedRequest(cmd.id, payloadBytes);
+      } else if (inputMode === "raw" || fields.length === 0) {
+        if (cmd.hasInput || fields.length > 0) {
+          const payloadHex = mboxPayload.value.trim();
+          const payloadBytes = parseHexPayload(payloadHex);
+          reqData = makeChecksummedRequest(cmd.id, payloadBytes);
+        } else {
+          reqData = makeHeaderOnlyRequest(cmd.id);
+        }
       } else {
         reqData = makeHeaderOnlyRequest(cmd.id);
       }
@@ -894,3 +1566,6 @@ btnMboxSend.addEventListener("click", () => {
 
 // Start
 startup();
+
+// Render initial form fields for the default selected command
+updateInputSection(mboxCmdSelect.value, getInputMode());
