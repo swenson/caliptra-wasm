@@ -83,7 +83,7 @@ fn build_assets(output_dir: &Path) -> Result<()> {
     let soc_manifest = default_test_soc_manifest(
         &DEFAULT_MCU_FW,
         FwVerificationPqcKeyType::MLDSA,
-        1,
+        0,
         RustCrypto::default(),
     );
     let soc_manifest_path = output_dir.join("default-soc-manifest.bin");
