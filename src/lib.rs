@@ -16,9 +16,12 @@ use caliptra_api_types::{
 use caliptra_emu_periph::MailboxRequester;
 use caliptra_hw_model::{BootParams, ExitStatus, HwModel, InitParams, ModelEmulated, TrngMode};
 use caliptra_hw_model_types::{EtrngResponse, RandomEtrngResponses, RandomNibbles};
+use caliptra_image_types::ImageManifest;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use sha2::{Digest, Sha384};
 use wasm_bindgen::prelude::*;
+use zerocopy::{FromBytes, IntoBytes};
 
 /// A shared buffer that captures log/UART output via the `Write` trait.
 #[derive(Clone)]
@@ -62,6 +65,13 @@ fn parse_pk_hash(hex: &str) -> Result<[u32; 12], String> {
             u32::from_str_radix(s, 16).map_err(|e| format!("Invalid hex at word {i}: {e}"))?;
     }
     Ok(result)
+}
+
+/// Extract vendor public key hash from a Caliptra FW image manifest.
+fn vendor_pk_hash_from_fw(fw: &[u8]) -> Option<[u8; 48]> {
+    let (manifest, _) = ImageManifest::ref_from_prefix(fw).ok()?;
+    let hash = Sha384::digest(manifest.preamble.vendor_pub_key_info.as_bytes());
+    Some(hash.into())
 }
 
 /// The Caliptra emulator, exposed to JavaScript via wasm-bindgen.
@@ -296,7 +306,7 @@ impl McuEmulator {
             otp_memory: None,
             lifecycle_controller_state: None,
             lifecycle_tokens: None,
-            vendor_pk_hash: None,
+            vendor_pk_hash: vendor_pk_hash_from_fw(caliptra_fw),
             vendor_pqc_type: None,
             log_writer: Box::new(log_buffer.clone()),
             dbg_manuf_service: Default::default(),
