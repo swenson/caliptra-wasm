@@ -1,7 +1,8 @@
 // Caliptra WASM Emulator - JavaScript glue
-import init, { CaliptraEmulator } from "./caliptra_wasm_demo.js";
+import init, { CaliptraEmulator, McuEmulator } from "./caliptra_wasm_demo.js";
 
 // DOM elements
+const emuModeSelect = document.getElementById("emu-mode");
 const romFileInput = document.getElementById("rom-file");
 const romInfo = document.getElementById("rom-info");
 const fwFileInput = document.getElementById("fw-file");
@@ -10,6 +11,9 @@ const socManifestFileInput = document.getElementById("soc-manifest-file");
 const socManifestInfo = document.getElementById("soc-manifest-info");
 const mcuFwFileInput = document.getElementById("mcu-fw-file");
 const mcuFwInfo = document.getElementById("mcu-fw-info");
+const mcuRomFileInput = document.getElementById("mcu-rom-file");
+const mcuRomInfo = document.getElementById("mcu-rom-info");
+const mcuRomRow = document.getElementById("mcu-rom-row");
 const vendorPkInput = document.getElementById("vendor-pk");
 const ownerPkInput = document.getElementById("owner-pk");
 const lifecycleSelect = document.getElementById("lifecycle");
@@ -157,6 +161,21 @@ function serializeFormFields(cmdKey) {
   return result;
 }
 
+// Show/hide Caliptra-only vs MCU fields based on emulator mode
+function updateModeVisibility() {
+  const isMcu = emuModeSelect.value === "mcu";
+  // MCU ROM row is only relevant in MCU mode
+  mcuRomRow.style.display = isMcu ? "flex" : "none";
+  // Caliptra-only options hidden in MCU mode (MCU handles these internally)
+  vendorPkInput.closest(".form-row").style.display = isMcu ? "none" : "flex";
+  ownerPkInput.closest(".form-row").style.display = isMcu ? "none" : "flex";
+  lifecycleSelect.closest(".form-row").style.display = isMcu ? "none" : "flex";
+  subsystemModeInput.closest(".form-row").style.display = isMcu ? "none" : "flex";
+  ocpLockInput.closest(".form-row").style.display = isMcu ? "none" : "flex";
+}
+emuModeSelect.addEventListener("change", updateModeVisibility);
+updateModeVisibility();
+
 // Show/hide fields based on selected command and input mode
 mboxCmdSelect.addEventListener("change", () => {
   const val = mboxCmdSelect.value;
@@ -191,6 +210,7 @@ let defaultSocManifest = null;
 let defaultMcuFw = null;
 let defaultMcuRom = null;
 let customMcuFw = null;
+let customMcuRom = null;
 let startTime = 0;
 
 // Steps per animation frame — balance between speed and UI responsiveness
@@ -246,6 +266,9 @@ async function startup() {
 
     if (mcuRomResp.status === "fulfilled" && mcuRomResp.value.ok) {
       defaultMcuRom = new Uint8Array(await mcuRomResp.value.arrayBuffer());
+      mcuRomInfo.textContent = `Default MCU ROM loaded (${(defaultMcuRom.length / 1024).toFixed(1)} KB)`;
+    } else {
+      mcuRomInfo.textContent = "No default MCU ROM — upload one for MCU mode";
     }
 
     setStatus("Ready", "");
@@ -305,6 +328,18 @@ mcuFwFileInput.addEventListener("change", (e) => {
   reader.readAsArrayBuffer(file);
 });
 
+// Handle MCU ROM file upload
+mcuRomFileInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    customMcuRom = new Uint8Array(reader.result);
+    mcuRomInfo.textContent = `${file.name} (${(customMcuRom.length / 1024).toFixed(1)} KB)`;
+  };
+  reader.readAsArrayBuffer(file);
+});
+
 // Get the ROM/FW to use (custom upload takes priority)
 function getRom() {
   return customRom || defaultRom;
@@ -318,23 +353,19 @@ function getSocManifest() {
 function getMcuFw() {
   return customMcuFw || defaultMcuFw || null;
 }
+function getMcuRom() {
+  return customMcuRom || defaultMcuRom || null;
+}
 
 // Create emulator instance
 function createEmulator() {
   const rom = getRom();
   if (!rom) {
-    setStatus("No ROM loaded — upload a ROM file", "stopped");
+    setStatus("No Caliptra ROM loaded — upload a ROM file", "stopped");
     return false;
   }
 
-  const vendorPk = vendorPkInput.value.trim();
-  const ownerPk = ownerPkInput.value.trim();
-  const fw = getFw();
-  const socManifest = getSocManifest();
-  const mcuFw = getMcuFw();
-  const lifecycle = lifecycleSelect.value;
-  const subsystemMode = subsystemModeInput.checked;
-  const ocpLock = ocpLockInput.checked;
+  const mode = emuModeSelect.value;
 
   try {
     // Free previous emulator if any
@@ -342,30 +373,65 @@ function createEmulator() {
       emulator.free();
       emulator = null;
     }
-    emulator = new CaliptraEmulator(
-      rom,
-      vendorPk,
-      ownerPk,
-      fw,
-      socManifest,
-      lifecycle,
-      subsystemMode,
-      ocpLock,
-      mcuFw
-    );
 
-    // Check for boot error — show logs even if boot failed
-    const bootErr = emulator.boot_error();
-    if (bootErr) {
-      uartOutput.textContent = bootErr;
-      const log = emulator.get_log();
-      if (log) logOutput.textContent = log;
-    } else {
+    if (mode === "mcu") {
+      // MCU + Caliptra mode
+      const mcuRom = getMcuRom();
+      if (!mcuRom) {
+        setStatus("No MCU ROM loaded — upload an MCU ROM file", "stopped");
+        return false;
+      }
+      const fw = getFw();
+      const socManifest = getSocManifest();
+      const mcuFw = getMcuFw();
+
+      emulator = new McuEmulator(
+        rom,
+        fw || new Uint8Array(0),
+        socManifest || new Uint8Array(0),
+        mcuRom,
+        mcuFw || new Uint8Array(0)
+      );
+
       uartOutput.textContent = "";
       logOutput.textContent = "";
+    } else {
+      // Caliptra-only mode
+      const vendorPk = vendorPkInput.value.trim();
+      const ownerPk = ownerPkInput.value.trim();
+      const fw = getFw();
+      const socManifest = getSocManifest();
+      const mcuFw = getMcuFw();
+      const lifecycle = lifecycleSelect.value;
+      const subsystemMode = subsystemModeInput.checked;
+      const ocpLock = ocpLockInput.checked;
+
+      emulator = new CaliptraEmulator(
+        rom,
+        vendorPk,
+        ownerPk,
+        fw,
+        socManifest,
+        lifecycle,
+        subsystemMode,
+        ocpLock,
+        mcuFw
+      );
+
+      // Check for boot error — show logs even if boot failed
+      const bootErr = emulator.boot_error();
+      if (bootErr) {
+        uartOutput.textContent = bootErr;
+        const log = emulator.get_log();
+        if (log) logOutput.textContent = log;
+      } else {
+        uartOutput.textContent = "";
+        logOutput.textContent = "";
+      }
     }
+
     statsEl.textContent = "";
-    btnMboxSend.disabled = false;
+    btnMboxSend.disabled = (mode === "mcu"); // mailbox only for Caliptra-only mode for now
     return true;
   } catch (err) {
     setStatus(`Error: ${err}`, "exited");
@@ -378,7 +444,13 @@ function createEmulator() {
 function runLoop() {
   if (!running || !emulator) return;
 
-  const stillRunning = emulator.step(STEPS_PER_FRAME);
+  const isMcu = emuModeSelect.value === "mcu";
+
+  if (isMcu) {
+    emulator.step(STEPS_PER_FRAME);
+  } else {
+    var stillRunning = emulator.step(STEPS_PER_FRAME);
+  }
 
   // Collect output
   const uart = emulator.get_uart_output();
@@ -399,7 +471,7 @@ function runLoop() {
   const mhz = (steps / elapsed / 1_000_000).toFixed(2);
   statsEl.textContent = `${steps.toLocaleString()} cycles | ${elapsed.toFixed(1)}s | ${mhz} MHz effective`;
 
-  if (!stillRunning) {
+  if (!isMcu && !stillRunning) {
     running = false;
     const passed = emulator.passed();
     setStatus(
@@ -427,10 +499,12 @@ btnRun.addEventListener("click", () => {
   setStatus("Running...", "running");
   btnRun.disabled = true;
   btnStop.disabled = false;
+  emuModeSelect.disabled = true;
   romFileInput.disabled = true;
   fwFileInput.disabled = true;
   socManifestFileInput.disabled = true;
   mcuFwFileInput.disabled = true;
+  mcuRomFileInput.disabled = true;
   vendorPkInput.disabled = true;
   ownerPkInput.disabled = true;
   lifecycleSelect.disabled = true;
@@ -469,10 +543,12 @@ btnReset.addEventListener("click", () => {
   btnRun.disabled = false;
   btnStop.disabled = true;
   btnMboxSend.disabled = true;
+  emuModeSelect.disabled = false;
   romFileInput.disabled = false;
   fwFileInput.disabled = false;
   socManifestFileInput.disabled = false;
   mcuFwFileInput.disabled = false;
+  mcuRomFileInput.disabled = false;
   vendorPkInput.disabled = false;
   ownerPkInput.disabled = false;
   lifecycleSelect.disabled = false;

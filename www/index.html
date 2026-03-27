@@ -226,13 +226,21 @@
   <h2>Configuration</h2>
 
   <div class="form-row">
-    <label for="rom-file">ROM Binary:</label>
+    <label for="emu-mode">Emulator Mode:</label>
+    <select id="emu-mode">
+      <option value="caliptra" selected>Caliptra Only</option>
+      <option value="mcu">MCU + Caliptra (Subsystem)</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="rom-file">Caliptra ROM:</label>
     <input type="file" id="rom-file" accept=".bin,.rom">
     <span class="rom-info" id="rom-info">Loading default ROM...</span>
   </div>
 
   <div class="form-row">
-    <label for="fw-file">FW Bundle:</label>
+    <label for="fw-file">Caliptra FW Bundle:</label>
     <input type="file" id="fw-file" accept=".bin,.bundle">
     <span class="rom-info" id="fw-info">Loading default FW...</span>
   </div>
@@ -247,6 +255,12 @@
     <label for="mcu-fw-file">MCU Firmware:</label>
     <input type="file" id="mcu-fw-file" accept=".bin">
     <span class="rom-info" id="mcu-fw-info">(optional — default loaded for subsystem mode)</span>
+  </div>
+
+  <div class="form-row" id="mcu-rom-row">
+    <label for="mcu-rom-file">MCU ROM:</label>
+    <input type="file" id="mcu-rom-file" accept=".bin">
+    <span class="rom-info" id="mcu-rom-info">(loading default MCU ROM...)</span>
   </div>
 
   <div class="form-row">
