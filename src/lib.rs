@@ -335,6 +335,10 @@ impl McuEmulator {
             check_booted_to_runtime: false,
             caliptra_soc_axi_user: None,
             flash_boot: false,
+            ocp_lock_en: true,
+            fips_zeroization: false,
+            network_rom: Default::default(),
+            rom_callback: None,
         };
 
         let mut model = {
@@ -486,26 +490,75 @@ mod hash_test {
 #[cfg(test)]
 mod otp_debug {
     use super::*;
-    
+
     #[test]
     fn test_vendor_pk_hash_bytes() {
         let fw = std::fs::read("www/default-fw.bin").expect("fw");
         let hash = vendor_pk_hash_from_fw(&fw).expect("hash");
         let hex: String = hash.iter().map(|b| format!("{:02x}", b)).collect();
         eprintln!("Raw SHA-384 bytes: {}", hex);
-        
+
         // Show what swap_endianness would do
         let mut swapped = hash;
         for i in (0..48).step_by(4) {
-            swapped[i..i+4].reverse();
+            swapped[i..i + 4].reverse();
         }
         let swapped_hex: String = swapped.iter().map(|b| format!("{:02x}", b)).collect();
         eprintln!("After swap_endianness: {}", swapped_hex);
-        
+
         // Show what ROM would read back as u32 LE
         for i in (0..48).step_by(4) {
-            let word = u32::from_le_bytes(swapped[i..i+4].try_into().unwrap());
+            let word = u32::from_le_bytes(swapped[i..i + 4].try_into().unwrap());
             eprint!("{:08X}", word);
+        }
+        eprintln!();
+    }
+}
+#[cfg(test)]
+mod otp_offset_debug {
+    use super::*;
+
+    #[test]
+    fn debug_otp_contents() {
+        let fw = std::fs::read("www/default-fw.bin").expect("fw");
+        let hash = vendor_pk_hash_from_fw(&fw).expect("hash");
+        eprintln!("Expected hash (first 16 bytes): {:02x?}", &hash[..16]);
+
+        // Manually create OTP the same way the MCU model does
+
+        let offset = 0x3f8usize; // VENDOR_HASHES_MANUF_PARTITION_BYTE_OFFSET
+
+        // Create a buffer and do what OTP::new does
+        let total_size = 4096; // big enough
+        let mut partitions = vec![0u8; total_size];
+
+        // swap endianness and store - this is what OTP::new does
+        let mut swapped = hash;
+        for i in (0..48).step_by(4) {
+            swapped[i..i + 4].reverse();
+        }
+        partitions[offset..offset + 48].copy_from_slice(&swapped);
+
+        // Now read back the way the ROM does: u32 LE at offset + i*4
+        eprintln!("OTP contents at offset 0x{:x}:", offset);
+        for i in 0..14 {
+            let addr = offset + i * 4;
+            if addr + 4 <= total_size {
+                let word = u32::from_le_bytes(partitions[addr..addr + 4].try_into().unwrap());
+                eprint!("{:08X}", word);
+            }
+        }
+        eprintln!();
+
+        // What if the ROM reads from offset 0 of the partition (relative)?
+        // Maybe the ROM adds some extra offset we're not seeing
+        eprintln!("Checking if there's an 8-byte shift...");
+        for i in 0..14 {
+            let addr = offset - 8 + i * 4; // Try 8 bytes earlier
+            if addr + 4 <= total_size {
+                let word = u32::from_le_bytes(partitions[addr..addr + 4].try_into().unwrap());
+                eprint!("{:08X}", word);
+            }
         }
         eprintln!();
     }
