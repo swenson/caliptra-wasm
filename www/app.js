@@ -431,7 +431,7 @@ function createEmulator() {
     }
 
     statsEl.textContent = "";
-    btnMboxSend.disabled = (mode === "mcu"); // mailbox only for Caliptra-only mode for now
+    btnMboxSend.disabled = false;
     return true;
   } catch (err) {
     setStatus(`Error: ${err}`, "exited");

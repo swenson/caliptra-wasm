@@ -392,6 +392,18 @@ impl McuEmulator {
     pub fn total_steps(&self) -> u64 {
         self.total_steps
     }
+
+    /// Execute a Caliptra mailbox command from the SoC side.
+    pub fn mailbox_execute(
+        &mut self,
+        cmd: u32,
+        request: &[u8],
+    ) -> Result<Option<Vec<u8>>, JsValue> {
+        use mcu_hw_model::McuHwModel;
+        self.model
+            .mailbox_execute(cmd, request)
+            .map_err(|e| JsValue::from_str(&format!("Mailbox error: {e:?}")))
+    }
 }
 
 #[cfg(test)]
