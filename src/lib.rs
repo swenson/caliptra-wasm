@@ -100,6 +100,8 @@ impl CaliptraEmulator {
         ocp_lock: bool,
         mcu_fw: Option<Vec<u8>>,
     ) -> Result<CaliptraEmulator, JsValue> {
+        console_error_panic_hook::set_once();
+
         // Parse PK hashes
         let vendor_pk_hash =
             parse_pk_hash(vendor_pk_hash_hex).map_err(|e| JsValue::from_str(&e))?;
@@ -272,6 +274,8 @@ impl McuEmulator {
         mcu_rom: &[u8],
         mcu_firmware: &[u8],
     ) -> Result<McuEmulator, JsValue> {
+        console_error_panic_hook::set_once();
+
         let log_buffer = SharedBuffer(Rc::new(RefCell::new(Vec::new())));
 
         let trng_seed: u64 = 42;
