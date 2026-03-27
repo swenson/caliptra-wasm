@@ -482,3 +482,31 @@ mod hash_test {
         assert!(defaults.contains(&words), "Hash mismatch!");
     }
 }
+
+#[cfg(test)]
+mod otp_debug {
+    use super::*;
+    
+    #[test]
+    fn test_vendor_pk_hash_bytes() {
+        let fw = std::fs::read("www/default-fw.bin").expect("fw");
+        let hash = vendor_pk_hash_from_fw(&fw).expect("hash");
+        let hex: String = hash.iter().map(|b| format!("{:02x}", b)).collect();
+        eprintln!("Raw SHA-384 bytes: {}", hex);
+        
+        // Show what swap_endianness would do
+        let mut swapped = hash;
+        for i in (0..48).step_by(4) {
+            swapped[i..i+4].reverse();
+        }
+        let swapped_hex: String = swapped.iter().map(|b| format!("{:02x}", b)).collect();
+        eprintln!("After swap_endianness: {}", swapped_hex);
+        
+        // Show what ROM would read back as u32 LE
+        for i in (0..48).step_by(4) {
+            let word = u32::from_le_bytes(swapped[i..i+4].try_into().unwrap());
+            eprint!("{:08X}", word);
+        }
+        eprintln!();
+    }
+}
