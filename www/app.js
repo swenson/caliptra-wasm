@@ -189,6 +189,7 @@ let customFw = null;
 let customSocManifest = null;
 let defaultSocManifest = null;
 let defaultMcuFw = null;
+let defaultMcuRom = null;
 let customMcuFw = null;
 let startTime = 0;
 
@@ -202,12 +203,13 @@ async function startup() {
     setStatus("Loading defaults...", "");
 
     // Load default ROM, FW, and hash defaults in parallel
-    const [romResp, fwResp, defaultsResp, socManifestResp, mcuFwResp] = await Promise.allSettled([
+    const [romResp, fwResp, defaultsResp, socManifestResp, mcuFwResp, mcuRomResp] = await Promise.allSettled([
       fetch("default-rom.bin"),
       fetch("default-fw.bin"),
       fetch("defaults.json"),
       fetch("default-soc-manifest.bin"),
       fetch("default-mcu-fw.bin"),
+      fetch("default-mcu-rom.bin"),
     ]);
 
     if (romResp.status === "fulfilled" && romResp.value.ok) {
@@ -240,6 +242,10 @@ async function startup() {
 
     if (mcuFwResp.status === "fulfilled" && mcuFwResp.value.ok) {
       defaultMcuFw = new Uint8Array(await mcuFwResp.value.arrayBuffer());
+    }
+
+    if (mcuRomResp.status === "fulfilled" && mcuRomResp.value.ok) {
+      defaultMcuRom = new Uint8Array(await mcuRomResp.value.arrayBuffer());
     }
 
     setStatus("Ready", "");

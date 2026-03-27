@@ -33,6 +33,33 @@ cp pkg/caliptra_wasm_demo.js www/
 echo "Building default Caliptra ROM/FW assets..."
 cargo run --quiet --manifest-path "$SCRIPT_DIR/tools/Cargo.toml" --bin build-default-assets -- "$SCRIPT_DIR/www"
 
+# Build MCU ROM from caliptra-mcu-sw
+MCU_SW_DIR="${MCU_SW_DIR:-}"
+if [ -z "$MCU_SW_DIR" ]; then
+    # Try common locations
+    for d in "../caliptra-mcu-sw" "../mcu-sw"; do
+        if [ -f "$d/Cargo.toml" ] && grep -q 'mcu-hw-model' "$d/Cargo.toml" 2>/dev/null; then
+            MCU_SW_DIR="$(cd "$d" && pwd)"
+            break
+        fi
+    done
+fi
+
+if [ -n "$MCU_SW_DIR" ]; then
+    echo "Building MCU ROM from $MCU_SW_DIR..."
+    (cd "$MCU_SW_DIR" && cargo xtask rom-build 2>&1 | tail -3)
+    MCU_ROM="$MCU_SW_DIR/target/riscv32imc-unknown-none-elf/release/mcu-rom-emulator.bin"
+    if [ -f "$MCU_ROM" ]; then
+        cp "$MCU_ROM" "$SCRIPT_DIR/www/default-mcu-rom.bin"
+        echo "Copied MCU ROM ($(wc -c < "$MCU_ROM") bytes) to www/default-mcu-rom.bin"
+    else
+        echo "WARNING: MCU ROM not found at $MCU_ROM"
+    fi
+else
+    echo "WARNING: caliptra-mcu-sw not found. Set MCU_SW_DIR or place it at ../caliptra-mcu-sw"
+    echo "  MCU emulator will require manual ROM upload."
+fi
+
 echo ""
 echo "Build complete! To run:"
 echo "  cd $SCRIPT_DIR/www"
