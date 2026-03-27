@@ -348,13 +348,17 @@ impl McuEmulator {
         })
     }
 
-    /// Step both CPUs by `n` clock cycles.
-    pub fn step(&mut self, n: u32) {
+    /// Step both CPUs by `n` clock cycles. Returns the number of steps actually taken.
+    /// May return fewer than `n` if the emulator hits an unrecoverable error.
+    pub fn step(&mut self, n: u32) -> u32 {
         use mcu_hw_model::McuHwModel;
+        let mut taken = 0u32;
         for _ in 0..n {
             self.model.step();
             self.total_steps += 1;
+            taken += 1;
         }
+        taken
     }
 
     /// Get accumulated UART output text since the last call.
@@ -373,5 +377,65 @@ impl McuEmulator {
     /// Get total steps executed.
     pub fn total_steps(&self) -> u64 {
         self.total_steps
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_caliptra_emulator_boots() {
+        let rom = std::fs::read("www/default-rom.bin").expect("default-rom.bin");
+        let fw = std::fs::read("www/default-fw.bin").expect("default-fw.bin");
+        let soc_manifest = std::fs::read("www/default-soc-manifest.bin").expect("soc-manifest");
+        let mcu_fw = std::fs::read("www/default-mcu-fw.bin").expect("mcu-fw");
+
+        let mut emu = CaliptraEmulator::new(
+            &rom,
+            "",
+            "",
+            Some(fw),
+            Some(soc_manifest),
+            "unprovisioned",
+            true,
+            true,
+            Some(mcu_fw),
+        )
+        .expect("Failed to create Caliptra emulator");
+
+        // Step a bit — should not panic
+        for _ in 0..10 {
+            emu.step(1000);
+        }
+        assert!(emu.total_steps() == 10_000);
+    }
+
+    #[test]
+    fn test_mcu_emulator_boots_and_steps() {
+        let caliptra_rom = std::fs::read("www/default-rom.bin").expect("default-rom.bin");
+        let caliptra_fw = std::fs::read("www/default-fw.bin").expect("default-fw.bin");
+        let soc_manifest = std::fs::read("www/default-soc-manifest.bin").expect("soc-manifest.bin");
+        let mcu_rom = std::fs::read("www/default-mcu-rom.bin").expect("default-mcu-rom.bin");
+        let mcu_fw = std::fs::read("www/default-mcu-fw.bin").expect("default-mcu-fw.bin");
+
+        let mut emu = McuEmulator::new(
+            &caliptra_rom,
+            &caliptra_fw,
+            &soc_manifest,
+            &mcu_rom,
+            &mcu_fw,
+        )
+        .expect("Failed to create MCU emulator");
+
+        // Step through boot — 50k steps per batch like the browser does
+        // Browser runs many frames, so test with lots of steps
+        for i in 0..200 {
+            emu.step(50_000);
+            if i % 50 == 0 {
+                eprintln!("Step batch {}, total: {}", i, emu.total_steps());
+            }
+        }
+        assert_eq!(emu.total_steps(), 10_000_000);
     }
 }

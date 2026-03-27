@@ -7,3 +7,5 @@
 /www/defaults.json
 /tools/target/
 Cargo.lock
+primary_flash
+secondary_flash
