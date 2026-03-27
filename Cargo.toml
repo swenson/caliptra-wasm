@@ -24,7 +24,7 @@ caliptra-hw-model-types = { git = "https://github.com/swenson/caliptra-sw", rev 
 caliptra-emu-periph = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056" }
 
 # MCU emulator
-mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "dba0876", default-features = false }
+mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "6e266e6", default-features = false }
 
 
 # Patch caliptra-cfi-lib with a no-asm shim for WASM (CFI uses inline asm
