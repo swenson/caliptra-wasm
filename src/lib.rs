@@ -307,7 +307,7 @@ impl McuEmulator {
             lifecycle_controller_state: None,
             lifecycle_tokens: None,
             vendor_pk_hash: vendor_pk_hash_from_fw(caliptra_fw),
-            vendor_pqc_type: None,
+            vendor_pqc_type: Some(caliptra_image_types::FwVerificationPqcKeyType::MLDSA),
             log_writer: Box::new(log_buffer.clone()),
             dbg_manuf_service: Default::default(),
             active_mode: false,
@@ -447,5 +447,38 @@ mod tests {
             }
         }
         assert_eq!(emu.total_steps(), 10_000_000);
+    }
+}
+
+#[cfg(test)]
+mod hash_test {
+    use super::*;
+
+    #[test]
+    fn test_vendor_pk_hash_matches_defaults() {
+        let fw = std::fs::read("www/default-fw.bin").expect("fw");
+        let hash = vendor_pk_hash_from_fw(&fw).expect("hash");
+
+        // Print as hex bytes
+        let hex: String = hash.iter().map(|b| format!("{:02x}", b)).collect();
+        eprintln!("computed hash (bytes): {}", hex);
+
+        // Read defaults.json
+        let defaults: String = std::fs::read_to_string("www/defaults.json").unwrap();
+        eprintln!("defaults.json: {}", defaults.trim());
+
+        // The defaults.json vendor_pk_hash is big-endian u32 words
+        // Our hash is raw SHA-384 bytes
+        // Convert our bytes to big-endian u32 words for comparison
+        let mut words = String::new();
+        for chunk in hash.chunks(4) {
+            words.push_str(&format!(
+                "{:08x}",
+                u32::from_be_bytes(chunk.try_into().unwrap())
+            ));
+        }
+        eprintln!("computed hash (words): {}", words);
+
+        assert!(defaults.contains(&words), "Hash mismatch!");
     }
 }
