@@ -327,11 +327,19 @@ impl McuEmulator {
             flash_boot: false,
         };
 
-        let model = {
+        let mut model = {
             use mcu_hw_model::McuHwModel;
             mcu_hw_model::ModelEmulated::new_unbooted(init_params)
                 .map_err(|e| JsValue::from_str(&format!("Failed to create MCU emulator: {e}")))?
         };
+
+        // Enable CPU stepping (equivalent to boot() without waiting for completion)
+        {
+            use mcu_hw_model::McuHwModel;
+            model
+                .boot()
+                .map_err(|e| JsValue::from_str(&format!("Failed to boot MCU emulator: {e}")))?;
+        }
 
         Ok(McuEmulator {
             model,
