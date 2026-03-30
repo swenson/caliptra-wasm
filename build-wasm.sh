@@ -30,10 +30,7 @@ echo "Copying WASM output to www/..."
 cp pkg/caliptra_wasm_demo_bg.wasm www/
 cp pkg/caliptra_wasm_demo.js www/
 
-echo "Building default Caliptra ROM/FW assets..."
-cargo run --quiet --manifest-path "$SCRIPT_DIR/tools/Cargo.toml" --bin build-default-assets -- "$SCRIPT_DIR/www"
-
-# Build MCU ROM from caliptra-mcu-sw
+# Build MCU ROM and runtime from caliptra-mcu-sw (must happen before asset generation)
 MCU_SW_DIR="${MCU_SW_DIR:-}"
 if [ -z "$MCU_SW_DIR" ]; then
     # Try common locations
@@ -45,6 +42,7 @@ if [ -z "$MCU_SW_DIR" ]; then
     done
 fi
 
+MCU_RUNTIME_PATH=""
 if [ -n "$MCU_SW_DIR" ]; then
     echo "Building MCU ROM from $MCU_SW_DIR..."
     (cd "$MCU_SW_DIR" && cargo xtask rom-build 2>&1 | tail -3)
@@ -62,12 +60,20 @@ if [ -n "$MCU_SW_DIR" ]; then
     if [ -f "$MCU_RUNTIME" ]; then
         cp "$MCU_RUNTIME" "$SCRIPT_DIR/www/default-mcu-runtime.bin"
         echo "Copied MCU runtime ($(wc -c < "$MCU_RUNTIME") bytes) to www/default-mcu-runtime.bin"
+        MCU_RUNTIME_PATH="$MCU_RUNTIME"
     else
         echo "WARNING: MCU runtime not found at $MCU_RUNTIME"
     fi
 else
     echo "WARNING: caliptra-mcu-sw not found. Set MCU_SW_DIR or place it at ../caliptra-mcu-sw"
     echo "  MCU emulator will require manual ROM/runtime upload."
+fi
+
+echo "Building default Caliptra ROM/FW assets..."
+if [ -n "$MCU_RUNTIME_PATH" ]; then
+    cargo run --quiet --manifest-path "$SCRIPT_DIR/tools/Cargo.toml" --bin build-default-assets -- "$SCRIPT_DIR/www" "$MCU_RUNTIME_PATH"
+else
+    cargo run --quiet --manifest-path "$SCRIPT_DIR/tools/Cargo.toml" --bin build-default-assets -- "$SCRIPT_DIR/www"
 fi
 
 echo ""
