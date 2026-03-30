@@ -400,9 +400,23 @@ impl McuEmulator {
         request: &[u8],
     ) -> Result<Option<Vec<u8>>, JsValue> {
         use mcu_hw_model::McuHwModel;
-        self.model
-            .caliptra_mailbox_execute(cmd, request)
-            .map_err(|e| JsValue::from_str(&format!("Mailbox error: {e:?}")))
+        // Retry with stepping — the mailbox may be temporarily locked by Caliptra RT
+        for attempt in 0..10 {
+            match self.model.caliptra_mailbox_execute(cmd, request) {
+                Ok(result) => return Ok(result),
+                Err(caliptra_hw_model::ModelError::UnableToLockMailbox) if attempt < 9 => {
+                    // Step the emulator to let Caliptra release the lock
+                    for _ in 0..100_000 {
+                        self.model.step();
+                        self.total_steps += 1;
+                    }
+                }
+                Err(e) => return Err(JsValue::from_str(&format!("Mailbox error: {e:?}"))),
+            }
+        }
+        Err(JsValue::from_str(
+            "Mailbox error: UnableToLockMailbox after retries",
+        ))
     }
 }
 
