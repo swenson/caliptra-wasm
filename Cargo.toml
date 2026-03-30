@@ -27,7 +27,7 @@ sha2 = "0.10"
 zerocopy = { version = "0.8", features = ["derive"] }
 
 # MCU emulator
-mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "34ea6ecc", default-features = false }
+mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "cef91db4", default-features = false }
 
 
 # Patch caliptra-cfi-lib with a no-asm shim for WASM (CFI uses inline asm
