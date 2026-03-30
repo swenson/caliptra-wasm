@@ -55,9 +55,19 @@ if [ -n "$MCU_SW_DIR" ]; then
     else
         echo "WARNING: MCU ROM not found at $MCU_ROM"
     fi
+
+    echo "Building MCU runtime from $MCU_SW_DIR..."
+    (cd "$MCU_SW_DIR" && cargo xtask runtime-build --features test-spdm-validator 2>&1 | tail -3)
+    MCU_RUNTIME="$MCU_SW_DIR/target/riscv32imc-unknown-none-elf/release/runtime.bin"
+    if [ -f "$MCU_RUNTIME" ]; then
+        cp "$MCU_RUNTIME" "$SCRIPT_DIR/www/default-mcu-runtime.bin"
+        echo "Copied MCU runtime ($(wc -c < "$MCU_RUNTIME") bytes) to www/default-mcu-runtime.bin"
+    else
+        echo "WARNING: MCU runtime not found at $MCU_RUNTIME"
+    fi
 else
     echo "WARNING: caliptra-mcu-sw not found. Set MCU_SW_DIR or place it at ../caliptra-mcu-sw"
-    echo "  MCU emulator will require manual ROM upload."
+    echo "  MCU emulator will require manual ROM/runtime upload."
 fi
 
 echo ""

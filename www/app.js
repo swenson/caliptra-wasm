@@ -209,6 +209,7 @@ let customSocManifest = null;
 let defaultSocManifest = null;
 let defaultMcuFw = null;
 let defaultMcuRom = null;
+let defaultMcuRuntime = null;
 let customMcuFw = null;
 let customMcuRom = null;
 let startTime = 0;
@@ -223,13 +224,14 @@ async function startup() {
     setStatus("Loading defaults...", "");
 
     // Load default ROM, FW, and hash defaults in parallel
-    const [romResp, fwResp, defaultsResp, socManifestResp, mcuFwResp, mcuRomResp] = await Promise.allSettled([
+    const [romResp, fwResp, defaultsResp, socManifestResp, mcuFwResp, mcuRomResp, mcuRuntimeResp] = await Promise.allSettled([
       fetch("default-rom.bin"),
       fetch("default-fw.bin"),
       fetch("defaults.json"),
       fetch("default-soc-manifest.bin"),
       fetch("default-mcu-fw.bin"),
       fetch("default-mcu-rom.bin"),
+      fetch("default-mcu-runtime.bin"),
     ]);
 
     if (romResp.status === "fulfilled" && romResp.value.ok) {
@@ -269,6 +271,11 @@ async function startup() {
       mcuRomInfo.textContent = `Default MCU ROM loaded (${(defaultMcuRom.length / 1024).toFixed(1)} KB)`;
     } else {
       mcuRomInfo.textContent = "No default MCU ROM — upload one for MCU mode";
+    }
+
+    if (mcuRuntimeResp.status === "fulfilled" && mcuRuntimeResp.value.ok) {
+      defaultMcuRuntime = new Uint8Array(await mcuRuntimeResp.value.arrayBuffer());
+      mcuFwInfo.textContent = `Default MCU runtime loaded (${(defaultMcuRuntime.length / 1024).toFixed(0)} KB)`;
     }
 
     setStatus("Ready", "");
@@ -351,7 +358,7 @@ function getSocManifest() {
   return customSocManifest || defaultSocManifest || null;
 }
 function getMcuFw() {
-  return customMcuFw || defaultMcuFw || null;
+  return customMcuFw || defaultMcuRuntime || defaultMcuFw || null;
 }
 function getMcuRom() {
   return customMcuRom || defaultMcuRom || null;
