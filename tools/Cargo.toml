@@ -20,6 +20,8 @@ caliptra-auth-man-gen = { git = "https://github.com/swenson/caliptra-sw", rev = 
 caliptra-auth-man-types = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056", default-features = false, features = ["std"] }
 caliptra-builder = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056", default-features = false, features = ["rustcrypto"] }
 caliptra-image-crypto = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056", default-features = false, features = ["rustcrypto"] }
+caliptra-image-fake-keys = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056" }
+caliptra-image-gen = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056" }
 caliptra-image-types = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056", default-features = false, package = "caliptra-image-types", features = ["std"] }
 sha2 = "0.10"
 zerocopy = { version = "0.8", features = ["derive"] }
