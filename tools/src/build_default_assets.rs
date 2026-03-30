@@ -4,12 +4,16 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use caliptra_auth_man_gen::default_test_manifest::{default_test_soc_manifest, DEFAULT_MCU_FW};
+use caliptra_auth_man_gen::default_test_manifest::{
+    create_test_auth_manifest_with_config, DEFAULT_MCU_FW,
+};
+use caliptra_auth_man_types::{AuthManifestFlags, AuthManifestImageMetadata, ImageMetadataFlags};
 use caliptra_builder::firmware;
 use caliptra_builder::version;
 use caliptra_builder::ImageOptions;
 use caliptra_image_crypto::RustCrypto;
 use caliptra_image_types::FwVerificationPqcKeyType;
+use sha2::Digest;
 use zerocopy::IntoBytes;
 
 fn main() -> Result<()> {
@@ -90,8 +94,32 @@ fn build_assets(output_dir: &Path, mcu_runtime_path: Option<&Path>) -> Result<()
     } else {
         DEFAULT_MCU_FW.to_vec()
     };
-    let soc_manifest = default_test_soc_manifest(
-        &mcu_fw_for_manifest,
+
+    // Compute SHA-384 digest of the MCU firmware with dword-reversed bytes
+    // (Caliptra compares the digest as [u8;48] with each 4-byte word in LE order)
+    let raw_hash = sha2::Sha384::digest(&mcu_fw_for_manifest);
+    let mut digest = [0u8; 48];
+    for (i, chunk) in raw_hash.chunks(4).enumerate() {
+        digest[i * 4] = chunk[3];
+        digest[i * 4 + 1] = chunk[2];
+        digest[i * 4 + 2] = chunk[1];
+        digest[i * 4 + 3] = chunk[0];
+    }
+
+    const IMAGE_SOURCE_IN_REQUEST: u32 = 1;
+    let mut flags = ImageMetadataFlags(0);
+    flags.set_image_source(IMAGE_SOURCE_IN_REQUEST);
+
+    let metadata = vec![AuthManifestImageMetadata {
+        fw_id: 2,
+        flags: flags.0,
+        digest,
+        ..Default::default()
+    }];
+
+    let soc_manifest = create_test_auth_manifest_with_config(
+        metadata,
+        AuthManifestFlags::VENDOR_SIGNATURE_REQUIRED,
         FwVerificationPqcKeyType::MLDSA,
         0,
         RustCrypto::default(),
