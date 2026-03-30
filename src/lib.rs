@@ -401,7 +401,7 @@ impl McuEmulator {
     ) -> Result<Option<Vec<u8>>, JsValue> {
         use mcu_hw_model::McuHwModel;
         self.model
-            .mailbox_execute(cmd, request)
+            .caliptra_mailbox_execute(cmd, request)
             .map_err(|e| JsValue::from_str(&format!("Mailbox error: {e:?}")))
     }
 }
