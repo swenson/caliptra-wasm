@@ -64,6 +64,10 @@ if [ -n "$MCU_SW_DIR" ]; then
     else
         echo "WARNING: MCU runtime not found at $MCU_RUNTIME"
     fi
+
+    # Generate SoC manifest using MCU builder (uses correct key configuration)
+    echo "Generating SoC manifest from $MCU_SW_DIR..."
+    (cd "$MCU_SW_DIR" && timeout 30 cargo xtask runtime --features test-spdm-validator --no-stdin 2>&1 | tail -3) || true
 else
     echo "WARNING: caliptra-mcu-sw not found. Set MCU_SW_DIR or place it at ../caliptra-mcu-sw"
     echo "  MCU emulator will require manual ROM/runtime upload."
@@ -74,6 +78,14 @@ if [ -n "$MCU_RUNTIME_PATH" ]; then
     cargo run --quiet --manifest-path "$SCRIPT_DIR/tools/Cargo.toml" --bin build-default-assets -- "$SCRIPT_DIR/www" "$MCU_RUNTIME_PATH"
 else
     cargo run --quiet --manifest-path "$SCRIPT_DIR/tools/Cargo.toml" --bin build-default-assets -- "$SCRIPT_DIR/www"
+fi
+
+# If we have the MCU builder's SoC manifest, use it instead of the tool-generated one
+# (the MCU builder uses the correct key configuration for signing)
+MCU_BUILDER_MANIFEST="${MCU_SW_DIR:+$MCU_SW_DIR/target/soc-manifest}"
+if [ -n "$MCU_BUILDER_MANIFEST" ] && [ -f "$MCU_BUILDER_MANIFEST" ]; then
+    cp "$MCU_BUILDER_MANIFEST" "$SCRIPT_DIR/www/default-soc-manifest.bin"
+    echo "Replaced SoC manifest with MCU builder version ($(wc -c < "$MCU_BUILDER_MANIFEST") bytes)"
 fi
 
 echo ""
