@@ -154,13 +154,13 @@ function packU16LE(v) { return new Uint8Array([v & 0xff, (v >> 8) & 0xff]); }
 function fmtHash(h) {
   let s = "";
   for (let i = 0; i < 48; i += 4)
-    s += ((h[i]<<24)|(h[i+1]<<16)|(h[i+2]<<8)|h[i+3]).toString(16).padStart(8,"0");
+    s += (((h[i]<<24)|(h[i+1]<<16)|(h[i+2]<<8)|h[i+3]) >>> 0).toString(16).padStart(8,"0");
   return s;
 }
 function fmtWords(h) {
   const w = [];
   for (let i = 0; i < 48; i += 4)
-    w.push(((h[i]<<24)|(h[i+1]<<16)|(h[i+2]<<8)|h[i+3]).toString(16).padStart(8,"0"));
+    w.push((((h[i]<<24)|(h[i+1]<<16)|(h[i+2]<<8)|h[i+3]) >>> 0).toString(16).padStart(8,"0"));
   return w.join(" ");
 }
 
