@@ -10,6 +10,7 @@ use std::cell::RefCell;
 use std::io::Write;
 use std::rc::Rc;
 
+use caliptra_api::SocManager;
 use caliptra_api_types::{
     DeviceLifecycle, Fuses, SecurityState, DEFAULT_CPTRA_OBF_KEY, DEFAULT_CSR_HMAC_KEY,
 };
@@ -259,6 +260,24 @@ impl CaliptraEmulator {
             .mailbox_execute(cmd, request)
             .map_err(|e| JsValue::from_str(&format!("Mailbox error: {e:?}")))
     }
+
+    /// Set the production debug unlock request bit in ss_dbg_service_reg_req.
+    /// Must be called before sending PRODUCTION_AUTH_DEBUG_UNLOCK_REQ.
+    pub fn set_prod_dbg_unlock_req(&mut self, val: bool) {
+        self.model
+            .soc_ifc()
+            .ss_dbg_service_reg_req()
+            .write(|w| w.prod_dbg_unlock_req(val));
+    }
+
+    /// Set the manufacturing debug unlock request bit in ss_dbg_service_reg_req.
+    /// Must be called before sending MANUF_DEBUG_UNLOCK_REQ_TOKEN.
+    pub fn set_manuf_dbg_unlock_req(&mut self, val: bool) {
+        self.model
+            .soc_ifc()
+            .ss_dbg_service_reg_req()
+            .write(|w| w.manuf_dbg_unlock_req(val));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -425,6 +444,26 @@ impl McuEmulator {
         Err(JsValue::from_str(
             "Mailbox error: UnableToLockMailbox after retries",
         ))
+    }
+
+    /// Set the production debug unlock request bit in ss_dbg_service_reg_req.
+    pub fn set_prod_dbg_unlock_req(&mut self, val: bool) {
+        use mcu_hw_model::McuHwModel;
+        self.model
+            .caliptra_soc_manager()
+            .soc_ifc()
+            .ss_dbg_service_reg_req()
+            .write(|w| w.prod_dbg_unlock_req(val));
+    }
+
+    /// Set the manufacturing debug unlock request bit in ss_dbg_service_reg_req.
+    pub fn set_manuf_dbg_unlock_req(&mut self, val: bool) {
+        use mcu_hw_model::McuHwModel;
+        self.model
+            .caliptra_soc_manager()
+            .soc_ifc()
+            .ss_dbg_service_reg_req()
+            .write(|w| w.manuf_dbg_unlock_req(val));
     }
 }
 

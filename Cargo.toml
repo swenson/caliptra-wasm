@@ -19,6 +19,7 @@ uuid = { version = "1", features = ["js"] }
 
 # Caliptra dependencies; keep revs in sync
 caliptra-hw-model = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056", default-features = false }
+caliptra-api = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056" }
 caliptra-api-types = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056" }
 caliptra-hw-model-types = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056" }
 caliptra-emu-periph = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056" }

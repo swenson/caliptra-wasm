@@ -1617,6 +1617,13 @@ btnMboxSend.addEventListener("click", () => {
       output += formatRawRequest(reqData);
       output += "\n";
 
+      // Auto-set debug unlock request bits for debug unlock commands
+      if (cmd.id === 0x50445552 || cmd.id === 0x50445554) {
+        emulator.set_prod_dbg_unlock_req(true);
+      } else if (cmd.id === 0x4D445554) {
+        emulator.set_manuf_dbg_unlock_req(true);
+      }
+
       // Execute
       const respData = emulator.mailbox_execute(cmd.id, reqData);
 
