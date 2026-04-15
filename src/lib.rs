@@ -109,6 +109,7 @@ impl CaliptraEmulator {
         subsystem_mode: bool,
         ocp_lock: bool,
         mcu_fw: Option<Vec<u8>>,
+        debug_intent: bool,
     ) -> Result<CaliptraEmulator, JsValue> {
         console_error_panic_hook::set_once();
 
@@ -137,14 +138,19 @@ impl CaliptraEmulator {
             vendor_pk_hash,
             owner_pk_hash,
             life_cycle: device_lifecycle,
+            debug_locked: debug_intent,
             ..Default::default()
         };
+
+        let security_state = *SecurityState::default()
+            .set_device_lifecycle(device_lifecycle)
+            .set_debug_locked(debug_intent);
 
         let init_params = InitParams {
             rom,
             fuses,
             log_writer: Box::new(log_buffer.clone()),
-            security_state: *SecurityState::default().set_device_lifecycle(device_lifecycle),
+            security_state,
             subsystem_mode,
             ocp_lock_en: ocp_lock,
             cptra_obf_key: DEFAULT_CPTRA_OBF_KEY,
@@ -155,6 +161,7 @@ impl CaliptraEmulator {
             random_sram_puf: false,
             trace_path: None,
             soc_user: MailboxRequester::SocUser(1),
+            debug_intent,
             ..Default::default()
         };
 
@@ -283,6 +290,7 @@ impl McuEmulator {
         soc_manifest: &[u8],
         mcu_rom: &[u8],
         mcu_firmware: &[u8],
+        debug_intent: bool,
     ) -> Result<McuEmulator, JsValue> {
         console_error_panic_hook::set_once();
 
@@ -316,7 +324,7 @@ impl McuEmulator {
             prod_dbg_unlock_pk_hashes_offset: 0x480,
             bootfsm_break: false,
             rma_or_scrap_ppd: false,
-            debug_intent: false,
+            debug_intent,
             uds_program_req: false,
             cptra_obf_key: DEFAULT_CPTRA_OBF_KEY,
             csr_hmac_key: [1; 16],
@@ -441,6 +449,7 @@ mod tests {
             true,
             true,
             Some(mcu_fw),
+            false,
         )
         .expect("Failed to create Caliptra emulator");
 
@@ -465,6 +474,7 @@ mod tests {
             &soc_manifest,
             &mcu_rom,
             &mcu_fw,
+            false,
         )
         .expect("Failed to create MCU emulator");
 

@@ -19,6 +19,7 @@ const ownerPkInput = document.getElementById("owner-pk");
 const lifecycleSelect = document.getElementById("lifecycle");
 const subsystemModeInput = document.getElementById("subsystem-mode");
 const ocpLockInput = document.getElementById("ocp-lock");
+const debugIntentInput = document.getElementById("debug-intent");
 const btnRun = document.getElementById("btn-run");
 const btnStop = document.getElementById("btn-stop");
 const btnReset = document.getElementById("btn-reset");
@@ -397,7 +398,8 @@ function createEmulator() {
         fw || new Uint8Array(0),
         socManifest || new Uint8Array(0),
         mcuRom,
-        mcuFw || new Uint8Array(0)
+        mcuFw || new Uint8Array(0),
+        debugIntentInput.checked
       );
 
       uartOutput.textContent = "";
@@ -422,7 +424,8 @@ function createEmulator() {
         lifecycle,
         subsystemMode,
         ocpLock,
-        mcuFw
+        mcuFw,
+        debugIntentInput.checked
       );
 
       // Check for boot error — show logs even if boot failed
@@ -517,6 +520,7 @@ btnRun.addEventListener("click", () => {
   lifecycleSelect.disabled = true;
   subsystemModeInput.disabled = true;
   ocpLockInput.disabled = true;
+  debugIntentInput.disabled = true;
 
   animFrameId = requestAnimationFrame(runLoop);
 });
@@ -561,6 +565,7 @@ btnReset.addEventListener("click", () => {
   lifecycleSelect.disabled = false;
   subsystemModeInput.disabled = false;
   ocpLockInput.disabled = false;
+  debugIntentInput.disabled = false;
 });
 
 function setStatus(text, className) {
