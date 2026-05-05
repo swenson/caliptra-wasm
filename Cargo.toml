@@ -26,6 +26,8 @@ caliptra-emu-periph = { git = "https://github.com/swenson/caliptra-sw", rev = "d
 caliptra-image-types = { git = "https://github.com/swenson/caliptra-sw", rev = "df412daf506b5f46c28df029e57e5779a0449056", default-features = false, features = ["std"] }
 sha2 = "0.10"
 zerocopy = { version = "0.8", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 # MCU emulator
 mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "27f66a115152d1a652f491f780f0c67fff5d9d7b", default-features = false }

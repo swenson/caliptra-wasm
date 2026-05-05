@@ -44,6 +44,110 @@ const otpLogPanel = document.getElementById("otp-log-panel");
 const otpLogEnable = document.getElementById("otp-log-enable");
 const otpLogOutput = document.getElementById("otp-log-output");
 
+// Fuse Configuration form fields
+const fusePqcKeyType = document.getElementById("fuse-pqc-key-type");
+const fuseEccRevocation = document.getElementById("fuse-ecc-revocation");
+const fuseLmsRevocation = document.getElementById("fuse-lms-revocation");
+const fuseMldsaRevocation = document.getElementById("fuse-mldsa-revocation");
+const antiRollbackDisable = document.getElementById("anti-rollback-disable");
+const socSteppingId = document.getElementById("soc-stepping-id");
+const socManifestMaxSvn = document.getElementById("soc-manifest-max-svn");
+const socManifestSvn = document.getElementById("soc-manifest-svn");
+const fwSvn = document.getElementById("fw-svn");
+const idevidCertAttr = document.getElementById("idevid-cert-attr");
+const idevidManufHsmId = document.getElementById("idevid-manuf-hsm-id");
+const prodDbgPksFields = document.getElementById("prod-dbg-pks-fields");
+
+// Render 8 prod_debug_unlock_pks input rows
+const prodDbgPkInputs = [];
+for (let i = 0; i < 8; i++) {
+  const row = document.createElement("div");
+  row.className = "form-row";
+  const label = document.createElement("label");
+  label.textContent = `prod_debug_unlock_pks_${i}:`;
+  label.htmlFor = `prod-dbg-pk-${i}`;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.id = `prod-dbg-pk-${i}`;
+  input.placeholder = "(default: all zeros) — 96 hex chars";
+  input.style.fontFamily = "'Cascadia Code', 'Fira Code', monospace";
+  input.style.fontSize = "0.7rem";
+  prodDbgPksFields.appendChild(row);
+  row.appendChild(label);
+  row.appendChild(input);
+  prodDbgPkInputs.push(input);
+}
+
+function parseInt32Maybe(s) {
+  s = s.trim();
+  if (!s) return null;
+  const lower = s.toLowerCase();
+  const v = lower.startsWith("0x") ? parseInt(lower.slice(2), 16) : parseInt(s, 10);
+  return Number.isFinite(v) ? v : null;
+}
+
+function parseU32Array4(s) {
+  s = s.trim();
+  if (!s) return null;
+  const parts = s.split(/[\s,]+/).filter(p => p.length > 0);
+  if (parts.length !== 4) return null;
+  const out = parts.map(parseInt32Maybe);
+  if (out.some(v => v === null)) return null;
+  return out;
+}
+
+function buildFuseConfigJson() {
+  const cfg = {};
+  if (fusePqcKeyType.value !== "") {
+    const v = parseInt(fusePqcKeyType.value, 10);
+    if (Number.isFinite(v)) cfg.fuse_pqc_key_type = v;
+  }
+  const ecc = parseInt32Maybe(fuseEccRevocation.value);
+  if (ecc !== null) cfg.fuse_ecc_revocation = ecc;
+  const lms = parseInt32Maybe(fuseLmsRevocation.value);
+  if (lms !== null) cfg.fuse_lms_revocation = lms;
+  const mldsa = parseInt32Maybe(fuseMldsaRevocation.value);
+  if (mldsa !== null) cfg.fuse_mldsa_revocation = mldsa;
+  if (antiRollbackDisable.checked) cfg.anti_rollback_disable = true;
+  const steppingId = parseInt32Maybe(socSteppingId.value);
+  if (steppingId !== null) cfg.soc_stepping_id = steppingId;
+  const maxSvn = parseInt32Maybe(socManifestMaxSvn.value);
+  if (maxSvn !== null) cfg.soc_manifest_max_svn = maxSvn;
+  const socSvn = parseU32Array4(socManifestSvn.value);
+  if (socSvn) cfg.soc_manifest_svn = socSvn;
+  const fwSvnArr = parseU32Array4(fwSvn.value);
+  if (fwSvnArr) cfg.fw_svn = fwSvnArr;
+  const certAttr = idevidCertAttr.value.trim();
+  if (certAttr) cfg.idevid_cert_attr = certAttr;
+  const hsmId = idevidManufHsmId.value.trim();
+  if (hsmId) cfg.idevid_manuf_hsm_id = hsmId;
+
+  const pks = prodDbgPkInputs.map(i => i.value.trim()).filter(v => v.length > 0);
+  if (pks.length > 0) {
+    // Pad to 8 entries with all-zeros if user didn't fill all
+    const all = prodDbgPkInputs.map(i => i.value.trim() || "00".repeat(48));
+    cfg.prod_debug_unlock_pks = all;
+  }
+
+  return Object.keys(cfg).length === 0 ? "" : JSON.stringify(cfg);
+}
+
+function resetFuseFields() {
+  fusePqcKeyType.value = "";
+  fuseEccRevocation.value = "";
+  fuseLmsRevocation.value = "";
+  fuseMldsaRevocation.value = "";
+  antiRollbackDisable.checked = false;
+  socSteppingId.value = "";
+  socManifestMaxSvn.value = "";
+  socManifestSvn.value = "";
+  fwSvn.value = "";
+  idevidCertAttr.value = "";
+  idevidManufHsmId.value = "";
+  for (const inp of prodDbgPkInputs) inp.value = "";
+}
+window.resetFuseFields = resetFuseFields;
+
 function getInputMode() {
   const r = document.querySelector('input[name="mbox-input-mode"]:checked');
   return r ? r.value : "form";
@@ -403,13 +507,16 @@ function createEmulator() {
       const socManifest = getSocManifest();
       const mcuFw = getMcuFw();
 
+      const fusesJson = buildFuseConfigJson();
+
       emulator = new McuEmulator(
         rom,
         fw || new Uint8Array(0),
         socManifest || new Uint8Array(0),
         mcuRom,
         mcuFw || new Uint8Array(0),
-        debugIntentInput.checked
+        debugIntentInput.checked,
+        fusesJson
       );
 
       uartOutput.textContent = "";
@@ -425,6 +532,8 @@ function createEmulator() {
       const subsystemMode = subsystemModeInput.checked;
       const ocpLock = ocpLockInput.checked;
 
+      const fusesJson = buildFuseConfigJson();
+
       emulator = new CaliptraEmulator(
         rom,
         vendorPk,
@@ -435,7 +544,8 @@ function createEmulator() {
         subsystemMode,
         ocpLock,
         mcuFw,
-        debugIntentInput.checked
+        debugIntentInput.checked,
+        fusesJson
       );
 
       // Check for boot error — show logs even if boot failed

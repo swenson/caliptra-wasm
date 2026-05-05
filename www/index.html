@@ -320,6 +320,98 @@
   </p>
 </div>
 
+<!-- Advanced Fuse Configuration -->
+<div class="panel">
+  <details>
+    <summary>Advanced Fuse Configuration</summary>
+    <p class="help" style="margin: 8px 0;">
+      Override individual fuse values. Defaults shown below. Hex inputs are big-endian byte strings.
+      In core mode, values populate the Caliptra <code>Fuses</code> struct.
+      In subsystem (MCU) mode, values populate the corresponding OTP partition bytes.
+      Note: <code>fuse_pqc_key_type</code> uses 0=LMS, 1=MLDSA (Caliptra convention); the OTP byte encoding is inverted automatically.
+    </p>
+
+    <div class="form-row">
+      <label for="fuse-pqc-key-type">fuse_pqc_key_type:</label>
+      <select id="fuse-pqc-key-type">
+        <option value="">(default: 1 = MLDSA)</option>
+        <option value="0">0 = LMS</option>
+        <option value="1">1 = MLDSA</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label for="fuse-ecc-revocation">fuse_ecc_revocation:</label>
+      <input type="text" id="fuse-ecc-revocation" placeholder="0" style="max-width: 100px;">
+      <span class="rom-info">4-bit mask (decimal/hex, prefix 0x)</span>
+    </div>
+
+    <div class="form-row">
+      <label for="fuse-lms-revocation">fuse_lms_revocation:</label>
+      <input type="text" id="fuse-lms-revocation" placeholder="0" style="max-width: 120px;">
+      <span class="rom-info">u32 bitmask</span>
+    </div>
+
+    <div class="form-row">
+      <label for="fuse-mldsa-revocation">fuse_mldsa_revocation:</label>
+      <input type="text" id="fuse-mldsa-revocation" placeholder="0" style="max-width: 120px;">
+      <span class="rom-info">u32 bitmask</span>
+    </div>
+
+    <div class="form-row">
+      <label for="anti-rollback-disable">anti_rollback_disable:</label>
+      <input type="checkbox" id="anti-rollback-disable">
+      <span class="rom-info">Disable rollback protection</span>
+    </div>
+
+    <div class="form-row">
+      <label for="soc-stepping-id">soc_stepping_id:</label>
+      <input type="text" id="soc-stepping-id" placeholder="0" style="max-width: 120px;">
+      <span class="rom-info">u16</span>
+    </div>
+
+    <div class="form-row">
+      <label for="soc-manifest-max-svn">soc_manifest_max_svn:</label>
+      <input type="text" id="soc-manifest-max-svn" placeholder="128" style="max-width: 120px;">
+      <span class="rom-info">u8 (default 128)</span>
+    </div>
+
+    <div class="form-row">
+      <label for="soc-manifest-svn">soc_manifest_svn:</label>
+      <input type="text" id="soc-manifest-svn" placeholder="0,0,0,0" style="max-width: 240px;">
+      <span class="rom-info">4 u32 words, comma-separated</span>
+    </div>
+
+    <div class="form-row">
+      <label for="fw-svn">fw_svn (runtime SVN):</label>
+      <input type="text" id="fw-svn" placeholder="0,0,0,0" style="max-width: 240px;">
+      <span class="rom-info">4 u32 words, comma-separated</span>
+    </div>
+
+    <div class="form-row">
+      <label for="idevid-cert-attr">idevid_cert_attr:</label>
+      <input type="text" id="idevid-cert-attr" placeholder="(default: all zeros)" style="font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.7rem;">
+      <span class="rom-info">96 bytes hex (192 chars)</span>
+    </div>
+
+    <div class="form-row">
+      <label for="idevid-manuf-hsm-id">idevid_manuf_hsm_id:</label>
+      <input type="text" id="idevid-manuf-hsm-id" placeholder="(default: all zeros)" style="font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.7rem; max-width: 320px;">
+      <span class="rom-info">16 bytes hex (32 chars)</span>
+    </div>
+
+    <h3 style="font-size: 0.85rem; color: var(--muted); margin: 16px 0 8px; text-transform: uppercase;">Production Debug Unlock PK Hashes (subsystem mode only)</h3>
+    <p class="help" style="margin: 4px 0 8px;">
+      8 SHA-384 hashes (48 bytes / 96 hex chars each) for unlock levels 1-8. Stored in SW_MANUF OTP partition.
+    </p>
+    <div id="prod-dbg-pks-fields"></div>
+
+    <div class="form-row" style="margin-top: 12px;">
+      <button class="reset" onclick="resetFuseFields()">Reset all to defaults</button>
+    </div>
+  </details>
+</div>
+
 <!-- Controls -->
 <div class="panel">
   <h2>Controls</h2>

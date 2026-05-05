@@ -24,6 +24,9 @@ use sha2::{Digest, Sha384};
 use wasm_bindgen::prelude::*;
 use zerocopy::{FromBytes, IntoBytes};
 
+mod fuse_config;
+use fuse_config::FuseConfig;
+
 /// A shared buffer that captures log/UART output via the `Write` trait.
 #[derive(Clone)]
 struct SharedBuffer(Rc<RefCell<Vec<u8>>>);
@@ -156,6 +159,7 @@ impl CaliptraEmulator {
         ocp_lock: bool,
         mcu_fw: Option<Vec<u8>>,
         debug_intent: bool,
+        fuses_json: &str,
     ) -> Result<CaliptraEmulator, JsValue> {
         console_error_panic_hook::set_once();
 
@@ -163,6 +167,8 @@ impl CaliptraEmulator {
         let vendor_pk_hash =
             parse_pk_hash(vendor_pk_hash_hex).map_err(|e| JsValue::from_str(&e))?;
         let owner_pk_hash = parse_pk_hash(owner_pk_hash_hex).map_err(|e| JsValue::from_str(&e))?;
+
+        let fuse_config = FuseConfig::from_json(fuses_json).map_err(|e| JsValue::from_str(&e))?;
 
         let log_buffer = SharedBuffer(Rc::new(RefCell::new(Vec::new())));
 
@@ -180,13 +186,16 @@ impl CaliptraEmulator {
         let etrng_responses: Box<dyn Iterator<Item = EtrngResponse> + Send> =
             Box::new(RandomEtrngResponses(StdRng::seed_from_u64(trng_seed)));
 
-        let fuses = Fuses {
+        let mut fuses = Fuses {
             vendor_pk_hash,
             owner_pk_hash,
             life_cycle: device_lifecycle,
             debug_locked: debug_intent,
             ..Default::default()
         };
+        fuse_config
+            .apply_to_fuses(&mut fuses)
+            .map_err(|e| JsValue::from_str(&e))?;
 
         let security_state = *SecurityState::default()
             .set_device_lifecycle(device_lifecycle)
@@ -362,8 +371,11 @@ impl McuEmulator {
         mcu_rom: &[u8],
         mcu_firmware: &[u8],
         debug_intent: bool,
+        fuses_json: &str,
     ) -> Result<McuEmulator, JsValue> {
         console_error_panic_hook::set_once();
+
+        let fuse_config = FuseConfig::from_json(fuses_json).map_err(|e| JsValue::from_str(&e))?;
 
         let log_buffer = SharedBuffer(Rc::new(RefCell::new(Vec::new())));
 
@@ -372,6 +384,27 @@ impl McuEmulator {
             Box::new(RandomNibbles(StdRng::seed_from_u64(trng_seed)));
         let etrng_responses: Box<dyn Iterator<Item = EtrngResponse> + Send> =
             Box::new(RandomEtrngResponses(StdRng::seed_from_u64(trng_seed)));
+
+        // Build OTP memory ourselves so it is the single source of truth.
+        // OTP partitions occupy bytes 0..LIFE_CYCLE end (0xe88).
+        let otp_size = 0xe30 + 0x58;
+        let mut otp = vec![0u8; otp_size];
+
+        // Populate vendor_pk_hash from FW manifest at VENDOR_HASHES_MANUF (0x420).
+        // OTP stores it in hardware (little-endian per u32) format -- swap each u32.
+        if let Some(mut vpkh) = vendor_pk_hash_from_fw(caliptra_fw) {
+            for chunk in vpkh.chunks_mut(4) {
+                chunk.reverse();
+            }
+            otp[0x420..0x420 + 48].copy_from_slice(&vpkh);
+        }
+        // Default pqc_key_type byte: 0 = MLDSA (MCU OTP convention).
+        otp[0x420 + 48..0x420 + 52].copy_from_slice(&0u32.to_le_bytes());
+
+        // Apply any user-supplied fuse overrides on top.
+        fuse_config
+            .apply_to_otp(&mut otp)
+            .map_err(|e| JsValue::from_str(&e))?;
 
         let init_params = mcu_hw_model::InitParams {
             fuses: Default::default(),
@@ -382,11 +415,12 @@ impl McuEmulator {
             mcu_firmware,
             caliptra_dccm: Default::default(),
             caliptra_iccm: Default::default(),
-            otp_memory: None,
+            otp_memory: Some(&otp),
             lifecycle_controller_state: None,
             lifecycle_tokens: None,
-            vendor_pk_hash: vendor_pk_hash_from_fw(caliptra_fw),
-            vendor_pqc_type: Some(caliptra_image_types::FwVerificationPqcKeyType::MLDSA),
+            // OTP is the source of truth — model should not double-write.
+            vendor_pk_hash: None,
+            vendor_pqc_type: None,
             log_writer: Box::new(log_buffer.clone()),
             dbg_manuf_service: Default::default(),
             active_mode: false,
@@ -594,6 +628,7 @@ mod tests {
             true,
             Some(mcu_fw),
             false,
+            "",
         )
         .expect("Failed to create Caliptra emulator");
 
@@ -619,6 +654,7 @@ mod tests {
             &mcu_rom,
             &mcu_fw,
             false,
+            "",
         )
         .expect("Failed to create MCU emulator");
 
