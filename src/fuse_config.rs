@@ -195,6 +195,12 @@ impl FuseConfig {
 
         // SVN partition (0x3b8): fmc_key_manifest_svn (4) + runtime_svn (16) +
         // soc_manifest_svn (16) + soc_manifest_max_svn (4)
+        //
+        // NOTE: byte 36 (soc_manifest_max_svn) and bytes 20..36 (soc_manifest_svn)
+        // are overwritten by the MCU model's Otp::new from `soc_manifest_max_svn`
+        // / `soc_manifest_svn` OtpArgs (currently always None from mcu-hw-model
+        // InitParams). Writes here will be clobbered. The fields are kept so
+        // they take effect in core mode (Caliptra Fuses struct).
         const SVN_OFF: usize = 0x3b8;
         if let Some(v) = self.fw_svn {
             // OTP runtime_svn at offset +4
@@ -214,7 +220,11 @@ impl FuseConfig {
         }
 
         // VENDOR_HASHES_MANUF (0x420): vendor_pk_hash (48) + pqc_key_type (4)
-        // OTP byte 48 of this partition: 0=MLDSA, 1=LMS (inverse of Caliptra fuse).
+        //
+        // NOTE: byte 48 (pqc_key_type) is overwritten by the MCU model based on
+        // its `vendor_pqc_type` init param. The lib.rs constructor derives that
+        // init param from `fuse_pqc_key_type` here. We still write the byte for
+        // completeness in case the model ever stops overriding it.
         const VENDOR_HASHES_MANUF_OFF: usize = 0x420;
         if let Some(v) = self.fuse_pqc_key_type {
             // Caliptra: 0=LMS, 1=MLDSA. OTP: 0=MLDSA, 1=LMS.

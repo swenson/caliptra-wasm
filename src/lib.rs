@@ -390,21 +390,20 @@ impl McuEmulator {
         let otp_size = 0xe30 + 0x58;
         let mut otp = vec![0u8; otp_size];
 
-        // Populate vendor_pk_hash from FW manifest at VENDOR_HASHES_MANUF (0x420).
-        // OTP stores it in hardware (little-endian per u32) format -- swap each u32.
-        if let Some(mut vpkh) = vendor_pk_hash_from_fw(caliptra_fw) {
-            for chunk in vpkh.chunks_mut(4) {
-                chunk.reverse();
-            }
-            otp[0x420..0x420 + 48].copy_from_slice(&vpkh);
-        }
-        // Default pqc_key_type byte: 0 = MLDSA (MCU OTP convention).
-        otp[0x420 + 48..0x420 + 52].copy_from_slice(&0u32.to_le_bytes());
-
-        // Apply any user-supplied fuse overrides on top.
+        // Apply user-supplied fuse overrides. (Note: a few bytes — pqc_key_type
+        // at OTP[0x420+48] and soc_manifest_max_svn at OTP[0x3b8+36] — are
+        // overwritten by the model's Otp::new from vendor_pqc_type init param;
+        // those are routed via init_params below to take effect.)
         fuse_config
             .apply_to_otp(&mut otp)
             .map_err(|e| JsValue::from_str(&e))?;
+
+        // Determine vendor_pqc_type for init_params from FuseConfig (defaults to MLDSA).
+        // Caliptra fuse convention: 0 = LMS, 1 = MLDSA.
+        let vendor_pqc_type = match fuse_config.fuse_pqc_key_type {
+            Some(0) => caliptra_image_types::FwVerificationPqcKeyType::LMS,
+            _ => caliptra_image_types::FwVerificationPqcKeyType::MLDSA,
+        };
 
         let init_params = mcu_hw_model::InitParams {
             fuses: Default::default(),
@@ -418,9 +417,11 @@ impl McuEmulator {
             otp_memory: Some(&otp),
             lifecycle_controller_state: None,
             lifecycle_tokens: None,
-            // OTP is the source of truth — model should not double-write.
-            vendor_pk_hash: None,
-            vendor_pqc_type: None,
+            // vendor_pk_hash: model writes vendor_pk_hash from FW manifest into
+            // VENDOR_HASHES_MANUF partition. Pass FW-derived hash so it stays
+            // consistent with the firmware.
+            vendor_pk_hash: vendor_pk_hash_from_fw(caliptra_fw),
+            vendor_pqc_type: Some(vendor_pqc_type),
             log_writer: Box::new(log_buffer.clone()),
             dbg_manuf_service: Default::default(),
             active_mode: false,
