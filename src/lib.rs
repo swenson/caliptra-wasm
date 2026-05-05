@@ -75,6 +75,51 @@ fn vendor_pk_hash_from_fw(fw: &[u8]) -> Option<[u8; 48]> {
     Some(hash.into())
 }
 
+/// Read all Caliptra fuse registers from a SocManager and return as JSON.
+fn read_fuse_registers_json(mgr: &mut impl SocManager) -> String {
+    use std::fmt::Write;
+    let mut json = String::from("{");
+    let mut first = true;
+
+    macro_rules! fuse_array {
+        ($mgr:expr, $name:expr, $accessor:ident, $count:expr) => {
+            for i in 0..$count {
+                if !first { json.push(','); }
+                first = false;
+                let val: u32 = $mgr.soc_ifc().$accessor().at(i).read();
+                let _ = write!(json, "\"{}[{}]\":\"0x{:08x}\"", $name, i, val);
+            }
+        };
+    }
+    macro_rules! fuse_scalar {
+        ($mgr:expr, $name:expr, $accessor:ident) => {
+            if !first { json.push(','); }
+            #[allow(unused_assignments)]
+            { first = false; }
+            let val: u32 = $mgr.soc_ifc().$accessor().read().into();
+            let _ = write!(json, "\"{}\":\"0x{:08x}\"", $name, val);
+        };
+    }
+
+    fuse_array!(mgr, "fuse_vendor_pk_hash", fuse_vendor_pk_hash, 12);
+    fuse_scalar!(mgr, "fuse_ecc_revocation", fuse_ecc_revocation);
+    fuse_scalar!(mgr, "fuse_fmc_key_manifest_svn", fuse_fmc_key_manifest_svn);
+    fuse_array!(mgr, "fuse_runtime_svn", fuse_runtime_svn, 4);
+    fuse_scalar!(mgr, "fuse_anti_rollback_disable", fuse_anti_rollback_disable);
+    fuse_array!(mgr, "fuse_idevid_cert_attr", fuse_idevid_cert_attr, 24);
+    fuse_array!(mgr, "fuse_idevid_manuf_hsm_id", fuse_idevid_manuf_hsm_id, 4);
+    fuse_scalar!(mgr, "fuse_lms_revocation", fuse_lms_revocation);
+    fuse_scalar!(mgr, "fuse_mldsa_revocation", fuse_mldsa_revocation);
+    fuse_scalar!(mgr, "fuse_soc_stepping_id", fuse_soc_stepping_id);
+    fuse_array!(mgr, "fuse_manuf_dbg_unlock_token", fuse_manuf_dbg_unlock_token, 16);
+    fuse_scalar!(mgr, "fuse_pqc_key_type", fuse_pqc_key_type);
+    fuse_array!(mgr, "fuse_soc_manifest_svn", fuse_soc_manifest_svn, 4);
+    fuse_scalar!(mgr, "fuse_soc_manifest_max_svn", fuse_soc_manifest_max_svn);
+
+    json.push('}');
+    json
+}
+
 /// The Caliptra emulator, exposed to JavaScript via wasm-bindgen.
 #[wasm_bindgen]
 pub struct CaliptraEmulator {
@@ -278,6 +323,11 @@ impl CaliptraEmulator {
             .ss_dbg_service_reg_req()
             .write(|w| w.manuf_dbg_unlock_req(val));
     }
+
+    /// Get all Caliptra fuse register values as a JSON object.
+    pub fn get_fuse_registers(&mut self) -> String {
+        read_fuse_registers_json(&mut self.model)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -290,6 +340,9 @@ pub struct McuEmulator {
     model: mcu_hw_model::ModelEmulated,
     log_buffer: SharedBuffer,
     total_steps: u64,
+    otp_snapshot: Vec<u8>,
+    otp_log: Vec<String>,
+    otp_logging_enabled: bool,
 }
 
 #[wasm_bindgen]
@@ -382,10 +435,18 @@ impl McuEmulator {
                 .map_err(|e| JsValue::from_str(&format!("Failed to boot MCU emulator: {e}")))?;
         }
 
+        let initial_otp = {
+            use mcu_hw_model::McuHwModel;
+            model.read_otp_memory()
+        };
+
         Ok(McuEmulator {
             model,
             log_buffer,
             total_steps: 0,
+            otp_snapshot: initial_otp,
+            otp_log: Vec::new(),
+            otp_logging_enabled: false,
         })
     }
 
@@ -398,6 +459,33 @@ impl McuEmulator {
             self.model.step();
             self.total_steps += 1;
             taken += 1;
+        }
+        // Detect OTP changes (DAI writes)
+        if self.otp_logging_enabled {
+            let current_otp = self.model.read_otp_memory();
+            for (i, (old, new)) in self
+                .otp_snapshot
+                .iter()
+                .zip(current_otp.iter())
+                .enumerate()
+            {
+                if old != new {
+                    self.otp_log.push(format!(
+                        "[step {}] OTP WRITE @ 0x{:04x}: 0x{:02x} -> 0x{:02x}",
+                        self.total_steps, i, old, new
+                    ));
+                }
+            }
+            // Handle OTP growing (new bytes beyond previous snapshot)
+            for (i, &byte) in current_otp.iter().enumerate().skip(self.otp_snapshot.len()) {
+                if byte != 0 {
+                    self.otp_log.push(format!(
+                        "[step {}] OTP WRITE @ 0x{:04x}: 0x00 -> 0x{:02x}",
+                        self.total_steps, i, byte
+                    ));
+                }
+            }
+            self.otp_snapshot = current_otp;
         }
         taken
     }
@@ -464,6 +552,35 @@ impl McuEmulator {
             .soc_ifc()
             .ss_dbg_service_reg_req()
             .write(|w| w.manuf_dbg_unlock_req(val));
+    }
+
+    /// Get all Caliptra fuse register values as a JSON object.
+    pub fn get_fuse_registers(&mut self) -> String {
+        use mcu_hw_model::McuHwModel;
+        read_fuse_registers_json(&mut self.model.caliptra_soc_manager())
+    }
+
+    /// Get the raw OTP memory contents.
+    pub fn get_otp_memory(&mut self) -> Vec<u8> {
+        use mcu_hw_model::McuHwModel;
+        self.model.read_otp_memory()
+    }
+
+    /// Enable or disable OTP change logging.
+    pub fn set_otp_logging(&mut self, enabled: bool) {
+        self.otp_logging_enabled = enabled;
+        if enabled {
+            // Take a fresh snapshot when enabling
+            use mcu_hw_model::McuHwModel;
+            self.otp_snapshot = self.model.read_otp_memory();
+        }
+    }
+
+    /// Get and clear the OTP change log entries.
+    pub fn get_otp_log(&mut self) -> String {
+        let log = self.otp_log.join("\n");
+        self.otp_log.clear();
+        log
     }
 }
 

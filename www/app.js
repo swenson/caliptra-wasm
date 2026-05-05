@@ -36,6 +36,13 @@ const mboxShaInput = document.getElementById("mbox-sha-input");
 const mboxPayload = document.getElementById("mbox-payload");
 const mboxFormFields = document.getElementById("mbox-form-fields");
 const mboxRawInput = document.getElementById("mbox-raw-input");
+const fuseRegisters = document.getElementById("fuse-registers");
+const otpPanel = document.getElementById("otp-panel");
+const otpMemory = document.getElementById("otp-memory");
+const btnRefreshOtp = document.getElementById("btn-refresh-otp");
+const otpLogPanel = document.getElementById("otp-log-panel");
+const otpLogEnable = document.getElementById("otp-log-enable");
+const otpLogOutput = document.getElementById("otp-log-output");
 
 function getInputMode() {
   const r = document.querySelector('input[name="mbox-input-mode"]:checked');
@@ -173,6 +180,9 @@ function updateModeVisibility() {
   lifecycleSelect.closest(".form-row").style.display = isMcu ? "none" : "flex";
   subsystemModeInput.closest(".form-row").style.display = isMcu ? "none" : "flex";
   ocpLockInput.closest(".form-row").style.display = isMcu ? "none" : "flex";
+  // OTP panels only visible in MCU mode
+  otpPanel.style.display = isMcu ? "" : "none";
+  otpLogPanel.style.display = isMcu ? "" : "none";
 }
 emuModeSelect.addEventListener("change", updateModeVisibility);
 updateModeVisibility();
@@ -442,6 +452,11 @@ function createEmulator() {
 
     statsEl.textContent = "";
     btnMboxSend.disabled = false;
+    updateFuseDisplay();
+    if (emuModeSelect.value === "mcu") {
+      renderOtpMemory();
+      if (otpLogEnable.checked) emulator.set_otp_logging(true);
+    }
     return true;
   } catch (err) {
     setStatus(`Error: ${err}`, "exited");
@@ -451,6 +466,8 @@ function createEmulator() {
 }
 
 // Run loop using requestAnimationFrame
+let fuseUpdateCounter = 0;
+
 function runLoop() {
   if (!running || !emulator) return;
 
@@ -475,6 +492,14 @@ function runLoop() {
     logOutput.scrollTop = logOutput.scrollHeight;
   }
 
+  // Update fuse registers periodically (every ~30 frames)
+  fuseUpdateCounter++;
+  if (fuseUpdateCounter >= 30) {
+    fuseUpdateCounter = 0;
+    updateFuseDisplay();
+    if (isMcu) updateOtpLog();
+  }
+
   // Update stats
   const steps = Number(emulator.total_steps());
   const elapsed = (performance.now() - startTime) / 1000;
@@ -490,6 +515,7 @@ function runLoop() {
     );
     btnRun.disabled = true;
     btnStop.disabled = true;
+    updateFuseDisplay();
     return;
   }
 
@@ -550,6 +576,11 @@ btnReset.addEventListener("click", () => {
   logOutput.textContent = "";
   mboxResponse.textContent = "";
   statsEl.textContent = "";
+  fuseRegisters.textContent = "(Start the emulator to see fuse values)";
+  otpMemory.textContent = "(Start the MCU emulator to see OTP memory)";
+  otpLogOutput.textContent = "";
+  otpLogEnable.checked = false;
+  otpLogOutput.style.display = "none";
   setStatus("Ready", "");
   btnRun.disabled = false;
   btnStop.disabled = true;
@@ -571,6 +602,110 @@ btnReset.addEventListener("click", () => {
 function setStatus(text, className) {
   statusEl.textContent = text;
   statusEl.className = "status" + (className ? " " + className : "");
+}
+
+// --- Fuse Register Display ---
+
+function updateFuseDisplay() {
+  if (!emulator) return;
+  try {
+    const json = emulator.get_fuse_registers();
+    const regs = JSON.parse(json);
+    let text = "";
+    for (const [name, val] of Object.entries(regs)) {
+      text += `${name}: ${val}\n`;
+    }
+    fuseRegisters.textContent = text || "(no fuse registers)";
+  } catch (e) {
+    fuseRegisters.textContent = "(error reading fuse registers: " + e + ")";
+  }
+}
+
+// --- OTP Memory Viewer ---
+
+const OTP_PARTITIONS = [
+  { name: "SW_TEST_UNLOCK",            offset: 0x000, size: 0x048 },
+  { name: "SECRET_MANUF",              offset: 0x048, size: 0x050 },
+  { name: "SECRET_PROD_0",             offset: 0x098, size: 0x018 },
+  { name: "SECRET_PROD_1",             offset: 0x0b0, size: 0x018 },
+  { name: "SECRET_PROD_2",             offset: 0x0c8, size: 0x018 },
+  { name: "SECRET_PROD_3",             offset: 0x0e0, size: 0x018 },
+  { name: "SW_MANUF",                  offset: 0x0f8, size: 0x208 },
+  { name: "SECRET_LC_TRANSITION",      offset: 0x300, size: 0x0b8 },
+  { name: "SVN",                       offset: 0x3b8, size: 0x028 },
+  { name: "VENDOR_TEST",               offset: 0x3e0, size: 0x040 },
+  { name: "VENDOR_HASHES_MANUF",       offset: 0x420, size: 0x040 },
+  { name: "VENDOR_HASHES_PROD",        offset: 0x460, size: 0x360 },
+  { name: "VENDOR_REVOCATIONS_PROD",   offset: 0x7c0, size: 0x0d8 },
+  { name: "VENDOR_SECRET_PROD",        offset: 0x898, size: 0x210 },
+  { name: "VENDOR_NON_SECRET_PROD",    offset: 0xaa8, size: 0x208 },
+  { name: "CPTRA_SS_LOCK_HEK_PROD_0", offset: 0xcb0, size: 0x030 },
+  { name: "CPTRA_SS_LOCK_HEK_PROD_1", offset: 0xce0, size: 0x030 },
+  { name: "CPTRA_SS_LOCK_HEK_PROD_2", offset: 0xd10, size: 0x030 },
+  { name: "CPTRA_SS_LOCK_HEK_PROD_3", offset: 0xd40, size: 0x030 },
+  { name: "CPTRA_SS_LOCK_HEK_PROD_4", offset: 0xd70, size: 0x030 },
+  { name: "CPTRA_SS_LOCK_HEK_PROD_5", offset: 0xda0, size: 0x030 },
+  { name: "CPTRA_SS_LOCK_HEK_PROD_6", offset: 0xdd0, size: 0x030 },
+  { name: "CPTRA_SS_LOCK_HEK_PROD_7", offset: 0xe00, size: 0x030 },
+  { name: "LIFE_CYCLE",                offset: 0xe30, size: 0x058 },
+];
+
+function getPartitionForOffset(offset) {
+  for (const p of OTP_PARTITIONS) {
+    if (offset >= p.offset && offset < p.offset + p.size) return p.name;
+  }
+  return null;
+}
+
+function renderOtpMemory() {
+  if (!emulator || emuModeSelect.value !== "mcu") return;
+  try {
+    const bytes = emulator.get_otp_memory();
+    let text = "";
+    let currentPartition = null;
+    for (let i = 0; i < bytes.length; i += 16) {
+      const part = getPartitionForOffset(i);
+      if (part !== currentPartition) {
+        currentPartition = part;
+        if (i > 0) text += "\n";
+        text += `=== ${part || "UNKNOWN"} (0x${i.toString(16).padStart(4, "0")}) ===\n`;
+      }
+      let hex = "";
+      let ascii = "";
+      for (let j = 0; j < 16 && i + j < bytes.length; j++) {
+        const b = bytes[i + j];
+        hex += b.toString(16).padStart(2, "0") + " ";
+        ascii += (b >= 0x20 && b < 0x7f) ? String.fromCharCode(b) : ".";
+      }
+      text += `0x${i.toString(16).padStart(4, "0")}: ${hex.padEnd(48)}  ${ascii}\n`;
+    }
+    otpMemory.textContent = text || "(empty OTP)";
+  } catch (e) {
+    otpMemory.textContent = "(error reading OTP: " + e + ")";
+  }
+}
+
+btnRefreshOtp.addEventListener("click", renderOtpMemory);
+
+// --- OTP DAI Log ---
+
+otpLogEnable.addEventListener("change", () => {
+  const enabled = otpLogEnable.checked;
+  otpLogOutput.style.display = enabled ? "" : "none";
+  if (emulator && emuModeSelect.value === "mcu") {
+    emulator.set_otp_logging(enabled);
+  }
+});
+
+function updateOtpLog() {
+  if (!emulator || !otpLogEnable.checked) return;
+  try {
+    const log = emulator.get_otp_log();
+    if (log) {
+      otpLogOutput.textContent += log + "\n";
+      otpLogOutput.scrollTop = otpLogOutput.scrollHeight;
+    }
+  } catch (e) { /* ignore */ }
 }
 
 // --- Mailbox command definitions ---
@@ -1654,6 +1789,8 @@ btnMboxSend.addEventListener("click", () => {
       logOutput.textContent += log;
       logOutput.scrollTop = logOutput.scrollHeight;
     }
+    // Refresh fuse display after command
+    updateFuseDisplay();
   } catch (err) {
     mboxResponse.textContent += `Error: ${err}\n`;
   }

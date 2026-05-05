@@ -554,6 +554,45 @@
   </details>
 </div>
 
+<!-- Fuse Registers (collapsible) -->
+<div class="panel">
+  <details>
+    <summary>Caliptra Fuse Registers</summary>
+    <div id="fuse-registers" style="margin-top: 8px; font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.72rem; background: var(--bg); padding: 10px; border-radius: 4px;
+      max-height: 400px; overflow-y: auto; white-space: pre; color: var(--green);">
+      (Start the emulator to see fuse values)
+    </div>
+  </details>
+</div>
+
+<!-- OTP Memory Viewer (MCU mode only, collapsible) -->
+<div class="panel" id="otp-panel" style="display: none;">
+  <details>
+    <summary>OTP Memory Viewer</summary>
+    <div style="margin-top: 8px;">
+      <button id="btn-refresh-otp" style="font-size: 0.7rem; padding: 3px 10px;">Refresh OTP</button>
+      <div id="otp-memory" style="margin-top: 8px; font-family: 'Cascadia Code', 'Fira Code', monospace;
+        font-size: 0.68rem; background: var(--bg); padding: 10px; border-radius: 4px;
+        max-height: 500px; overflow-y: auto; white-space: pre; color: var(--text); line-height: 1.5;">
+        (Start the MCU emulator to see OTP memory)
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- OTP DAI Log (MCU mode only, toggleable) -->
+<div class="panel" id="otp-log-panel" style="display: none;">
+  <div class="form-row">
+    <input type="checkbox" id="otp-log-enable">
+    <label for="otp-log-enable" style="margin: 0;">Enable OTP DAI Change Log</label>
+  </div>
+  <div id="otp-log-output" style="margin-top: 8px; font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.68rem; background: var(--bg); padding: 10px; border-radius: 4px;
+    max-height: 300px; overflow-y: auto; white-space: pre; color: var(--yellow); display: none;">
+  </div>
+</div>
+
 <script type="module" src="app.js"></script>
 </body>
 </html>
