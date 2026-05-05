@@ -455,7 +455,8 @@ function createEmulator() {
     updateFuseDisplay();
     if (emuModeSelect.value === "mcu") {
       renderOtpMemory();
-      if (otpLogEnable.checked) emulator.set_otp_logging(true);
+      // OTP logging defaults ON in McuEmulator; sync with checkbox state
+      emulator.set_otp_logging(otpLogEnable.checked);
     }
     return true;
   } catch (err) {
@@ -579,8 +580,7 @@ btnReset.addEventListener("click", () => {
   fuseRegisters.textContent = "(Start the emulator to see fuse values)";
   otpMemory.textContent = "(Start the MCU emulator to see OTP memory)";
   otpLogOutput.textContent = "";
-  otpLogEnable.checked = false;
-  otpLogOutput.style.display = "none";
+  otpLogEnable.checked = true;
   setStatus("Ready", "");
   btnRun.disabled = false;
   btnStop.disabled = true;
@@ -691,7 +691,6 @@ btnRefreshOtp.addEventListener("click", renderOtpMemory);
 
 otpLogEnable.addEventListener("change", () => {
   const enabled = otpLogEnable.checked;
-  otpLogOutput.style.display = enabled ? "" : "none";
   if (emulator && emuModeSelect.value === "mcu") {
     emulator.set_otp_logging(enabled);
   }

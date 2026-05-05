@@ -340,7 +340,6 @@ pub struct McuEmulator {
     model: mcu_hw_model::ModelEmulated,
     log_buffer: SharedBuffer,
     total_steps: u64,
-    otp_snapshot: Vec<u8>,
     otp_log: Vec<String>,
     otp_logging_enabled: bool,
 }
@@ -435,7 +434,7 @@ impl McuEmulator {
                 .map_err(|e| JsValue::from_str(&format!("Failed to boot MCU emulator: {e}")))?;
         }
 
-        let initial_otp = {
+        let _ = {
             use mcu_hw_model::McuHwModel;
             model.read_otp_memory()
         };
@@ -444,9 +443,8 @@ impl McuEmulator {
             model,
             log_buffer,
             total_steps: 0,
-            otp_snapshot: initial_otp,
             otp_log: Vec::new(),
-            otp_logging_enabled: false,
+            otp_logging_enabled: true,
         })
     }
 
@@ -460,32 +458,16 @@ impl McuEmulator {
             self.total_steps += 1;
             taken += 1;
         }
-        // Detect OTP changes (DAI writes)
+        // Drain DAI operation log entries from the OTP module
         if self.otp_logging_enabled {
-            let current_otp = self.model.read_otp_memory();
-            for (i, (old, new)) in self
-                .otp_snapshot
-                .iter()
-                .zip(current_otp.iter())
-                .enumerate()
-            {
-                if old != new {
-                    self.otp_log.push(format!(
-                        "[step {}] OTP WRITE @ 0x{:04x}: 0x{:02x} -> 0x{:02x}",
-                        self.total_steps, i, old, new
-                    ));
-                }
+            let entries = self.model.take_otp_dai_log();
+            for entry in entries {
+                self.otp_log
+                    .push(format!("[step {}] {}", self.total_steps, entry));
             }
-            // Handle OTP growing (new bytes beyond previous snapshot)
-            for (i, &byte) in current_otp.iter().enumerate().skip(self.otp_snapshot.len()) {
-                if byte != 0 {
-                    self.otp_log.push(format!(
-                        "[step {}] OTP WRITE @ 0x{:04x}: 0x00 -> 0x{:02x}",
-                        self.total_steps, i, byte
-                    ));
-                }
-            }
-            self.otp_snapshot = current_otp;
+        } else {
+            // Drain and discard so the buffer doesn't grow unboundedly
+            let _ = self.model.take_otp_dai_log();
         }
         taken
     }
@@ -566,13 +548,11 @@ impl McuEmulator {
         self.model.read_otp_memory()
     }
 
-    /// Enable or disable OTP change logging.
+    /// Enable or disable OTP DAI operation logging.
     pub fn set_otp_logging(&mut self, enabled: bool) {
         self.otp_logging_enabled = enabled;
-        if enabled {
-            // Take a fresh snapshot when enabling
-            use mcu_hw_model::McuHwModel;
-            self.otp_snapshot = self.model.read_otp_memory();
+        if !enabled {
+            self.otp_log.clear();
         }
     }
 
