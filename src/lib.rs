@@ -457,16 +457,17 @@ impl McuEmulator {
             self.model.step();
             self.total_steps += 1;
             taken += 1;
-        }
-        // Drain DAI operation log entries from the OTP module
-        if self.otp_logging_enabled {
-            let entries = self.model.take_otp_dai_log();
-            for entry in entries {
-                self.otp_log
-                    .push(format!("[step {}] {}", self.total_steps, entry));
+            // Drain DAI log per step so step numbers are accurate
+            if self.otp_logging_enabled {
+                let entries = self.model.take_otp_dai_log();
+                for entry in entries {
+                    self.otp_log
+                        .push(format!("[step {}] {}", self.total_steps, entry));
+                }
             }
-        } else {
-            // Drain and discard so the buffer doesn't grow unboundedly
+        }
+        // If logging is disabled, drain & discard so the buffer doesn't grow
+        if !self.otp_logging_enabled {
             let _ = self.model.take_otp_dai_log();
         }
         taken
@@ -506,6 +507,13 @@ impl McuEmulator {
                     for _ in 0..100_000 {
                         self.model.step();
                         self.total_steps += 1;
+                        if self.otp_logging_enabled {
+                            let entries = self.model.take_otp_dai_log();
+                            for entry in entries {
+                                self.otp_log
+                                    .push(format!("[step {}] {}", self.total_steps, entry));
+                            }
+                        }
                     }
                 }
                 Err(e) => return Err(JsValue::from_str(&format!("Mailbox error: {e:?}"))),
