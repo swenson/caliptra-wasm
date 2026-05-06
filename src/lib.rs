@@ -760,6 +760,15 @@ mod tests {
             emu.step(1000);
         }
         assert!(emu.total_steps() == 10_000);
+
+        // Exercise get_keyvault — must not panic and should be valid JSON
+        let kv = emu.get_keyvault();
+        assert!(kv.starts_with("{"));
+        assert!(kv.contains("\"keys\""));
+        let parsed: serde_json::Value =
+            serde_json::from_str(&kv).expect("get_keyvault() returned invalid JSON");
+        assert_eq!(parsed["keys"].as_array().unwrap().len(), 24);
+        assert_eq!(parsed["pcrs"].as_array().unwrap().len(), 32);
     }
 
     #[test]

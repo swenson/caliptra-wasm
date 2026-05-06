@@ -18,19 +18,25 @@ getrandom04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 uuid = { version = "1", features = ["js"] }
 
 # Caliptra dependencies; keep revs in sync
-caliptra-hw-model = { git = "https://github.com/swenson/caliptra-sw", rev = "aaa0fc25fd578f497b6a42145fd5c253dec57324", default-features = false }
-caliptra-api = { git = "https://github.com/swenson/caliptra-sw", rev = "aaa0fc25fd578f497b6a42145fd5c253dec57324" }
-caliptra-api-types = { git = "https://github.com/swenson/caliptra-sw", rev = "aaa0fc25fd578f497b6a42145fd5c253dec57324" }
-caliptra-hw-model-types = { git = "https://github.com/swenson/caliptra-sw", rev = "aaa0fc25fd578f497b6a42145fd5c253dec57324" }
-caliptra-emu-periph = { git = "https://github.com/swenson/caliptra-sw", rev = "aaa0fc25fd578f497b6a42145fd5c253dec57324" }
-caliptra-image-types = { git = "https://github.com/swenson/caliptra-sw", rev = "aaa0fc25fd578f497b6a42145fd5c253dec57324", default-features = false, features = ["std"] }
+caliptra-hw-model = { git = "https://github.com/swenson/caliptra-sw", rev = "0615298556a83be37a4e9962787478d955ef548e", default-features = false }
+caliptra-api = { git = "https://github.com/swenson/caliptra-sw", rev = "0615298556a83be37a4e9962787478d955ef548e" }
+caliptra-api-types = { git = "https://github.com/swenson/caliptra-sw", rev = "0615298556a83be37a4e9962787478d955ef548e" }
+caliptra-hw-model-types = { git = "https://github.com/swenson/caliptra-sw", rev = "0615298556a83be37a4e9962787478d955ef548e" }
+caliptra-emu-periph = { git = "https://github.com/swenson/caliptra-sw", rev = "0615298556a83be37a4e9962787478d955ef548e" }
+caliptra-image-types = { git = "https://github.com/swenson/caliptra-sw", rev = "0615298556a83be37a4e9962787478d955ef548e", default-features = false, features = ["std"] }
 sha2 = "0.10"
 zerocopy = { version = "0.8", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Pin pkcs8 / der to the rc.10 prerelease that matches ml-dsa 0.1.0-rc.7's API.
+# pkcs8 0.11.0 final and der 0.8.0 final made breaking API changes that
+# ml-dsa-rc.7 has not been updated for. Listing them here ensures cargo's
+# resolver keeps them at the rc revision rather than upgrading.
+pkcs8 = "=0.11.0-rc.10"
+der = "=0.8.0-rc.10"
 
 # MCU emulator
-mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "4b7aa9b8", default-features = false }
+mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "3e8144bf", default-features = false }
 
 
 # Patch caliptra-cfi-lib with a no-asm shim for WASM (CFI uses inline asm
