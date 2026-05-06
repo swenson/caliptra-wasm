@@ -441,6 +441,10 @@
     <button class="step-btn" data-step="1000" disabled>+1k</button>
     <button class="step-btn" data-step="10000" disabled>+10k</button>
     <button class="step-btn" data-step="100000" disabled>+100k</button>
+    <span style="margin-left: 16px; font-size: 0.75rem; color: var(--muted);">
+      <input type="checkbox" id="start-paused" style="vertical-align: middle;">
+      <label for="start-paused" style="vertical-align: middle;">Start paused at cycle 0</label>
+    </span>
   </div>
   <div class="stats" id="stats"></div>
 </div>
@@ -692,6 +696,23 @@
       font-size: 0.72rem; background: var(--bg); padding: 10px; border-radius: 4px;
       max-height: 400px; overflow-y: auto; white-space: pre; color: var(--green);">
       (Start the emulator to see fuse values)
+    </div>
+  </details>
+</div>
+
+<!-- Key Vault (collapsible) -->
+<div class="panel">
+  <details open>
+    <summary>Caliptra Key Vault</summary>
+    <p class="help" style="margin: 6px 0;">
+      24 keys × 64 bytes plus per-key control register, then 32 PCRs × 48 bytes
+      plus per-PCR control register. Updated automatically while running and
+      after each step.
+    </p>
+    <div id="keyvault-display" style="margin-top: 8px; font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.7rem; background: var(--bg); padding: 10px; border-radius: 4px;
+      max-height: 500px; overflow-y: auto; white-space: pre; color: var(--text); line-height: 1.5;">
+      (Start the emulator to see Key Vault contents)
     </div>
   </details>
 </div>

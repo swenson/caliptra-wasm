@@ -359,6 +359,58 @@ impl CaliptraEmulator {
                 .join(",")
         )
     }
+
+    /// Get a snapshot of the Caliptra Key Vault as JSON.
+    /// Returns an object with `keys` (24 hex strings, 64 bytes each),
+    /// `key_control` (24 hex u32s), `pcrs` (32 hex strings, 48 bytes each),
+    /// and `pcr_control` (32 hex u32s).
+    pub fn get_keyvault(&mut self) -> String {
+        format_keyvault_json(self.model.key_vault_snapshot())
+    }
+}
+
+/// Format a `KeyVaultSnapshot` as a JSON string for the WASM/JS UI.
+fn format_keyvault_json(snap: caliptra_emu_periph::KeyVaultSnapshot) -> String {
+    use std::fmt::Write;
+    let bytes_to_hex = |bytes: &[u8]| -> String {
+        let mut s = String::with_capacity(bytes.len() * 2);
+        for b in bytes {
+            let _ = write!(s, "{:02x}", b);
+        }
+        s
+    };
+
+    let mut out = String::from("{\"keys\":[");
+    for i in 0..24 {
+        if i > 0 {
+            out.push(',');
+        }
+        let start = i * 64;
+        let _ = write!(out, "\"{}\"", bytes_to_hex(&snap.keys[start..start + 64]));
+    }
+    out.push_str("],\"key_control\":[");
+    for (i, ctrl) in snap.key_control.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        let _ = write!(out, "\"0x{:08x}\"", ctrl);
+    }
+    out.push_str("],\"pcrs\":[");
+    for (i, pcr) in snap.pcrs.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        let _ = write!(out, "\"{}\"", bytes_to_hex(pcr));
+    }
+    out.push_str("],\"pcr_control\":[");
+    for (i, ctrl) in snap.pcr_control.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        let _ = write!(out, "\"0x{:08x}\"", ctrl);
+    }
+    out.push_str("]}");
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -668,6 +720,12 @@ impl McuEmulator {
             cptra_fatal, cptra_non_fatal, fmt_arr(&cptra_ext),
             mci_fatal, mci_non_fatal, fmt_arr(&mci_ext)
         )
+    }
+
+    /// Get a snapshot of the Caliptra Key Vault as JSON. Same shape as
+    /// `CaliptraEmulator::get_keyvault`.
+    pub fn get_keyvault(&mut self) -> String {
+        format_keyvault_json(self.model.key_vault_snapshot())
     }
 }
 

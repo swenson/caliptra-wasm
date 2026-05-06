@@ -44,6 +44,7 @@ const otpLogPanel = document.getElementById("otp-log-panel");
 const otpLogEnable = document.getElementById("otp-log-enable");
 const otpLogOutput = document.getElementById("otp-log-output");
 const errorDecoder = document.getElementById("error-decoder");
+const keyvaultDisplay = document.getElementById("keyvault-display");
 
 // Load error code lookup table (Caliptra + MCU)
 let ERROR_CODES = {};
@@ -683,6 +684,7 @@ function createEmulator() {
       emulator.set_otp_logging(otpLogEnable.checked);
     }
     updateErrorDecoder();
+    updateKeyvaultDisplay();
     setStepButtonsDisabled(false);
     return true;
   } catch (err) {
@@ -725,6 +727,7 @@ function runLoop() {
     fuseUpdateCounter = 0;
     updateFuseDisplay();
     updateErrorDecoder();
+    updateKeyvaultDisplay();
     if (isMcu) updateOtpLog();
   }
 
@@ -746,6 +749,7 @@ function runLoop() {
     setStepButtonsDisabled(true);
     updateFuseDisplay();
     updateErrorDecoder();
+    updateKeyvaultDisplay();
     return;
   }
 
@@ -753,11 +757,36 @@ function runLoop() {
 }
 
 // Button handlers
+const startPaused = document.getElementById("start-paused");
+
 btnRun.addEventListener("click", () => {
   if (running) return;
 
   if (!emulator) {
     if (!createEmulator()) return;
+  }
+
+  // If "Start paused" is checked, create the emulator (already done above) but
+  // don't begin the run loop. Disable the input controls (Run was clicked) but
+  // leave step buttons enabled and let user step through manually.
+  if (startPaused.checked) {
+    emuModeSelect.disabled = true;
+    romFileInput.disabled = true;
+    fwFileInput.disabled = true;
+    socManifestFileInput.disabled = true;
+    mcuFwFileInput.disabled = true;
+    mcuRomFileInput.disabled = true;
+    vendorPkInput.disabled = true;
+    ownerPkInput.disabled = true;
+    lifecycleSelect.disabled = true;
+    subsystemModeInput.disabled = true;
+    ocpLockInput.disabled = true;
+    debugIntentInput.disabled = true;
+    setStatus("Paused at cycle 0", "stopped");
+    btnRun.disabled = false;
+    btnStop.disabled = true;
+    setStepButtonsDisabled(false);
+    return;
   }
 
   running = true;
@@ -876,6 +905,7 @@ btnReset.addEventListener("click", () => {
   otpLogEnable.checked = true;
   errorDecoder.style.display = "none";
   errorDecoder.textContent = "";
+  keyvaultDisplay.textContent = "(Start the emulator to see Key Vault contents)";
   setStatus("Ready", "");
   btnRun.disabled = false;
   btnStop.disabled = true;
@@ -915,6 +945,87 @@ function updateFuseDisplay() {
   } catch (e) {
     fuseRegisters.textContent = "(error reading fuse registers: " + e + ")";
   }
+}
+
+// --- KeyVault Display ---
+
+// KV_CONTROL bitfield layout:
+//   bit 0: WRITE_LOCK, bit 1: USE_LOCK, bit 2: CLEAR
+//   bits 9-16: USAGE (8 bits), bits 17-20: LAST_DWORD (4 bits)
+function decodeKeyControl(ctrlHex) {
+  const v = parseInt(ctrlHex, 16) >>> 0;
+  const writeLock = (v >> 0) & 1;
+  const useLock = (v >> 1) & 1;
+  const clear = (v >> 2) & 1;
+  const usage = (v >> 9) & 0xff;
+  const lastDword = (v >> 17) & 0xf;
+  const usageNames = [
+    "hmac_key", "hmac_data", "mldsa_seed", "ecc_priv_key",
+    "ecc_key_gen_seed", "ecc_data", "aes_key", "rsvd",
+  ];
+  const usageList = [];
+  for (let i = 0; i < 8; i++) {
+    if (usage & (1 << i)) usageList.push(usageNames[i]);
+  }
+  const flags = [];
+  if (writeLock) flags.push("WRITE_LOCK");
+  if (useLock) flags.push("USE_LOCK");
+  if (clear) flags.push("CLEAR");
+  return {
+    writeLock, useLock, clear, usage, lastDword,
+    flagsStr: flags.length > 0 ? flags.join("|") : "-",
+    usageStr: usageList.length > 0 ? usageList.join(",") : "-",
+  };
+}
+
+function isAllZero(hex) {
+  return /^0+$/.test(hex);
+}
+
+function formatKeyHex(hex, lastDword) {
+  // Show only the active portion (lastDword+1 dwords = 4*(lastDword+1) bytes).
+  // 0xf last_dword in reset state means full 64 bytes; otherwise active region.
+  const activeBytes = (lastDword + 1) * 4;
+  const active = hex.slice(0, activeBytes * 2);
+  const inactive = hex.slice(activeBytes * 2);
+  // Group into 8-byte chunks for readability
+  const groupHex = s => s.match(/.{1,16}/g)?.join(" ") || "";
+  if (inactive.length === 0) return groupHex(active);
+  return groupHex(active) + (inactive.length > 0 ? " │ " + groupHex(inactive) : "");
+}
+
+function updateKeyvaultDisplay() {
+  if (!emulator) return;
+  let snap;
+  try {
+    snap = JSON.parse(emulator.get_keyvault());
+  } catch (e) {
+    keyvaultDisplay.textContent = "(error reading keyvault: " + e + ")";
+    return;
+  }
+  let text = "=== KEYS (24 × 64 bytes) ===\n";
+  for (let i = 0; i < 24; i++) {
+    const ctrl = decodeKeyControl(snap.key_control[i]);
+    const keyHex = snap.keys[i];
+    const empty = isAllZero(keyHex);
+    const tag = empty ? "(empty)" : formatKeyHex(keyHex, ctrl.lastDword);
+    text += `Key ${String(i).padStart(2)}: [ctrl=${snap.key_control[i]} flags=${ctrl.flagsStr} usage=${ctrl.usageStr} last_dword=${ctrl.lastDword}]\n`;
+    text += `         ${tag}\n`;
+  }
+  text += "\n=== PCRs (32 × 48 bytes) ===\n";
+  for (let i = 0; i < 32; i++) {
+    const ctrl = snap.pcr_control[i];
+    const ctrlV = parseInt(ctrl, 16) >>> 0;
+    const flags = [];
+    if (ctrlV & 1) flags.push("LOCK");
+    if (ctrlV & 2) flags.push("CLEAR");
+    const flagsStr = flags.length > 0 ? flags.join("|") : "-";
+    const pcrHex = snap.pcrs[i];
+    const empty = isAllZero(pcrHex);
+    const groupHex = s => s.match(/.{1,16}/g)?.join(" ") || "";
+    text += `PCR ${String(i).padStart(2)}: [ctrl=${ctrl} ${flagsStr}] ${empty ? "(empty)" : groupHex(pcrHex)}\n`;
+  }
+  keyvaultDisplay.textContent = text;
 }
 
 // --- OTP Memory Viewer ---
@@ -2087,9 +2198,11 @@ btnMboxSend.addEventListener("click", () => {
     // Refresh fuse display and error decoder after command
     updateFuseDisplay();
     updateErrorDecoder();
+    updateKeyvaultDisplay();
   } catch (err) {
     mboxResponse.textContent += `Error: ${err}\n`;
     updateErrorDecoder();
+    updateKeyvaultDisplay();
   }
 
   // Resume the run loop if it was running
