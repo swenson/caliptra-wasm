@@ -149,6 +149,18 @@
     background: var(--border);
     color: var(--text);
   }
+  button.step-btn {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  button.step-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--bg);
+  }
   .status {
     font-size: 0.85rem;
     color: var(--muted);
@@ -417,9 +429,18 @@
   <h2>Controls</h2>
   <div class="btn-row">
     <button id="btn-run" disabled>▶ Run</button>
-    <button id="btn-stop" class="stop" disabled>■ Stop</button>
+    <button id="btn-stop" class="stop" disabled>⏸ Pause</button>
     <button id="btn-reset" class="reset" disabled>↻ Reset</button>
     <span class="status" id="status">Initializing WASM...</span>
+  </div>
+  <div class="btn-row" style="margin-top: 8px; gap: 4px;">
+    <span style="font-size: 0.75rem; color: var(--muted); margin-right: 4px;">Step:</span>
+    <button class="step-btn" data-step="1" disabled>+1</button>
+    <button class="step-btn" data-step="10" disabled>+10</button>
+    <button class="step-btn" data-step="100" disabled>+100</button>
+    <button class="step-btn" data-step="1000" disabled>+1k</button>
+    <button class="step-btn" data-step="10000" disabled>+10k</button>
+    <button class="step-btn" data-step="100000" disabled>+100k</button>
   </div>
   <div class="stats" id="stats"></div>
 </div>

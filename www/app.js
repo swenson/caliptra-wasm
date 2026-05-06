@@ -683,6 +683,7 @@ function createEmulator() {
       emulator.set_otp_logging(otpLogEnable.checked);
     }
     updateErrorDecoder();
+    setStepButtonsDisabled(false);
     return true;
   } catch (err) {
     setStatus(`Error: ${err}`, "exited");
@@ -742,6 +743,7 @@ function runLoop() {
     );
     btnRun.disabled = true;
     btnStop.disabled = true;
+    setStepButtonsDisabled(true);
     updateFuseDisplay();
     updateErrorDecoder();
     return;
@@ -763,6 +765,7 @@ btnRun.addEventListener("click", () => {
   setStatus("Running...", "running");
   btnRun.disabled = true;
   btnStop.disabled = false;
+  setStepButtonsDisabled(true);
   emuModeSelect.disabled = true;
   romFileInput.disabled = true;
   fwFileInput.disabled = true;
@@ -785,10 +788,73 @@ btnStop.addEventListener("click", () => {
     cancelAnimationFrame(animFrameId);
     animFrameId = null;
   }
-  setStatus("Stopped", "stopped");
+  setStatus("Paused", "stopped");
   btnRun.disabled = false;
   btnStop.disabled = true;
+  // Enable manual stepping while paused
+  setStepButtonsDisabled(false);
 });
+
+// Manual step buttons (active when emulator exists and run loop is not running).
+const stepButtons = document.querySelectorAll(".step-btn");
+function setStepButtonsDisabled(disabled) {
+  for (const b of stepButtons) b.disabled = disabled;
+}
+
+function manualStep(n) {
+  if (!emulator || running) return;
+  const isMcu = emuModeSelect.value === "mcu";
+  let exited = false;
+  // Step in chunks of up to 50k so the browser stays responsive on the larger counts.
+  const CHUNK = 50_000;
+  let remaining = n;
+  while (remaining > 0) {
+    const take = Math.min(remaining, CHUNK);
+    if (isMcu) {
+      emulator.step(take);
+    } else {
+      const stillRunning = emulator.step(take);
+      if (!stillRunning) {
+        exited = true;
+        break;
+      }
+    }
+    remaining -= take;
+  }
+  // Drain output and refresh displays
+  const uart = emulator.get_uart_output();
+  if (uart) {
+    uartOutput.textContent += uart;
+    uartOutput.scrollTop = uartOutput.scrollHeight;
+  }
+  const log = emulator.get_log();
+  if (log) {
+    logOutput.textContent += log;
+    logOutput.scrollTop = logOutput.scrollHeight;
+  }
+  if (isMcu) updateOtpLog();
+  updateFuseDisplay();
+  updateErrorDecoder();
+  // Stats
+  const steps = Number(emulator.total_steps());
+  statsEl.textContent = `${steps.toLocaleString()} cycles (paused, manual stepping)`;
+  if (!isMcu && exited) {
+    const passed = emulator.passed();
+    setStatus(
+      passed ? "Exited — PASSED ✓" : "Exited — FAILED ✗",
+      passed ? "passed" : "exited"
+    );
+    btnRun.disabled = true;
+    setStepButtonsDisabled(true);
+  }
+}
+
+for (const btn of stepButtons) {
+  btn.addEventListener("click", () => {
+    const n = parseInt(btn.dataset.step, 10);
+    manualStep(n);
+  });
+}
 
 btnReset.addEventListener("click", () => {
   running = false;
@@ -813,6 +879,7 @@ btnReset.addEventListener("click", () => {
   setStatus("Ready", "");
   btnRun.disabled = false;
   btnStop.disabled = true;
+  setStepButtonsDisabled(true);
   btnMboxSend.disabled = true;
   emuModeSelect.disabled = false;
   romFileInput.disabled = false;
