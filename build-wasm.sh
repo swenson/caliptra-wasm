@@ -30,6 +30,10 @@ echo "Copying WASM output to www/..."
 cp pkg/caliptra_wasm_demo_bg.wasm www/
 cp pkg/caliptra_wasm_demo.js www/
 
+# Generate error code lookup table for the UI's fatal error decoder
+echo "Generating www/error-codes.json..."
+./tools/build-error-codes.py || echo "(warning: error-codes.json generation failed)"
+
 # Build MCU ROM and runtime from caliptra-mcu-sw (must happen before asset generation)
 MCU_SW_DIR="${MCU_SW_DIR:-}"
 if [ -z "$MCU_SW_DIR" ]; then

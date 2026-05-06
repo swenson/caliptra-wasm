@@ -43,6 +43,120 @@ const btnRefreshOtp = document.getElementById("btn-refresh-otp");
 const otpLogPanel = document.getElementById("otp-log-panel");
 const otpLogEnable = document.getElementById("otp-log-enable");
 const otpLogOutput = document.getElementById("otp-log-output");
+const errorDecoder = document.getElementById("error-decoder");
+
+// Load error code lookup table (Caliptra + MCU)
+let ERROR_CODES = {};
+fetch("error-codes.json").then(r => r.json()).then(j => { ERROR_CODES = j; }).catch(e => {
+  console.warn("Failed to load error-codes.json:", e);
+});
+
+function lookupError(hex) {
+  // hex format: "0xXXXXXXXX" lowercase
+  const norm = hex.toLowerCase();
+  return ERROR_CODES[norm] || null;
+}
+
+function formatErrorEntry(label, val) {
+  if (!val || val === "0x00000000" || val === 0) return null;
+  const hexStr = typeof val === "number"
+    ? "0x" + (val >>> 0).toString(16).padStart(8, "0")
+    : val;
+  const info = lookupError(hexStr);
+  if (info) {
+    return `${label}: ${hexStr}\n  ${info.name}\n  ${info.desc}`;
+  }
+  return `${label}: ${hexStr}\n  (unknown error code)`;
+}
+
+// Display error decoder panel (called whenever errors might have changed).
+function updateErrorDecoder() {
+  if (!emulator) {
+    errorDecoder.style.display = "none";
+    return;
+  }
+  let regsJson;
+  try {
+    regsJson = emulator.get_error_registers();
+  } catch (e) {
+    errorDecoder.style.display = "none";
+    return;
+  }
+  let regs;
+  try {
+    regs = JSON.parse(regsJson);
+  } catch (e) {
+    errorDecoder.style.display = "none";
+    return;
+  }
+
+  const sections = [];
+
+  // Caliptra core
+  const cptraEntries = [];
+  const e1 = formatErrorEntry("Caliptra fw_error_fatal", regs.cptra_fw_error_fatal);
+  if (e1) cptraEntries.push(e1);
+  const e2 = formatErrorEntry("Caliptra fw_error_non_fatal", regs.cptra_fw_error_non_fatal);
+  if (e2) cptraEntries.push(e2);
+  if (regs.cptra_fw_extended_error_info) {
+    const ext = regs.cptra_fw_extended_error_info;
+    const nonZero = ext.some(v => v !== "0x00000000");
+    if (nonZero) {
+      cptraEntries.push("Caliptra extended_error_info:\n  " + ext.join(", "));
+    }
+  }
+  if (cptraEntries.length > 0) {
+    sections.push("=== CALIPTRA CORE ===\n" + cptraEntries.join("\n\n"));
+  }
+
+  // MCI (subsystem mode only)
+  if (regs.mci_fw_error_fatal !== undefined) {
+    const mciEntries = [];
+    const m1 = formatErrorEntry("MCI fw_error_fatal", regs.mci_fw_error_fatal);
+    if (m1) mciEntries.push(m1);
+    const m2 = formatErrorEntry("MCI fw_error_non_fatal", regs.mci_fw_error_non_fatal);
+    if (m2) mciEntries.push(m2);
+    if (regs.mci_fw_extended_error_info) {
+      const ext = regs.mci_fw_extended_error_info;
+      const nonZero = ext.some(v => v !== "0x00000000");
+      if (nonZero) {
+        mciEntries.push("MCI extended_error_info:\n  " + ext.join(", "));
+      }
+    }
+    if (mciEntries.length > 0) {
+      sections.push("=== MCU / MCI ===\n" + mciEntries.join("\n\n"));
+    }
+  }
+
+  // UART-detected fatal errors (parse "Fatal Error: 0xXXXXXXXX" patterns)
+  const uartText = uartOutput.textContent || "";
+  const fatalRe = /Fatal Error:\s*(0x[0-9a-fA-F]{1,8})/g;
+  const seen = new Set();
+  let match;
+  const uartEntries = [];
+  while ((match = fatalRe.exec(uartText)) !== null) {
+    const hex = "0x" + parseInt(match[1], 16).toString(16).padStart(8, "0").toLowerCase();
+    if (seen.has(hex)) continue;
+    seen.add(hex);
+    const info = lookupError(hex);
+    if (info) {
+      uartEntries.push(`UART Fatal: ${hex}\n  ${info.name}\n  ${info.desc}`);
+    } else {
+      uartEntries.push(`UART Fatal: ${hex}\n  (unknown error code)`);
+    }
+  }
+  if (uartEntries.length > 0) {
+    sections.push("=== UART DETECTED ===\n" + uartEntries.join("\n\n"));
+  }
+
+  if (sections.length === 0) {
+    errorDecoder.style.display = "none";
+    errorDecoder.textContent = "";
+  } else {
+    errorDecoder.style.display = "";
+    errorDecoder.textContent = "⚠ FATAL ERROR DECODER\n\n" + sections.join("\n\n");
+  }
+}
 
 // Fuse Configuration form fields
 const fusePqcKeyType = document.getElementById("fuse-pqc-key-type");
@@ -568,6 +682,7 @@ function createEmulator() {
       // OTP logging defaults ON in McuEmulator; sync with checkbox state
       emulator.set_otp_logging(otpLogEnable.checked);
     }
+    updateErrorDecoder();
     return true;
   } catch (err) {
     setStatus(`Error: ${err}`, "exited");
@@ -608,6 +723,7 @@ function runLoop() {
   if (fuseUpdateCounter >= 30) {
     fuseUpdateCounter = 0;
     updateFuseDisplay();
+    updateErrorDecoder();
     if (isMcu) updateOtpLog();
   }
 
@@ -627,6 +743,7 @@ function runLoop() {
     btnRun.disabled = true;
     btnStop.disabled = true;
     updateFuseDisplay();
+    updateErrorDecoder();
     return;
   }
 
@@ -691,6 +808,8 @@ btnReset.addEventListener("click", () => {
   otpMemory.textContent = "(Start the MCU emulator to see OTP memory)";
   otpLogOutput.textContent = "";
   otpLogEnable.checked = true;
+  errorDecoder.style.display = "none";
+  errorDecoder.textContent = "";
   setStatus("Ready", "");
   btnRun.disabled = false;
   btnStop.disabled = true;
@@ -1898,10 +2017,12 @@ btnMboxSend.addEventListener("click", () => {
       logOutput.textContent += log;
       logOutput.scrollTop = logOutput.scrollHeight;
     }
-    // Refresh fuse display after command
+    // Refresh fuse display and error decoder after command
     updateFuseDisplay();
+    updateErrorDecoder();
   } catch (err) {
     mboxResponse.textContent += `Error: ${err}\n`;
+    updateErrorDecoder();
   }
 
   // Resume the run loop if it was running

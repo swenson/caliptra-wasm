@@ -427,7 +427,24 @@
 <!-- UART Output -->
 <div class="panel">
   <h2>UART Output</h2>
-  <div id="uart-output"></div>
+  <div style="display: flex; gap: 12px; align-items: stretch;">
+    <div id="uart-output" style="flex: 1; min-width: 0;"></div>
+    <div id="error-decoder" style="
+      width: 320px;
+      flex-shrink: 0;
+      background: #2a1a1f;
+      border: 2px solid #f38ba8;
+      border-radius: 6px;
+      padding: 10px;
+      color: #f5c2c7;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.74rem;
+      line-height: 1.5;
+      overflow-y: auto;
+      max-height: 400px;
+      display: none;
+    "></div>
+  </div>
 </div>
 
 <!-- Mailbox Commands -->

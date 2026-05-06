@@ -337,6 +337,28 @@ impl CaliptraEmulator {
     pub fn get_fuse_registers(&mut self) -> String {
         read_fuse_registers_json(&mut self.model)
     }
+
+    /// Get current Caliptra firmware error register values as JSON.
+    /// Returns an object with `cptra_fw_error_fatal`, `cptra_fw_error_non_fatal`,
+    /// and `cptra_fw_extended_error_info` (array of 8 u32s).
+    pub fn get_error_registers(&mut self) -> String {
+        let soc_ifc = self.model.soc_ifc();
+        let fatal: u32 = soc_ifc.cptra_fw_error_fatal().read();
+        let non_fatal: u32 = soc_ifc.cptra_fw_error_non_fatal().read();
+        let mut ext = [0u32; 8];
+        for (i, slot) in ext.iter_mut().enumerate() {
+            *slot = soc_ifc.cptra_fw_extended_error_info().at(i).read();
+        }
+        format!(
+            "{{\"cptra_fw_error_fatal\":\"0x{:08x}\",\"cptra_fw_error_non_fatal\":\"0x{:08x}\",\"cptra_fw_extended_error_info\":[{}]}}",
+            fatal,
+            non_fatal,
+            ext.iter()
+                .map(|v| format!("\"0x{:08x}\"", v))
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -604,6 +626,48 @@ impl McuEmulator {
         let log = self.otp_log.join("\n");
         self.otp_log.clear();
         log
+    }
+
+    /// Get current Caliptra and MCI firmware error register values as JSON.
+    /// Returns `cptra_fw_error_fatal`, `cptra_fw_error_non_fatal`,
+    /// `cptra_fw_extended_error_info` (8 u32s), `mci_fw_error_fatal`,
+    /// `mci_fw_error_non_fatal`, and `mci_fw_extended_error_info` (8 u32s).
+    pub fn get_error_registers(&mut self) -> String {
+        use mcu_hw_model::McuHwModel;
+        let (cptra_fatal, cptra_non_fatal, cptra_ext) = {
+            let mut soc_mgr = self.model.caliptra_soc_manager();
+            let soc_ifc = soc_mgr.soc_ifc();
+            let f: u32 = soc_ifc.cptra_fw_error_fatal().read();
+            let nf: u32 = soc_ifc.cptra_fw_error_non_fatal().read();
+            let mut ext = [0u32; 8];
+            for (i, slot) in ext.iter_mut().enumerate() {
+                *slot = soc_ifc.cptra_fw_extended_error_info().at(i).read();
+            }
+            (f, nf, ext)
+        };
+        let (mci_fatal, mci_non_fatal, mci_ext) = {
+            use mcu_hw_model::McuManager;
+            let mut mcu_mgr = self.model.mcu_manager();
+            let mci = mcu_mgr.mci();
+            let f: u32 = mci.fw_error_fatal().read();
+            let nf: u32 = mci.fw_error_non_fatal().read();
+            let mut ext = [0u32; 8];
+            for (i, slot) in ext.iter_mut().enumerate() {
+                *slot = mci.fw_extended_error_info().at(i).read();
+            }
+            (f, nf, ext)
+        };
+        let fmt_arr = |arr: &[u32; 8]| {
+            arr.iter()
+                .map(|v| format!("\"0x{:08x}\"", v))
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        format!(
+            "{{\"cptra_fw_error_fatal\":\"0x{:08x}\",\"cptra_fw_error_non_fatal\":\"0x{:08x}\",\"cptra_fw_extended_error_info\":[{}],\"mci_fw_error_fatal\":\"0x{:08x}\",\"mci_fw_error_non_fatal\":\"0x{:08x}\",\"mci_fw_extended_error_info\":[{}]}}",
+            cptra_fatal, cptra_non_fatal, fmt_arr(&cptra_ext),
+            mci_fatal, mci_non_fatal, fmt_arr(&mci_ext)
+        )
     }
 }
 
