@@ -673,6 +673,10 @@ function createEmulator() {
         uartOutput.textContent = "";
         logOutput.textContent = "";
       }
+      // Drain any output produced during boot() so the first step() call
+      // doesn't dump millions of buffered cycles into the UART panel.
+      emulator.get_uart_output();
+      emulator.get_log();
     }
 
     statsEl.textContent = "";
@@ -782,7 +786,7 @@ btnRun.addEventListener("click", () => {
     subsystemModeInput.disabled = true;
     ocpLockInput.disabled = true;
     debugIntentInput.disabled = true;
-    setStatus("Paused at cycle 0", "stopped");
+    setStatus("Paused (post-boot)", "stopped");
     btnRun.disabled = false;
     btnStop.disabled = true;
     setStepButtonsDisabled(false);
