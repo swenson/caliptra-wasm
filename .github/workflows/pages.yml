@@ -1,0 +1,78 @@
+# Licensed under the Apache-2.0 license
+# Build the Caliptra WASM demo and publish www/ to GitHub Pages.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, but let in-progress runs finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # caliptra-mcu-sw revision used to build the MCU ROM/runtime. Keep in sync
+  # with the mcu-hw-model rev pinned in Cargo.toml.
+  MCU_SW_REV: 3e8144bf
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout caliptra-wasm
+        uses: actions/checkout@v4
+
+      - name: Checkout caliptra-mcu-sw
+        uses: actions/checkout@v4
+        with:
+          repository: swenson/caliptra-mcu-sw
+          ref: ${{ env.MCU_SW_REV }}
+          path: caliptra-mcu-sw
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install 1.85 --profile minimal \
+            --component rust-src,llvm-tools,rustfmt,clippy
+          rustup default 1.85
+          rustup target add wasm32-unknown-unknown riscv32imc-unknown-none-elf
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+
+      - name: Cache cargo registry and git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'tools/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Build site
+        env:
+          MCU_SW_DIR: ${{ github.workspace }}/caliptra-mcu-sw
+        run: ./build-wasm.sh
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: www
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
