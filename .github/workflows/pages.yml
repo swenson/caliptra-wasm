@@ -31,11 +31,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Checkout caliptra-mcu-sw
-        uses: actions/checkout@v4
-        with:
-          repository: swenson/caliptra-mcu-sw
-          ref: ${{ env.MCU_SW_REV }}
-          path: caliptra-mcu-sw
+        # Clone OUTSIDE the caliptra-wasm working tree. The MCU build resolves
+        # its Cargo workspace by walking up to the highest directory containing
+        # a Cargo.toml; if mcu-sw lived inside this repo it would pick up
+        # caliptra-wasm's root Cargo.toml and fail. $RUNNER_TEMP is outside the
+        # workspace and has no parent Cargo.toml.
+        run: |
+          git clone --filter=blob:none \
+            https://github.com/swenson/caliptra-mcu-sw \
+            "$RUNNER_TEMP/caliptra-mcu-sw"
+          cd "$RUNNER_TEMP/caliptra-mcu-sw"
+          git fetch --depth 1 origin "$MCU_SW_REV"
+          git checkout FETCH_HEAD
 
       - name: Install Rust toolchain
         # The WASM crate's dependency graph needs a recent stable rustc, so
@@ -69,7 +76,7 @@ jobs:
 
       - name: Build site
         env:
-          MCU_SW_DIR: ${{ github.workspace }}/caliptra-mcu-sw
+          MCU_SW_DIR: ${{ runner.temp }}/caliptra-mcu-sw
         run: ./build-wasm.sh
 
       - name: Upload Pages artifact
