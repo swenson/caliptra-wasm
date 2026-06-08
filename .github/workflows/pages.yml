@@ -45,14 +45,16 @@ jobs:
           git checkout FETCH_HEAD
 
       - name: Install Rust toolchain
-        # The WASM crate's dependency graph needs a recent stable rustc, so
-        # use stable as the default. caliptra-mcu-sw pins Rust 1.85 via its
-        # own rust-toolchain.toml; rustup installs that toolchain (and the
-        # riscv32imc target/components it lists) on demand during the ROM
-        # build, so it does not need to be set up explicitly here.
+        # caliptra-mcu-sw pins Rust 1.85 via its own rust-toolchain.toml and
+        # rustup switches to it automatically for the MCU ROM/runtime build.
+        # For the rest (WASM crate + asset tools) we pin 1.87.0:
+        #   * >= 1.87 is required by the WASM crate (uses is_multiple_of).
+        #   * < 1.89 avoids the mismatched_lifetime_syntaxes lint, which the
+        #     caliptra firmware build (compiled with -D warnings) would turn
+        #     into a hard error on the pinned caliptra-sw register sources.
         run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
+          rustup toolchain install 1.87.0 --profile minimal
+          rustup default 1.87.0
           rustup target add wasm32-unknown-unknown
 
       - name: Install wasm-pack
