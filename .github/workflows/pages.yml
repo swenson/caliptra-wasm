@@ -38,11 +38,15 @@ jobs:
           path: caliptra-mcu-sw
 
       - name: Install Rust toolchain
+        # The WASM crate's dependency graph needs a recent stable rustc, so
+        # use stable as the default. caliptra-mcu-sw pins Rust 1.85 via its
+        # own rust-toolchain.toml; rustup installs that toolchain (and the
+        # riscv32imc target/components it lists) on demand during the ROM
+        # build, so it does not need to be set up explicitly here.
         run: |
-          rustup toolchain install 1.85 --profile minimal \
-            --component rust-src,llvm-tools,rustfmt,clippy
-          rustup default 1.85
-          rustup target add wasm32-unknown-unknown riscv32imc-unknown-none-elf
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add wasm32-unknown-unknown
 
       - name: Install wasm-pack
         # Use the prebuilt binary rather than `cargo install`: building
