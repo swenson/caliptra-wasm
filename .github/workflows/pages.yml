@@ -19,8 +19,9 @@ concurrency:
 
 env:
   # caliptra-mcu-sw revision used to build the MCU ROM/runtime. Keep in sync
-  # with the mcu-hw-model rev pinned in Cargo.toml.
-  MCU_SW_REV: 3e8144bf
+  # with the mcu-hw-model rev pinned in Cargo.toml (3e8144bf). actions/checkout
+  # requires the full 40-character commit SHA to check out a specific commit.
+  MCU_SW_REV: 3e8144bf3451530c28aeb1f835d483f690df6233
 
 jobs:
   build:
