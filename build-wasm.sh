@@ -60,13 +60,18 @@ if [ -n "$MCU_SW_DIR" ]; then
 
     echo "Building MCU runtime from $MCU_SW_DIR..."
     (cd "$MCU_SW_DIR" && cargo xtask runtime-build 2>&1 | tail -3)
-    MCU_RUNTIME="$MCU_SW_DIR/target/riscv32imc-unknown-none-elf/release/runtime.bin"
+    # `cargo xtask runtime-build` emits runtime-<platform>.bin (emulator by
+    # default), not runtime.bin. The name must match exactly: build-default-assets
+    # hashes this file into the SoC manifest, so a wrong/missing path silently
+    # falls back to DEFAULT_MCU_FW and the served runtime fails to validate (b0016).
+    MCU_RUNTIME="$MCU_SW_DIR/target/riscv32imc-unknown-none-elf/release/runtime-emulator.bin"
     if [ -f "$MCU_RUNTIME" ]; then
         cp "$MCU_RUNTIME" "$SCRIPT_DIR/www/default-mcu-runtime.bin"
         echo "Copied MCU runtime ($(wc -c < "$MCU_RUNTIME") bytes) to www/default-mcu-runtime.bin"
         MCU_RUNTIME_PATH="$MCU_RUNTIME"
     else
-        echo "WARNING: MCU runtime not found at $MCU_RUNTIME"
+        echo "ERROR: MCU runtime not found at $MCU_RUNTIME" >&2
+        exit 1
     fi
 
     # Generate SoC manifest using MCU builder (uses correct key configuration)
