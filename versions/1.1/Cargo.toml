@@ -1,0 +1,52 @@
+# Licensed under the Apache-2.0 license
+#
+# caliptra-wasm built against the Caliptra 1.x emulator (1.1 hardware). The
+# crate source is shared by all releases (../../src); each release has its
+# own manifest, lockfile and toolchain under versions/<release>/. The
+# `caliptra-1-1` feature selects the 1.x code paths (core only: 1.x has no
+# subsystem mode or MCU).
+#
+# The 1.x ROM and firmware are not built here: build-wasm.sh downloads the
+# official releases listed in firmware.json and checks their hashes.
+
+[package]
+name = "caliptra-wasm-demo"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "../../src/lib.rs"
+crate-type = ["cdylib"]
+
+[features]
+default = ["caliptra-1-1"]
+caliptra-1-1 = []
+
+[lints.rust]
+# The shared sources also contain code for the other releases' features.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("caliptra-1-1", "caliptra-2-0", "caliptra-2-1"))'] }
+
+[dependencies]
+wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1"
+rand = { version = "0.8", features = ["std_rng"] }
+rand_core = "0.6"
+getrandom = { version = "0.2", features = ["js"] }
+getrandom04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
+uuid = { version = "1", features = ["js"] }
+
+# Caliptra dependencies; keep revs in sync
+caliptra-hw-model = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c", default-features = false }
+caliptra-api = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c" }
+caliptra-api-types = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c" }
+caliptra-hw-model-types = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c" }
+caliptra-emu-periph = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c" }
+caliptra-image-types = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c", default-features = false, features = ["std"] }
+sha2 = "0.10"
+zerocopy = { version = "0.8", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true

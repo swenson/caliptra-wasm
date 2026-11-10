@@ -15,7 +15,7 @@ for dir in versions/*/; do
 
     echo "Running cargo fmt --check..."
     (cd "$dir" && cargo fmt --all --check)
-    (cd "$dir/tools" && cargo fmt --all --check)
+    if [ -d "$dir/tools" ]; then (cd "$dir/tools" && cargo fmt --all --check); fi
 
     echo "Running cargo clippy (host, all targets)..."
     (cd "$dir" && cargo clippy --all-targets -- -D warnings)
@@ -23,8 +23,12 @@ for dir in versions/*/; do
     echo "Running cargo clippy (wasm32)..."
     (cd "$dir" && cargo clippy --target wasm32-unknown-unknown -- -D warnings)
 
-    echo "Running cargo clippy (tools)..."
-    (cd "$dir/tools" && cargo clippy --all-targets -- -D warnings)
+    # 1.x releases download their firmware instead of building it, so they
+    # have no tools/ build.
+    if [ -d "$dir/tools" ]; then
+        echo "Running cargo clippy (tools)..."
+        (cd "$dir/tools" && cargo clippy --all-targets -- -D warnings)
+    fi
 done
 
 echo "Precheckin passed."

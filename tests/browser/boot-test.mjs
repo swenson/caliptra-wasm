@@ -38,18 +38,22 @@ import { fileURLToPath } from "node:url";
 
 const WWW = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "www");
 
-// Boot milestones per mode. All `expect` strings must appear in the UART
-// output; any `fatal` pattern fails the run immediately.
+// Boot milestones per mode. Every `expect` entry must appear in the UART
+// output (an array entry means any one of its strings); any `fatal` pattern
+// fails the run immediately. Caliptra runtimes before 1.2 say "Runtime
+// listening" where later ones say "RT listening".
+const RT_READY = ["[rt] RT listening for mailbox commands", "[rt] Runtime listening for mailbox commands"];
+
 const MODES = {
   caliptra: {
     label: "Caliptra only",
-    expect: ["[rt] RT listening for mailbox commands"],
+    expect: [RT_READY],
   },
   mcu: {
     label: "MCU + Caliptra (subsystem)",
     expect: [
       "[mcu-rom] Hello from ROM",
-      "[rt] RT listening for mailbox commands",
+      RT_READY,
       "[mcu-rom] Jumping to firmware",
       "[mcu-runtime] Entering main loop.",
     ],
@@ -265,8 +269,14 @@ async function checkReleaseUi(bidi, context, release) {
       return {
         selected: document.getElementById("caliptra-version").value,
         ocpHidden: document.getElementById("ocp-lock").closest(".check").hidden,
-        tagged: opts.filter((o) => /\\(\\d+\\.\\d+(\\+| only)\\)$/.test(o.textContent)).length,
+        tagged: opts.filter((o) => /\\([^()]*(\\+|only)\\)$/.test(o.textContent)).length,
         disabled: opts.filter((o) => o.disabled).map((o) => o.textContent),
+        mcuDisabled: document.querySelector('#emu-mode option[value="mcu"]').disabled,
+        subsystemShown: [...document.querySelectorAll("[data-subsystem-only], #soc-manifest-row, #mcu-fw-row")]
+          .some((el) => !el.hidden) || !document.getElementById("subsystem-mode").closest(".check").hidden,
+        romChoices: document.getElementById("rom-release-row").hidden ? 0 : document.querySelectorAll("#rom-release option").length,
+        fwChoices: document.getElementById("fw-release-row").hidden ? 0 : document.querySelectorAll("#fw-release option").length,
+        vendorPk: document.getElementById("vendor-pk").value,
       };
     })()`);
     if (all.length < 2 || ui.tagged > 0) break;
@@ -277,20 +287,123 @@ async function checkReleaseUi(bidi, context, release) {
   const ocp = info.features?.ocp_lock !== false;
   if (ui.ocpHidden === ocp) problems.push(`OCP LOCK option ${ui.ocpHidden ? "hidden" : "shown"} but ocp_lock=${ocp}`);
   if (all.length > 1 && ui.tagged === 0) problems.push("no mailbox commands are tagged with a release");
-  const untagged = ui.disabled.filter((t) => !/\((\d+\.\d+\+|[\d., ]+ only)\)$/.test(t));
+  // Tags look like "(2.1+)", "(1.1 only)" or "(1.1 only, runtime 1.3+)".
+  const untagged = ui.disabled.filter((t) => !/\([^()]*(\+|only)\)$/.test(t));
   if (untagged.length) problems.push(`disabled without a release tag: ${untagged.join(", ")}`);
-  if (release === newest && ui.disabled.length) problems.push(`newest release disables: ${ui.disabled.join(", ")}`);
+  // The newest release can only lack commands that older releases dropped or
+  // never shared (e.g. 1.x's PQ.DevID commands), tagged "... only".
+  const newestDisables = ui.disabled.filter((t) => !/ only[,)]/.test(t));
+  if (release === newest && newestDisables.length) problems.push(`newest release disables: ${newestDisables.join(", ")}`);
+  if (info.features?.subsystem === false) {
+    if (!ui.mcuDisabled) problems.push("MCU mode is offered without a subsystem");
+    if (ui.subsystemShown) problems.push("subsystem-only options are shown");
+  }
+  if (existsSync(join(WWW, `v${release}`, "firmware.json"))) {
+    const fw = JSON.parse(readFileSync(join(WWW, `v${release}`, "firmware.json"), "utf8"));
+    if (ui.romChoices !== fw.roms.length || ui.fwChoices !== fw.firmware.length) {
+      problems.push(`release pickers offer ${ui.romChoices} ROMs / ${ui.fwChoices} firmware, expected ${fw.roms.length} / ${fw.firmware.length}`);
+    }
+    if (!/^[0-9a-f]{96}$/.test(ui.vendorPk)) problems.push(`vendor PK hash not filled from the firmware (${ui.vendorPk})`);
+  }
   if (problems.length) throw new Error(`${release} UI: ${problems.join("; ")}`);
   console.log(
     `UI ok: ${ui.tagged} mailbox commands tagged, ${ui.disabled.length} disabled, ` +
-      `OCP LOCK ${ui.ocpHidden ? "hidden" : "shown"}`,
+      `OCP LOCK ${ui.ocpHidden ? "hidden" : "shown"}` +
+      (ui.romChoices ? `, ${ui.romChoices} ROM / ${ui.fwChoices} firmware releases` : ""),
   );
 }
 
-async function runMode(bidi, context, baseUrl, release, mode, timeoutSecs, settleSecs, outDir, pageErrors) {
+// Choose a ROM and firmware release in the pickers and wait until both are
+// loaded and the vendor PK hash has been refilled from the new bundle.
+async function pickReleases(bidi, context, picks) {
+  const before = await bidi.eval(context, `document.getElementById("vendor-pk").value`);
+  await bidi.eval(context, `(() => {
+    for (const [id, value] of [["rom-release", ${JSON.stringify(picks.rom.id)}], ["fw-release", ${JSON.stringify(picks.firmware.id)}]]) {
+      const sel = document.getElementById(id);
+      sel.value = value;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    return true;
+  })()`);
+  for (let i = 0; i < 40; i++) {
+    const st = await bidi.eval(context, `({
+      rom: document.getElementById("rom-release-info").textContent,
+      fw: document.getElementById("fw-release-info").textContent,
+      vendor: document.getElementById("vendor-pk").value,
+    })`);
+    if (st.rom.includes(`ROM ${picks.rom.version} `) && st.fw.includes(`Runtime ${picks.firmware.version} `)) {
+      console.log(`picked ROM ${picks.rom.version} and firmware ${picks.firmware.version}` +
+        (st.vendor !== before ? "; vendor PK hash refilled from the bundle" : ""));
+      return;
+    }
+    await sleep(250);
+  }
+  throw new Error(`picking ROM ${picks.rom.version} / firmware ${picks.firmware.version} did not take effect`);
+}
+
+// Send VERSION from the Mailbox panel, as a user would, and expect a decoded
+// response.
+async function checkMailboxPanel(bidi, context, name) {
+  await bidi.eval(context, `(() => {
+    const sel = document.getElementById("mbox-cmd");
+    sel.value = "VERSION";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    document.getElementById("btn-mbox-send").click();
+    return true;
+  })()`);
+  for (let i = 0; i < 60; i++) {
+    await sleep(500);
+    const out = await bidi.eval(context, `document.getElementById("mbox-response").textContent`);
+    if (/Error/.test(out)) throw new Error(`${name}: mailbox VERSION failed:\n${out}`);
+    if (/--- Decoded ---/.test(out)) {
+      console.log(`  mailbox VERSION ok`);
+      return;
+    }
+  }
+  throw new Error(`${name}: mailbox VERSION got no response`);
+}
+
+// On releases with the PQ.DevID card enabled (1.x runtime 1.3+), provision
+// the seed and read the public key and CSR through it.
+async function checkPqDevId(bidi, context, name) {
+  const card = await bidi.eval(context, `(() => {
+    const card = document.getElementById("pq-card");
+    return { shown: !card.hidden, enabled: !document.getElementById("pq-provision").disabled };
+  })()`);
+  if (!card.shown || !card.enabled) return;
+  const steps = [
+    ["pq-provision", "Provision seed", null],
+    ["pq-info", "Public key", (out) => /public key \(2592 bytes\)/.test(out)],
+    ["pq-csr", "CSR", (out) => /BEGIN CERTIFICATE REQUEST/.test(out)],
+  ];
+  for (const [button, label, check] of steps) {
+    await bidi.eval(context, `(document.getElementById(${JSON.stringify(button)}).click(), true)`);
+    const t0 = Date.now();
+    for (;;) {
+      await sleep(1000);
+      const st = await bidi.eval(context, `({
+        status: document.getElementById("pq-status").textContent,
+        output: document.getElementById("pq-output").textContent,
+        downloads: document.querySelectorAll("#pq-downloads a").length,
+      })`);
+      if (st.status.endsWith("failed")) throw new Error(`${name}: PQ.DevID ${label} failed:\n${st.output}`);
+      if (st.status.startsWith(`${label}: done`)) {
+        if (check && !check(st.output)) throw new Error(`${name}: PQ.DevID ${label} output unexpected:\n${st.output.slice(0, 300)}`);
+        console.log(`  PQ.DevID ${st.status}${st.downloads ? `, ${st.downloads} download` : ""}`);
+        break;
+      }
+      if (Date.now() - t0 > 180_000) throw new Error(`${name}: PQ.DevID ${label} did not finish in 180s (${st.status})`);
+    }
+  }
+}
+
+async function runMode(bidi, context, baseUrl, run, timeoutSecs, settleSecs, outDir, pageErrors) {
+  const { release, mode, picks } = run;
   const spec = MODES[mode];
-  const name = `${release}-${mode}`;
-  console.log(`\n=== Caliptra ${release}: ${spec.label} (${mode}) ===`);
+  const pickName = picks ? `-rom${picks.rom.version}-fw${picks.firmware.version}` : "";
+  const name = `${release}-${mode}${pickName}`;
+  const pickLabel = picks ? `, ROM ${picks.rom.version} + firmware ${picks.firmware.version}` : "";
+  console.log(`\n=== Caliptra ${release}: ${spec.label} (${mode})${pickLabel} ===`);
   pageErrors.length = 0;
   await bidi.send("browsingContext.navigate", {
     context,
@@ -318,7 +431,20 @@ async function runMode(bidi, context, baseUrl, release, mode, timeoutSecs, settl
     await sleep(250);
   }
 
-  if (mode === "caliptra") await checkReleaseUi(bidi, context, release);
+  if (mode === "caliptra" && !picks) await checkReleaseUi(bidi, context, release);
+  if (picks) {
+    await pickReleases(bidi, context, picks);
+    // PQ.DevID needs runtime 1.3; with an older runtime its card is disabled.
+    const pq = await bidi.eval(context, `({
+      shown: !document.getElementById("pq-card").hidden,
+      disabled: document.getElementById("pq-provision").disabled,
+    })`);
+    const want = !picks.firmware.version.startsWith("1.3");
+    if (pq.shown && pq.disabled !== want) {
+      throw new Error(`${name}: PQ.DevID card ${pq.disabled ? "disabled" : "enabled"} with runtime ${picks.firmware.version}`);
+    }
+    if (pq.shown) console.log(`  PQ.DevID card ${pq.disabled ? "disabled" : "enabled"} for runtime ${picks.firmware.version}`);
+  }
 
   // Select the mode and press Run, as a user would.
   await bidi.eval(context, `(() => {
@@ -345,7 +471,7 @@ async function runMode(bidi, context, baseUrl, release, mode, timeoutSecs, settl
       };
     })()`);
     const elapsed = (Date.now() - t0) / 1000;
-    const missing = spec.expect.filter((m) => !seen(st.uart, m));
+    const missing = spec.expect.filter((m) => ![].concat(m).some((alt) => seen(st.uart, alt)));
     const fatalUart = FATAL_UART.find((re) => re.test(st.uart));
     const fatalDecoder = /fw_error_fatal/.test(st.decoder);
     const save = async () => {
@@ -384,6 +510,8 @@ async function runMode(bidi, context, baseUrl, release, mode, timeoutSecs, settl
     // mailbox commands after the main loop starts, and a failure there halts
     // the MCU (caught above via the status and UART checks).
     if (bootedAt !== null && elapsed - bootedAt >= settleSecs) {
+      await checkMailboxPanel(bidi, context, name);
+      if (mode === "caliptra" && !picks) await checkPqDevId(bidi, context, name);
       await save();
       console.log(`PASS ${name}: booted in ${bootedAt.toFixed(0)}s, stayed up ${settleSecs}s — ${st.stats}`);
       if (st.decoder) console.log(`(non-fatal) error decoder:\n${st.decoder}`);
@@ -427,9 +555,25 @@ async function main() {
     const releases = args.releases.length
       ? args.releases
       : JSON.parse(readFileSync(join(WWW, "versions.json"), "utf8")).releases;
-    for (const release of releases) for (const mode of args.modes) {
+    // Every release in each mode it supports; releases whose ROM and firmware
+    // are picked from official releases (1.x) also boot the oldest pair
+    // through the pickers.
+    const runs = [];
+    for (const release of releases) {
+      const info = JSON.parse(readFileSync(join(WWW, `v${release}`, "build-info.json"), "utf8"));
+      for (const mode of args.modes) {
+        if (mode === "mcu" && info.features?.subsystem === false) continue;
+        runs.push({ release, mode });
+      }
+      const fwPath = join(WWW, `v${release}`, "firmware.json");
+      if (args.modes.includes("caliptra") && existsSync(fwPath)) {
+        const fw = JSON.parse(readFileSync(fwPath, "utf8"));
+        runs.push({ release, mode: "caliptra", picks: { rom: fw.roms[0], firmware: fw.firmware[0] } });
+      }
+    }
+    for (const run of runs) {
       try {
-        await runMode(bidi, context, baseUrl, release, mode, args.timeout, args.settle, args.outDir, pageErrors);
+        await runMode(bidi, context, baseUrl, run, args.timeout, args.settle, args.outDir, pageErrors);
       } catch (e) {
         failed = true;
         console.error(`FAIL ${e.message}`);

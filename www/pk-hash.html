@@ -52,6 +52,11 @@
         <code>ImageOwnerPubKeys</code> (2688 bytes), which is hashed with SHA-384.
       </p>
       <p class="help">
+        These are the Caliptra 2.x formats. Caliptra 1.x hashes its vendor ECC
+        and LMS keys instead; for 1.x firmware, the emulator page computes both
+        hashes from the bundle you pick.
+      </p>
+      <p class="help">
         <em>Load test keys</em> fills every field with the test keys from
         caliptra-sw (<code>caliptra-image-fake-keys</code>). The page loads with
         them filled in.
@@ -267,7 +272,10 @@ async function defaultsUrl() {
     try { rel = rel || localStorage.getItem("caliptra-wasm.release"); } catch (e) {}
     try {
       const v = await (await fetch("versions.json", { cache: "no-cache" })).json();
-      defaultsRelease = v.releases.includes(rel) ? rel : v.default;
+      // These are 2.x hashes (1.x hashes its ECC + LMS keys instead), so only
+      // compare against a 2.x release's default firmware.
+      const twoX = v.releases.filter((r) => Number(r.split(".")[0]) >= 2);
+      defaultsRelease = twoX.includes(rel) ? rel : (twoX.includes(v.default) ? v.default : twoX[0]);
     } catch (e) {
       defaultsRelease = rel || "2.1";
     }

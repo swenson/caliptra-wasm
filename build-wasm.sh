@@ -7,11 +7,14 @@
 # Cargo.toml, lockfile and toolchain; the crate source in src/ is shared).
 # For every release this script:
 #   * builds the WASM module into www/v<release>/,
-#   * builds that release's MCU ROM and runtime from caliptra-mcu-sw at the
-#     rev pinned in versions/<release>/Cargo.toml,
-#   * generates the default Caliptra ROM/FW, a matching SoC manifest,
-#     defaults.json, build-info.json, error-codes.json and
-#     mailbox-commands.json in www/v<release>/,
+#   * for 2.x, builds that release's MCU ROM and runtime from caliptra-mcu-sw
+#     at the rev pinned in versions/<release>/Cargo.toml and generates the
+#     default Caliptra ROM/FW, a matching SoC manifest and defaults.json;
+#   * for 1.x (a release directory with a firmware.json), downloads and
+#     verifies the official ROM and firmware releases it lists instead, since
+#     1.x is core-only and its firmware does not need building;
+#   * writes build-info.json, error-codes.json and mailbox-commands.json into
+#     www/v<release>/,
 # and finally writes www/versions.json, which the page reads to offer the
 # releases that were built.
 #
@@ -154,25 +157,59 @@ build_release() {
     (cd "$dir" && wasm-pack build --target web --release)
     cp "$dir/pkg/caliptra_wasm_demo_bg.wasm" "$dir/pkg/caliptra_wasm_demo.js" "$out/"
 
-    local caliptra_sw_rev mcu_rev mcu_url
+    local caliptra_sw_rev caliptra_sw_src
     caliptra_sw_rev="$(pinned_rev "$manifest" caliptra-sw)"
+    if [ -z "$caliptra_sw_rev" ]; then
+        echo "ERROR: could not find the caliptra-sw rev in $manifest" >&2
+        return 1
+    fi
+    caliptra_sw_src="$(package_root "$dir" caliptra-api 1)"
+    ./tools/build-mailbox-commands.py --caliptra-sw "$caliptra_sw_src" -o "$out/mailbox-commands.json"
+
+    if [ -f "$dir/firmware.json" ]; then
+        # 1.x: core only, so no MCU; the ROM and firmware are the official
+        # releases, downloaded and checked against firmware.json's hashes.
+        ./tools/build-error-codes.py --manifest "$manifest" \
+            --caliptra-sw "$caliptra_sw_src/error/src/lib.rs" --mcu-sw none \
+            -o "$out/error-codes.json"
+        ./tools/fetch-firmware.py "$dir/firmware.json" "$out" --cache "$CACHE_ROOT/releases"
+        python3 - "$rel" "$caliptra_sw_rev" "$out" <<'PYEOF'
+import json, os, sys
+rel, rev, out = sys.argv[1:]
+fw = json.load(open(os.path.join(out, "firmware.json")))
+info = {
+    "caliptra_release": rel,
+    "hardware": rel,
+    "caliptra_sw_rev": rev,
+    "caliptra_mcu_sw_rev": "",
+    "default_rom": fw["default_rom"],
+    "default_firmware": fw["default_firmware"],
+    "features": {"ocp_lock": False, "subsystem": False, "release_firmware": True},
+}
+with open(os.path.join(out, "build-info.json"), "w") as f:
+    json.dump(info, f, indent=2)
+    f.write("\n")
+print(f"Wrote {out}/build-info.json")
+PYEOF
+        return
+    fi
+
+    local mcu_rev mcu_url
     mcu_rev="$(pinned_rev "$manifest" caliptra-mcu-sw)"
     mcu_url="$(pinned_url "$manifest" caliptra-mcu-sw)"
-    if [ -z "$caliptra_sw_rev" ] || [ -z "$mcu_rev" ] || [ -z "$mcu_url" ]; then
-        echo "ERROR: could not find the caliptra-sw / caliptra-mcu-sw revs in $manifest" >&2
+    if [ -z "$mcu_rev" ] || [ -z "$mcu_url" ]; then
+        echo "ERROR: could not find the caliptra-mcu-sw rev in $manifest" >&2
         return 1
     fi
 
-    # Tables the UI reads: firmware error codes and supported mailbox commands,
-    # from the exact caliptra-sw / caliptra-mcu-sw sources this release uses.
-    local caliptra_sw_src mcu_sw_src
-    caliptra_sw_src="$(package_root "$dir" caliptra-api 1)"
+    # Firmware error codes, from the exact caliptra-sw / caliptra-mcu-sw
+    # sources this release uses.
+    local mcu_sw_src
     mcu_sw_src="$(package_root "$dir" caliptra-mcu-hw-model 2)"
     ./tools/build-error-codes.py --manifest "$manifest" \
         --caliptra-sw "$caliptra_sw_src/error/src/lib.rs" \
         --mcu-sw "$mcu_sw_src/error/src/lib.rs" \
         -o "$out/error-codes.json"
-    ./tools/build-mailbox-commands.py --caliptra-sw "$caliptra_sw_src" -o "$out/mailbox-commands.json"
 
     # MCU ROM and runtime. They must come from the same caliptra-mcu-sw rev as
     # the emulator: an MCU ROM from another rev may not run on it (e.g. one

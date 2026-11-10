@@ -41,7 +41,7 @@
         <fieldset>
           <legend>Release and mode</legend>
           <div class="field">
-            <label for="caliptra-version">Caliptra version</label>
+            <label for="caliptra-version">Caliptra hardware version</label>
             <!-- app.js enables the releases listed in versions.json; the others
                  are placeholders until they are built (see README). -->
             <select id="caliptra-version">
@@ -50,14 +50,12 @@
                 <option value="2.1" selected>2.1</option>
                 <option value="2.0" disabled>2.0 (coming soon)</option>
               </optgroup>
-              <optgroup label="Caliptra 1.x (core only)">
-                <option value="1.3" disabled>1.3 (coming soon)</option>
-                <option value="1.2" disabled>1.2 (coming soon)</option>
+              <optgroup label="Caliptra 1.x hardware (core only)">
                 <option value="1.1" disabled>1.1 (coming soon)</option>
                 <option value="1.0" disabled>1.0 (coming soon)</option>
               </optgroup>
             </select>
-            <span class="hint">The emulator, ROM and firmware are all built from this release. Switching reloads the page.</span>
+            <span class="hint" id="caliptra-version-hint">The emulator, ROM and firmware are all built from this release. Switching reloads the page.</span>
           </div>
           <div class="field">
             <label for="emu-mode">Mode</label>
@@ -71,7 +69,17 @@
 
         <fieldset>
           <legend>Images</legend>
-          <p class="note">Each image has a default: the ROM, FMC and runtime versions shown under the page title, built with UART logging. Choose a file to use your own image instead.</p>
+          <p class="note" id="images-note">Each image has a default: the ROM, FMC and runtime versions shown under the page title, built with UART logging. Choose a file to use your own image instead.</p>
+          <div class="field" id="rom-release-row" hidden>
+            <label for="rom-release">ROM release</label>
+            <select id="rom-release"></select>
+            <span class="hint" id="rom-release-info"></span>
+          </div>
+          <div class="field" id="fw-release-row" hidden>
+            <label for="fw-release">Firmware release (FMC + runtime)</label>
+            <select id="fw-release"></select>
+            <span class="hint" id="fw-release-info"></span>
+          </div>
           <div class="field">
             <label for="rom-file">Caliptra ROM</label>
             <input type="file" id="rom-file" accept=".bin,.rom">
@@ -82,12 +90,12 @@
             <input type="file" id="fw-file" accept=".bin,.bundle">
             <span class="hint" id="fw-info">Loading the default firmware…</span>
           </div>
-          <div class="field">
+          <div class="field" id="soc-manifest-row">
             <label for="soc-manifest-file">SoC manifest</label>
             <input type="file" id="soc-manifest-file" accept=".bin,.manifest">
             <span class="hint" id="soc-manifest-info">Used in Caliptra + MCU mode and by the subsystem boot flow.</span>
           </div>
-          <div class="field">
+          <div class="field" id="mcu-fw-row">
             <label for="mcu-fw-file">MCU firmware</label>
             <input type="file" id="mcu-fw-file" accept=".bin">
             <span class="hint" id="mcu-fw-info">Used in Caliptra + MCU mode and by the subsystem boot flow.</span>
@@ -154,7 +162,7 @@
             OTP partition bytes.
           </p>
 
-          <div class="field">
+          <div class="field" data-subsystem-only>
             <label class="mono" for="fuse-pqc-key-type">fuse_pqc_key_type</label>
             <select id="fuse-pqc-key-type">
               <option value="">Default (1 = MLDSA)</option>
@@ -175,7 +183,7 @@
               <input type="text" id="fuse-lms-revocation" placeholder="0" spellcheck="false">
               <span class="hint">32-bit mask</span>
             </div>
-            <div class="field">
+            <div class="field" data-subsystem-only>
               <label class="mono" for="fuse-mldsa-revocation">fuse_mldsa_revocation</label>
               <input type="text" id="fuse-mldsa-revocation" placeholder="0" spellcheck="false">
               <span class="hint">32-bit mask</span>
@@ -185,12 +193,12 @@
               <input type="text" id="soc-stepping-id" placeholder="0" spellcheck="false">
               <span class="hint">16-bit</span>
             </div>
-            <div class="field">
+            <div class="field" data-subsystem-only>
               <label class="mono" for="soc-manifest-max-svn">soc_manifest_max_svn</label>
               <input type="text" id="soc-manifest-max-svn" placeholder="128" spellcheck="false">
               <span class="hint">8-bit, default 128</span>
             </div>
-            <div class="field">
+            <div class="field" data-subsystem-only>
               <label class="mono" for="soc-manifest-svn">soc_manifest_svn</label>
               <input type="text" id="soc-manifest-svn" placeholder="0,0,0,0" spellcheck="false">
               <span class="hint">Four 32-bit words, comma-separated</span>
@@ -218,6 +226,7 @@
             <span class="hint">Turn off rollback protection.</span>
           </div>
 
+          <div data-subsystem-only>
           <h3>Production debug unlock PK hashes</h3>
           <p class="note">
             Caliptra + MCU mode only. One SHA-384 hash (96 hex characters) per
@@ -226,6 +235,7 @@
             from a key pair.
           </p>
           <div id="prod-dbg-pks-fields"></div>
+          </div>
 
           <div class="toolbar" style="margin-top: 16px">
             <button type="button" onclick="resetFuseFields()">Clear all overrides</button>
@@ -311,6 +321,14 @@
               <option value="GET_IDEV_MLDSA87_CSR">GET_IDEV_MLDSA87_CSR (0x49444D52)</option>
               <option value="GET_FMC_ALIAS_MLDSA87_CSR">GET_FMC_ALIAS_MLDSA87_CSR (0x464D4452)</option>
               <option value="GET_ATTESTED_MLDSA87_CSR">GET_ATTESTED_MLDSA87_CSR (0x414D4352)</option>
+            </optgroup>
+            <optgroup label="PQ.DevID identity (Caliptra 1.x)">
+              <option value="SET_PQ_SEED">SET_PQ_SEED (0x50515344)</option>
+              <option value="GET_PQ_INFO">GET_PQ_INFO (0x5051494E)</option>
+              <option value="GET_PQ_CSR">GET_PQ_CSR (0x50514353)</option>
+              <option value="GET_ATTESTED_PQ_CSR">GET_ATTESTED_PQ_CSR (0x41505143)</option>
+              <option value="POPULATE_PQ_CERT">POPULATE_PQ_CERT (0x50505143)</option>
+              <option value="GET_PQ_CERT">GET_PQ_CERT (0x47505143)</option>
             </optgroup>
             <optgroup label="Signature Verification">
               <option value="ECDSA384_SIGNATURE_VERIFY">ECDSA384_SIGNATURE_VERIFY (0x45435632)</option>
@@ -465,14 +483,44 @@
         </div>
         <div class="label" style="margin: 16px 0 6px">Response</div>
         <div id="mbox-response" class="console response" data-empty="Send a command to see its response."></div>
+        <div id="mbox-downloads" class="downloads"></div>
+      </section>
+
+      <section class="card" id="pq-card" hidden aria-labelledby="pq-title">
+        <div class="card-head">
+          <h2 id="pq-title">PQ.DevID identity (ML-DSA-87)</h2>
+          <span class="status" id="pq-status" role="status"></span>
+        </div>
+        <p class="note">
+          Caliptra 1.3 runtimes add a post-quantum device identity, PQ.DevID: an
+          ML-DSA-87 key pair derived from a seed the SoC sends with
+          <code>SET_PQ_SEED</code>. Caliptra 1.x has no ML-DSA hardware, so the
+          runtime computes ML-DSA in software; each step below takes about 10 to
+          60 million emulated cycles. Run the emulator until the runtime is
+          listening for mailbox commands, then provision the seed first.
+        </p>
+        <div class="field">
+          <label for="pq-seed">Seed (32 bytes, hex)</label>
+          <input type="text" id="pq-seed" spellcheck="false" autocomplete="off">
+          <span class="hint">Pre-filled with the test seed caliptra-sw's own tests use. PQ.DevID is derived from the seed alone, so the same seed always gives the same key pair.</span>
+        </div>
+        <div class="toolbar">
+          <button type="button" id="pq-provision" class="primary">1. Provision seed</button>
+          <button type="button" id="pq-info">2. Get public key</button>
+          <button type="button" id="pq-csr">3. Get CSR</button>
+          <button type="button" id="pq-attested">Get attested CSR</button>
+        </div>
+        <div id="pq-output" class="console response" style="margin-top: 14px" data-empty="Results appear here."></div>
+        <div id="pq-downloads" class="downloads"></div>
       </section>
 
       <details class="card collapsible" open>
         <summary><h2>Key vault</h2></summary>
         <div class="card-body">
           <p class="note">
-            24 keys of 64 bytes and 32 PCRs of 48 bytes, each with its control
-            register. Refreshes while the emulator runs and after each step.
+            The keys (24 of 64 bytes on 2.x, 32 of 48 bytes on 1.x) and the
+            32 PCRs of 48 bytes, each with its control register. Refreshes while
+            the emulator runs and after each step.
           </p>
           <div id="keyvault-display" class="console pre tall">Start the emulator to see the key vault.</div>
         </div>

@@ -5,7 +5,7 @@
 // were built. The page loads one release at a time, chosen by the
 // ?version=<release> URL parameter, then the last release picked, then the
 // default.
-let init, CaliptraEmulator, McuEmulator;
+let init, CaliptraEmulator, McuEmulator, fwPkHashes;
 let RELEASES = { default: "2.1", releases: ["2.1"] };
 let RELEASE = null;
 let ASSETS = ""; // "v<release>/"
@@ -32,6 +32,7 @@ async function loadRelease() {
   ASSETS = `v${RELEASE}/`;
   const mod = await import(`./${ASSETS}caliptra_wasm_demo.js`);
   ({ default: init, CaliptraEmulator, McuEmulator } = mod);
+  fwPkHashes = mod.fw_pk_hashes; // vendor/owner PK hashes of a FW bundle
 }
 
 // DOM elements
@@ -98,7 +99,34 @@ releaseSelect.addEventListener("change", () => {
 });
 
 // Features the loaded release supports (from its build-info.json).
-let releaseFeatures = { ocp_lock: true };
+let releaseFeatures = { ocp_lock: true, subsystem: true, release_firmware: false };
+
+// Hide what a release without a subsystem (1.x) cannot use: MCU mode, the
+// subsystem options, the SoC manifest / MCU firmware and the 2.x-only fuses.
+function applyReleaseFeatures() {
+  const sub = releaseFeatures.subsystem;
+  const mcuOption = emuModeSelect.querySelector('option[value="mcu"]');
+  mcuOption.disabled = !sub;
+  mcuOption.textContent = sub ? "Caliptra + MCU (subsystem)" : "Caliptra + MCU (subsystem; 2.x only)";
+  if (!sub) {
+    emuModeSelect.value = "caliptra";
+    subsystemModeInput.checked = false;
+    ocpLockInput.checked = false;
+  }
+  for (const el of document.querySelectorAll("[data-subsystem-only]")) el.hidden = !sub;
+  if (!sub) {
+    emuModeSelect.closest(".field").querySelector(".hint").textContent =
+      `Caliptra ${RELEASE} has no subsystem, so only the Caliptra core runs.`;
+  }
+  if (releaseFeatures.release_firmware) {
+    document.getElementById("caliptra-version-hint").textContent =
+      `Caliptra ${RELEASE} hardware, core only. Pick the ROM and firmware releases under Images. Switching reloads the page.`;
+    document.getElementById("images-note").textContent =
+      "The ROM and firmware are official caliptra-sw releases, downloaded from GitHub and checked " +
+      "against the hashes in caliptra-sw's README. Choose a file to use your own image instead.";
+  }
+  updateModeVisibility();
+}
 
 // Load error code lookup table (Caliptra + MCU)
 let ERROR_CODES = {};
@@ -112,10 +140,10 @@ const UPSTREAM_REPOS = {
   caliptra_sw_rev: ["caliptra-sw", "https://github.com/swenson/caliptra-sw/commit/"],
   caliptra_mcu_sw_rev: ["caliptra-mcu-sw", "https://github.com/swenson/caliptra-mcu-sw/commit/"],
 };
-fetch(`${ASSETS}build-info.json`).then(r => r.json()).then(info => {
+const buildInfoReady = fetch(`${ASSETS}build-info.json`).then(r => r.json()).then(info => {
   if (info.features) {
     releaseFeatures = { ...releaseFeatures, ...info.features };
-    updateModeVisibility();
+    applyReleaseFeatures();
   }
   if (info.caliptra_release) {
     document.getElementById("caliptra-release-badge").textContent = `Caliptra ${info.caliptra_release}`;
@@ -123,6 +151,7 @@ fetch(`${ASSETS}build-info.json`).then(r => r.json()).then(info => {
   }
   const el = document.getElementById("build-info");
   const parts = [];
+  if (info.hardware) parts.push(document.createTextNode(`${info.hardware} hardware`));
   if (info.rom_version) parts.push(document.createTextNode(`ROM ${info.rom_version}`));
   if (info.fmc_version) parts.push(document.createTextNode(`FMC ${info.fmc_version}`));
   if (info.runtime_version) parts.push(document.createTextNode(`RT ${info.runtime_version}`));
@@ -362,7 +391,7 @@ function getInputMode() {
 }
 
 function updateInputSection(cmdKey, mode) {
-  const fields = COMMAND_FIELDS[cmdKey] || [];
+  const fields = fieldsFor(cmdKey);
   const hasFields = fields.length > 0;
 
   if (mode === "form") {
@@ -394,6 +423,7 @@ function renderFormFields(fields) {
     return;
   }
   for (const field of fields) {
+    if (field.type === "pad") continue; // alignment padding, sent as zeros
     const row = document.createElement("div");
     row.className = "field";
 
@@ -406,7 +436,7 @@ function renderFormFields(fields) {
     if (field.type === "u32") {
       input = document.createElement("input");
       input.type = "number";
-      input.value = "0";
+      input.value = String(field.default ?? 0);
       input.min = "0";
       input.max = "4294967295";
       input.dataset.fieldName = field.name;
@@ -432,6 +462,7 @@ function renderFormFields(fields) {
         input.type = "text";
         input.placeholder = placeholder;
       }
+      if (field.default) input.value = field.default;
       input.spellcheck = false;
       input.dataset.fieldName = field.name;
       input.dataset.fieldType = "hex";
@@ -444,11 +475,15 @@ function renderFormFields(fields) {
 }
 
 function serializeFormFields(cmdKey) {
-  const fields = COMMAND_FIELDS[cmdKey] || [];
+  const fields = fieldsFor(cmdKey);
   if (fields.length === 0) return new Uint8Array(0);
 
   const parts = [];
   for (const field of fields) {
+    if (field.type === "pad") {
+      parts.push(new Uint8Array(field.size));
+      continue;
+    }
     const el = mboxFormFields.querySelector(`[data-field-name="${field.name}"]`);
     if (!el) throw new Error(`Form field not found: ${field.name}`);
 
@@ -487,7 +522,9 @@ function updateModeVisibility() {
   mcuRomRow.hidden = !isMcu;
   // Caliptra-only options hidden in MCU mode (MCU handles these internally)
   document.getElementById("caliptra-only-options").hidden = isMcu;
-  subsystemModeInput.closest(".check").hidden = isMcu;
+  subsystemModeInput.closest(".check").hidden = isMcu || !releaseFeatures.subsystem;
+  document.getElementById("soc-manifest-row").hidden = !releaseFeatures.subsystem;
+  document.getElementById("mcu-fw-row").hidden = !releaseFeatures.subsystem;
   ocpLockInput.closest(".check").hidden = isMcu || !releaseFeatures.ocp_lock;
   // OTP panels only visible in MCU mode
   otpPanel.hidden = !isMcu;
@@ -538,6 +575,86 @@ let mcuExitReported = false;
 // Steps per animation frame — balance between speed and UI responsiveness
 const STEPS_PER_FRAME = 50_000;
 
+// ROM / firmware release pickers (releases with a firmware.json, i.e. 1.x).
+const romReleaseSelect = document.getElementById("rom-release");
+const fwReleaseSelect = document.getElementById("fw-release");
+let releaseFirmware = null; // firmware.json
+
+function releaseLink(entry) {
+  const a = document.createElement("a");
+  a.href = entry.url;
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.textContent = entry.tag;
+  return a;
+}
+
+async function pickRelease(kind, id) {
+  const entry = releaseFirmware[kind].find((e) => e.id === id);
+  const r = await fetch(`${ASSETS}${entry.file}`);
+  if (!r.ok) throw new Error(`${entry.file}: HTTP ${r.status}`);
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  const info = document.getElementById(kind === "roms" ? "rom-release-info" : "fw-release-info");
+  info.replaceChildren(
+    document.createTextNode(`${kind === "roms" ? "ROM" : "Runtime"} ${entry.version} from `),
+    releaseLink(entry),
+    document.createTextNode(` (${(bytes.length / 1024).toFixed(0)} KB). Hash verified at build time.`),
+  );
+  if (kind === "roms") {
+    defaultRom = bytes;
+    romInfo.textContent = `Using ROM release ${entry.version}`;
+  } else {
+    defaultFw = bytes;
+    fwInfo.textContent = `Using firmware release ${entry.version}`;
+    autoFillPkHashes(bytes);
+    runtimeCommandList = entry.mailbox_commands && !customFw ? byName(entry.mailbox_commands) : null;
+    if (Object.keys(releaseCommandLists).length) annotateMailboxCommands();
+  }
+}
+
+// Returns true if this release offers ROM / firmware release pickers.
+async function setupReleasePickers() {
+  let r;
+  try {
+    r = await fetch(`${ASSETS}firmware.json`);
+  } catch (e) {
+    return false;
+  }
+  if (!r.ok) return false;
+  releaseFirmware = await r.json();
+  for (const [select, kind, def, label] of [
+    [romReleaseSelect, "roms", releaseFirmware.default_rom, "ROM"],
+    [fwReleaseSelect, "firmware", releaseFirmware.default_firmware, "Runtime"],
+  ]) {
+    select.replaceChildren(...releaseFirmware[kind].slice().reverse().map((e) => {
+      const o = document.createElement("option");
+      o.value = e.id;
+      o.textContent = `${e.id} (${label} ${e.version})`;
+      o.selected = e.id === def;
+      return o;
+    }));
+    select.addEventListener("change", () => {
+      pickRelease(kind, select.value).catch((err) => setStatus(`Failed to load ${label}: ${err}`, "exited"));
+    });
+    select.closest(".field").hidden = false;
+    await pickRelease(kind, def);
+  }
+  return true;
+}
+
+// Fill the PK hash fields from a firmware bundle (1.x), unless the user has
+// typed their own values since the last fill.
+let autoPk = { vendor: "", owner: "" };
+function autoFillPkHashes(fw) {
+  if (!fw || !fwPkHashes) return;
+  const json = fwPkHashes(fw);
+  if (!json) return;
+  const h = JSON.parse(json);
+  if (vendorPkInput.value === "" || vendorPkInput.value === autoPk.vendor) vendorPkInput.value = h.vendor_pk_hash;
+  if (ownerPkInput.value === "" || ownerPkInput.value === autoPk.owner) ownerPkInput.value = h.owner_pk_hash;
+  autoPk = { vendor: h.vendor_pk_hash, owner: h.owner_pk_hash };
+}
+
 // Initialize WASM module and load defaults
 async function startup() {
   try {
@@ -577,6 +694,13 @@ async function startup() {
       if (defaults.owner_pk_hash && defaults.owner_pk_hash !== "0".repeat(96)) {
         ownerPkInput.value = defaults.owner_pk_hash;
       }
+    }
+
+    // Releases whose ROM and firmware are official downloads (1.x) offer
+    // ROM / firmware release pickers, and take the PK hashes from the bundle.
+    await buildInfoReady;
+    if (releaseFeatures.release_firmware && (await setupReleasePickers())) {
+      autoFillPkHashes(defaultFw);
     }
 
     if (socManifestResp.status === "fulfilled" && socManifestResp.value.ok) {
@@ -628,6 +752,12 @@ fwFileInput.addEventListener("change", (e) => {
   reader.onload = () => {
     customFw = new Uint8Array(reader.result);
     fwInfo.textContent = `${file.name} (${(customFw.length / 1024).toFixed(0)} KB)`;
+    if (releaseFeatures.release_firmware) {
+      autoFillPkHashes(customFw);
+      // Unknown runtime: offer every command the release defines.
+      runtimeCommandList = null;
+      annotateMailboxCommands();
+    }
   };
   reader.readAsArrayBuffer(file);
 });
@@ -892,6 +1022,8 @@ btnRun.addEventListener("click", () => {
   // leave step buttons enabled and let user step through manually.
   if (startPaused.checked) {
     emuModeSelect.disabled = true;
+    romReleaseSelect.disabled = true;
+    fwReleaseSelect.disabled = true;
     romFileInput.disabled = true;
     fwFileInput.disabled = true;
     socManifestFileInput.disabled = true;
@@ -917,6 +1049,8 @@ btnRun.addEventListener("click", () => {
   btnStop.disabled = false;
   setStepButtonsDisabled(true);
   emuModeSelect.disabled = true;
+  romReleaseSelect.disabled = true;
+  fwReleaseSelect.disabled = true;
   romFileInput.disabled = true;
   fwFileInput.disabled = true;
   socManifestFileInput.disabled = true;
@@ -1033,6 +1167,8 @@ btnReset.addEventListener("click", () => {
   setStepButtonsDisabled(true);
   btnMboxSend.disabled = true;
   emuModeSelect.disabled = false;
+  romReleaseSelect.disabled = false;
+  fwReleaseSelect.disabled = false;
   romFileInput.disabled = false;
   fwFileInput.disabled = false;
   socManifestFileInput.disabled = false;
@@ -1080,10 +1216,11 @@ function decodeKeyControl(ctrlHex) {
   const clear = (v >> 2) & 1;
   const usage = (v >> 9) & 0xff;
   const lastDword = (v >> 17) & 0xf;
-  const usageNames = [
-    "hmac_key", "hmac_data", "mldsa_seed", "ecc_priv_key",
-    "ecc_key_gen_seed", "ecc_data", "aes_key", "rsvd",
-  ];
+  // Key usage (destination) bits; 1.x has SHA where 2.x has the ML-DSA seed,
+  // and no AES.
+  const usageNames = RELEASE.startsWith("1.")
+    ? ["hmac_key", "hmac_data", "sha_data", "ecc_priv_key", "ecc_key_gen_seed", "ecc_data", "rsvd", "rsvd"]
+    : ["hmac_key", "hmac_data", "mldsa_seed", "ecc_priv_key", "ecc_key_gen_seed", "ecc_data", "aes_key", "rsvd"];
   const usageList = [];
   for (let i = 0; i < 8; i++) {
     if (usage & (1 << i)) usageList.push(usageNames[i]);
@@ -1124,8 +1261,11 @@ function updateKeyvaultDisplay() {
     keyvaultDisplay.textContent = "Could not read the key vault: " + e;
     return;
   }
-  let text = "=== KEYS (24 × 64 bytes) ===\n";
-  for (let i = 0; i < 24; i++) {
+  // 2.x has 24 keys of 64 bytes; 1.x has 32 keys of 48 bytes.
+  const keyCount = snap.keys.length;
+  const keyBytes = keyCount ? snap.keys[0].length / 2 : 0;
+  let text = `=== KEYS (${keyCount} × ${keyBytes} bytes) ===\n`;
+  for (let i = 0; i < keyCount; i++) {
     const ctrl = decodeKeyControl(snap.key_control[i]);
     const keyHex = snap.keys[i];
     const empty = isAllZero(keyHex);
@@ -1274,6 +1414,13 @@ const COMMAND_INFO = {
   ECDSA384_SIGNATURE_VERIFY:    { id: 0x45435632, hasInput: true },
   LMS_SIGNATURE_VERIFY:         { id: 0x4C4D5632, hasInput: true },
   MLDSA87_SIGNATURE_VERIFY:     { id: 0x4D4C5632, hasInput: true },
+  // PQ.DevID (ML-DSA-87 identity), Caliptra 1.x runtime 1.3+
+  SET_PQ_SEED:                  { id: 0x50515344, hasInput: true },
+  GET_PQ_INFO:                  { id: 0x5051494E, hasInput: false },
+  GET_PQ_CSR:                   { id: 0x50514353, hasInput: false },
+  GET_ATTESTED_PQ_CSR:          { id: 0x41505143, hasInput: true },
+  POPULATE_PQ_CERT:             { id: 0x50505143, hasInput: true },
+  GET_PQ_CERT:                  { id: 0x47505143, hasInput: true },
   // Measurement / DPE
   STASH_MEASUREMENT:             { id: 0x4D454153, hasInput: true },
   INVOKE_DPE_ECC384:             { id: 0x44504543, hasInput: true },
@@ -1379,7 +1526,54 @@ const COMMAND_INFO = {
 };
 
 // --- Field schemas for structured form input ---
+// Request layouts that differ on Caliptra 1.x (runtime 1.3) from the 2.x
+// command of the same name.
+const COMMAND_FIELDS_1X = {
+  MLDSA87_SIGNATURE_VERIFY: [
+    {name: "pub_key", type: "hex", size: 2592, desc: "ML-DSA-87 public key"},
+    {name: "signature", type: "hex", size: 4627, desc: "ML-DSA-87 signature"},
+    {name: "_pad", type: "pad", size: 1},
+  ],
+  SIGN_WITH_EXPORTED_MLDSA: [
+    {name: "exported_cdi_handle", type: "hex", size: 32, desc: "Exported CDI handle"},
+    {name: "sign_mode", type: "u32", desc: "Sign mode"},
+    {name: "message_size", type: "u32", desc: "Message size"},
+    {name: "message", type: "hex", size: 1024, desc: "Message"},
+  ],
+  INVOKE_DPE_MLDSA87: [
+    {name: "data_size", type: "u32", desc: "DPE command data size"},
+    {name: "data", type: "hex", size: 512, desc: "DPE command data"},
+  ],
+  CERTIFY_KEY_EXTENDED_MLDSA87: [
+    {name: "flags", type: "u32", desc: "CertifyKeyExtendedFlags"},
+    {name: "certify_key_req", type: "hex", size: 72, desc: "Inner CertifyKey request data"},
+  ],
+};
+
+function fieldsFor(cmdKey) {
+  return (RELEASE.startsWith("1.") && COMMAND_FIELDS_1X[cmdKey]) || COMMAND_FIELDS[cmdKey] || [];
+}
+
 const COMMAND_FIELDS = {
+  SET_PQ_SEED: [
+    {name: "seed", type: "hex", size: 32, desc: "PQ.DevID seed (32 bytes)", default: "5a".repeat(32)},
+  ],
+  GET_PQ_INFO: [],
+  GET_PQ_CSR: [],
+  GET_ATTESTED_PQ_CSR: [
+    {name: "key_id", type: "u32", desc: "Key ID (1 = PQ.DevID, 0 = key inventory)", default: 1},
+    {name: "nonce", type: "hex", size: 32, desc: "Nonce (32 bytes)"},
+  ],
+  POPULATE_PQ_CERT: [
+    {name: "cert_size", type: "u32", desc: "Certificate size"},
+    {name: "cert", type: "hex", size: 8192, desc: "DER-encoded PQ.DevID certificate"},
+  ],
+  GET_PQ_CERT: [
+    {name: "tbs_size", type: "u32", desc: "TBS size"},
+    {name: "signature", type: "hex", size: 4627, desc: "ML-DSA-87 signature over the TBS"},
+    {name: "tbs", type: "hex", size: 3543, desc: "TBS certificate data"},
+    {name: "_pad", type: "pad", size: 2},
+  ],
   // Header-only commands
   VERSION: [],
   SELF_TEST_START: [],
@@ -2171,6 +2365,68 @@ function formatCapabilitiesResp(buf) {
 }
 
 // Custom formatters keyed by command ID
+// Size-prefixed response: hdr (8 bytes), data_size (u32), data.
+function sizedData(buf) {
+  if (buf.length < 12) return null;
+  const size = buf[8] | (buf[9] << 8) | (buf[10] << 16) | (buf[11] << 24);
+  return buf.slice(12, 12 + Math.min(size >>> 0, buf.length - 12));
+}
+
+function toHex(bytes) {
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function toPem(label, der) {
+  let b64 = "";
+  for (let i = 0; i < der.length; i += 0x8000) b64 += String.fromCharCode(...der.slice(i, i + 0x8000));
+  b64 = btoa(b64).match(/.{1,64}/g).join("\n");
+  return `-----BEGIN ${label}-----\n${b64}\n-----END ${label}-----\n`;
+}
+
+// Decoders that also offer the result as a file: return {text, downloads}.
+const NAMED_FORMATTERS = {
+  GET_PQ_INFO: (buf) => {
+    const key = buf.slice(8, 8 + 2592);
+    return {
+      text: `PQ.DevID ML-DSA-87 public key (${key.length} bytes):\n${toHex(key)}\n`,
+      downloads: [{ name: "pq-devid-public-key.bin", bytes: key }],
+    };
+  },
+  GET_PQ_CSR: (buf) => {
+    const der = sizedData(buf);
+    return {
+      text: `PQ.DevID CSR (${der.length} bytes, DER):\n${toPem("CERTIFICATE REQUEST", der)}`,
+      downloads: [{ name: "pq-devid.csr.der", bytes: der }],
+    };
+  },
+  GET_ATTESTED_PQ_CSR: (buf) => {
+    const token = sizedData(buf);
+    return {
+      text: `Attested CSR EAT (${token.length} bytes, CWT-tagged COSE_Sign1):\n${toHex(token)}\n`,
+      downloads: [{ name: "pq-devid-attested-csr.cbor", bytes: token }],
+    };
+  },
+  GET_PQ_CERT: (buf) => {
+    const der = sizedData(buf);
+    return {
+      text: `PQ.DevID certificate (${der.length} bytes, DER):\n${toPem("CERTIFICATE", der)}`,
+      downloads: [{ name: "pq-devid.crt.der", bytes: der }],
+    };
+  },
+};
+
+function showDownloads(container, downloads) {
+  container.replaceChildren();
+  for (const d of downloads || []) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([d.bytes], { type: "application/octet-stream" }));
+    a.download = d.name;
+    a.textContent = `Download ${d.name}`;
+    a.className = "download";
+    container.appendChild(a);
+  }
+}
+
 const CUSTOM_FORMATTERS = {
   0x494E464F: formatFwInfoResp,
   0x46505652: formatFipsVersionResp,
@@ -2226,15 +2482,49 @@ function parseHexPayload(hexStr) {
 
 // --- Mailbox Send handler ---
 
-btnMboxSend.addEventListener("click", () => {
-  if (!emulator) {
-    mboxResponse.textContent = "Error: no emulator instance";
-    return;
+// Run one mailbox command. On the core emulator this uses the non-blocking
+// API and steps the emulator from animation frames, so long commands (the
+// software ML-DSA commands on 1.x take tens of millions of cycles) keep the
+// page responsive; `onProgress(cycles)` reports progress. Returns the
+// response bytes, or null if there were none.
+let mailboxBusy = false;
+async function sendMailbox(cmdId, reqData, onProgress) {
+  if (!emulator.mailbox_start) {
+    const resp = emulator.mailbox_execute(cmdId, reqData);
+    return resp == null ? null : new Uint8Array(resp);
   }
+  emulator.mailbox_start(cmdId, reqData);
+  const start = Number(emulator.total_steps());
+  const STEPS = 200_000;
+  const LIMIT = 400_000_000;
+  while (emulator.mailbox_busy()) {
+    const cycles = Number(emulator.total_steps()) - start;
+    if (cycles > LIMIT) throw new Error(`no response after ${LIMIT.toLocaleString()} cycles`);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    emulator.step(STEPS);
+    drainOutput();
+    if (onProgress) onProgress(cycles + STEPS);
+  }
+  const resp = emulator.mailbox_finish();
+  return resp == null ? null : new Uint8Array(resp);
+}
 
-  const cmdKey = mboxCmdSelect.value;
+function drainOutput() {
+  const uart = emulator.get_uart_output();
+  if (uart) {
+    uartOutput.textContent += uart;
+    uartOutput.scrollTop = uartOutput.scrollHeight;
+  }
+  const log = emulator.get_log();
+  if (log) {
+    logOutput.textContent += log;
+    logOutput.scrollTop = logOutput.scrollHeight;
+  }
+}
 
-  // Pause the run loop while executing the mailbox command
+// Pause the run loop for the duration of fn() (which steps the emulator
+// itself), then resume it if it was running.
+async function withRunLoopPaused(fn) {
   const wasRunning = running;
   if (wasRunning) {
     running = false;
@@ -2243,127 +2533,164 @@ btnMboxSend.addEventListener("click", () => {
       animFrameId = null;
     }
   }
-
+  mailboxBusy = true;
+  btnMboxSend.disabled = true;
+  setStepButtonsDisabled(true);
   try {
-    if (cmdKey === "CM_SHA_HASH") {
-      mboxResponse.textContent = executeCmShaHash(emulator);
+    return await fn();
+  } finally {
+    mailboxBusy = false;
+    btnMboxSend.disabled = !emulator;
+    updateFuseDisplay();
+    updateErrorDecoder();
+    updateKeyvaultDisplay();
+    if (wasRunning) {
+      running = true;
+      animFrameId = requestAnimationFrame(runLoop);
     } else {
+      setStepButtonsDisabled(!emulator);
+    }
+  }
+}
+
+const mboxDownloads = document.getElementById("mbox-downloads");
+
+btnMboxSend.addEventListener("click", () => {
+  if (!emulator) {
+    mboxResponse.textContent = "Error: no emulator instance";
+    return;
+  }
+  if (mailboxBusy) return;
+  const cmdKey = mboxCmdSelect.value;
+  showDownloads(mboxDownloads, []);
+
+  withRunLoopPaused(async () => {
+    try {
+      if (cmdKey === "CM_SHA_HASH") {
+        mboxResponse.textContent = executeCmShaHash(emulator);
+        drainOutput();
+        return;
+      }
       const cmd = COMMAND_INFO[cmdKey];
       if (!cmd) {
         mboxResponse.textContent = `Unknown command: ${cmdKey}`;
         return;
       }
-
-      let output = `Sending ${cmdKey} (0x${cmd.id.toString(16).padStart(8, "0")})...\n\n`;
+      const id = commandId(cmdKey);
+      let output = `Sending ${cmdKey} (0x${id.toString(16).padStart(8, "0")})...\n\n`;
 
       // Build request
       let reqData;
       const inputMode = getInputMode();
-      const fields = COMMAND_FIELDS[cmdKey] || [];
-
+      const fields = fieldsFor(cmdKey);
       if (inputMode === "form" && fields.length > 0) {
-        const payloadBytes = serializeFormFields(cmdKey);
-        reqData = makeChecksummedRequest(cmd.id, payloadBytes);
-      } else if (inputMode === "raw" || fields.length === 0) {
-        if (cmd.hasInput || fields.length > 0) {
-          const payloadHex = mboxPayload.value.trim();
-          const payloadBytes = parseHexPayload(payloadHex);
-          reqData = makeChecksummedRequest(cmd.id, payloadBytes);
-        } else {
-          reqData = makeHeaderOnlyRequest(cmd.id);
-        }
+        reqData = makeChecksummedRequest(id, serializeFormFields(cmdKey));
+      } else if (cmd.hasInput || fields.length > 0) {
+        reqData = makeChecksummedRequest(id, parseHexPayload(mboxPayload.value.trim()));
       } else {
-        reqData = makeHeaderOnlyRequest(cmd.id);
+        reqData = makeHeaderOnlyRequest(id);
       }
-
-      output += formatRawRequest(reqData);
-      output += "\n";
+      output += formatRawRequest(reqData) + "\n";
+      mboxResponse.textContent = output;
 
       // Auto-set debug unlock request bits for debug unlock commands
-      if (cmd.id === 0x50445552 || cmd.id === 0x50445554) {
+      if (id === 0x50445552 || id === 0x50445554) {
         emulator.set_prod_dbg_unlock_req(true);
-      } else if (cmd.id === 0x4D445554) {
+      } else if (id === 0x4D445554) {
         emulator.set_manuf_dbg_unlock_req(true);
       }
 
-      // Execute
-      const respData = emulator.mailbox_execute(cmd.id, reqData);
-
-      if (respData == null) {
+      const buf = await sendMailbox(id, reqData, (cycles) => {
+        mboxResponse.textContent = output + `Running… ${cycles.toLocaleString()} cycles\n`;
+      });
+      if (buf == null) {
         output += "Response: (no data returned)\n";
       } else {
-        const buf = new Uint8Array(respData);
         output += formatRawResponse(buf);
-
-        // Decoded fields for commands with custom formatters
-        const formatter = CUSTOM_FORMATTERS[cmd.id];
-        if (formatter) {
+        const named = NAMED_FORMATTERS[cmdKey];
+        const formatter = CUSTOM_FORMATTERS[id];
+        if (named) {
+          const r = named(buf);
+          output += "\n--- Decoded ---\n" + r.text;
+          showDownloads(mboxDownloads, r.downloads);
+        } else if (formatter) {
           output += "\n--- Decoded ---\n" + formatter(buf);
         }
       }
-
       mboxResponse.textContent = output;
+      drainOutput();
+    } catch (err) {
+      mboxResponse.textContent += `Error: ${err}\n`;
     }
-
-    // Drain any UART/log output produced during command execution
-    const uart = emulator.get_uart_output();
-    if (uart) {
-      uartOutput.textContent += uart;
-      uartOutput.scrollTop = uartOutput.scrollHeight;
-    }
-    const log = emulator.get_log();
-    if (log) {
-      logOutput.textContent += log;
-      logOutput.scrollTop = logOutput.scrollHeight;
-    }
-    // Refresh fuse display and error decoder after command
-    updateFuseDisplay();
-    updateErrorDecoder();
-    updateKeyvaultDisplay();
-  } catch (err) {
-    mboxResponse.textContent += `Error: ${err}\n`;
-    updateErrorDecoder();
-    updateKeyvaultDisplay();
-  }
-
-  // Resume the run loop if it was running
-  if (wasRunning) {
-    running = true;
-    animFrameId = requestAnimationFrame(runLoop);
-  }
+  });
 });
 
 // Start
-// Mark mailbox commands that only some releases support, e.g. "(2.1+)", and
-// disable the ones the loaded release lacks. Each release's
-// mailbox-commands.json lists the command IDs its caliptra-sw defines.
-async function annotateMailboxCommands() {
-  const lists = {};
-  await Promise.all(RELEASES.releases.map(async (rel) => {
-    try {
-      const r = await fetch(`v${rel}/mailbox-commands.json`);
-      if (r.ok) lists[rel] = new Set(Object.keys(await r.json()));
-    } catch (e) {
-      console.warn(`Failed to load v${rel}/mailbox-commands.json:`, e);
-    }
-  }));
-  const known = Object.keys(lists).sort(compareReleases);
-  if (!lists[RELEASE] || known.length < 2) return;
+// Mailbox command availability. Each release's mailbox-commands.json lists
+// the command IDs its caliptra-sw defines ({"0x...": NAME}); on 1.x,
+// firmware.json also lists each runtime release's commands. A page command
+// matches a list entry by name, or else by its 2.x ID (1.x renamed some
+// commands, and gave some same-named ML-DSA commands different IDs).
+let releaseCommandLists = {}; // release -> {name: id}
+let runtimeCommandList = null; // {name: id} for the picked 1.x runtime, if known
+
+function byName(idToName) {
+  const out = {};
+  for (const [id, name] of Object.entries(idToName)) out[name] = parseInt(id, 16) >>> 0;
+  return out;
+}
+
+// The ID `cmdKey` has in `list`, or undefined if the list lacks it.
+function resolveIn(list, cmdKey) {
+  if (!list) return undefined;
+  if (cmdKey in list) return list[cmdKey];
+  const id = COMMAND_INFO[cmdKey]?.id;
+  return Object.values(list).includes(id) ? id : undefined;
+}
+
+// The ID to send for `cmdKey` on the loaded release (and runtime).
+function commandId(cmdKey) {
+  return resolveIn(runtimeCommandList, cmdKey) ??
+    resolveIn(releaseCommandLists[RELEASE], cmdKey) ??
+    COMMAND_INFO[cmdKey].id;
+}
+
+// Tag commands that only some releases (or, on 1.x, some runtime releases)
+// support, e.g. "(2.1+)" or "(runtime 1.3+)", and disable the ones the loaded
+// release / picked runtime lacks.
+function tagRange(all, supported, prefix) {
+  if (supported.length === 0 || supported.length === all.length) return null;
+  const fromFirst = all.slice(all.indexOf(supported[0]));
+  return supported.length === fromFirst.length && supported.every((v, i) => v === fromFirst[i])
+    ? `${prefix}${supported[0]}+`
+    : `${prefix}${supported.join(", ")} only`;
+}
+
+function annotateMailboxCommands() {
+  const releases = Object.keys(releaseCommandLists).sort(compareReleases);
+  const runtimes = (releaseFirmware?.firmware || []).filter((f) => f.mailbox_commands);
   for (const opt of mboxCmdSelect.querySelectorAll("option")) {
-    const info = COMMAND_INFO[opt.value];
-    if (!info) continue;
-    const hex = "0x" + (info.id >>> 0).toString(16).padStart(8, "0");
-    const supported = known.filter((rel) => lists[rel].has(hex));
-    if (supported.length === 0 || supported.length === known.length) continue;
-    const fromFirst = known.slice(known.indexOf(supported[0]));
-    const tag = supported.length === fromFirst.length
-      ? `${supported[0]}+`
-      : `${supported.join(", ")} only`;
-    opt.textContent += ` (${tag})`;
-    if (!lists[RELEASE].has(hex)) {
-      opt.disabled = true;
-      opt.title = `Not in Caliptra ${RELEASE}`;
+    if (!COMMAND_INFO[opt.value]) continue;
+    // Show the ID this release uses (1.x numbers some commands differently).
+    opt.dataset.label = `${opt.value} (0x${commandId(opt.value).toString(16).toUpperCase().padStart(8, "0")})`;
+    const tags = [];
+    let available = true;
+    if (releases.length > 1) {
+      const supported = releases.filter((rel) => resolveIn(releaseCommandLists[rel], opt.value) !== undefined);
+      const tag = tagRange(releases, supported, "");
+      if (tag) tags.push(tag);
+      if (releaseCommandLists[RELEASE] && !supported.includes(RELEASE)) available = false;
     }
+    if (runtimes.length > 1) {
+      const lists = runtimes.map((f) => byName(f.mailbox_commands));
+      const supported = runtimes.filter((f, i) => resolveIn(lists[i], opt.value) !== undefined).map((f) => f.version);
+      const tag = tagRange(runtimes.map((f) => f.version), supported, "runtime ");
+      if (tag) tags.push(tag);
+      if (runtimeCommandList && resolveIn(runtimeCommandList, opt.value) === undefined) available = false;
+    }
+    opt.textContent = tags.length ? `${opt.dataset.label} (${tags.join(", ")})` : opt.dataset.label;
+    opt.disabled = !available;
+    opt.title = available ? "" : `Not available on Caliptra ${RELEASE}${runtimeCommandList ? " with this runtime" : ""}`;
   }
   if (mboxCmdSelect.selectedOptions[0]?.disabled) {
     const first = [...mboxCmdSelect.options].find((o) => !o.disabled);
@@ -2372,10 +2699,108 @@ async function annotateMailboxCommands() {
       mboxCmdSelect.dispatchEvent(new Event("change"));
     }
   }
+  updatePqCard();
 }
 
-startup();
-annotateMailboxCommands();
+async function loadMailboxCommandLists() {
+  await Promise.all(RELEASES.releases.map(async (rel) => {
+    try {
+      const r = await fetch(`v${rel}/mailbox-commands.json`);
+      if (r.ok) releaseCommandLists[rel] = byName(await r.json());
+    } catch (e) {
+      console.warn(`Failed to load v${rel}/mailbox-commands.json:`, e);
+    }
+  }));
+  annotateMailboxCommands();
+}
+
+// PQ.DevID card (Caliptra 1.x runtime 1.3+): provision the ML-DSA-87 seed,
+// then read the public key, CSR and attested CSR.
+const pqCard = document.getElementById("pq-card");
+const pqStatus = document.getElementById("pq-status");
+const pqOutput = document.getElementById("pq-output");
+const pqDownloads = document.getElementById("pq-downloads");
+const pqSeed = document.getElementById("pq-seed");
+const pqButtons = ["pq-provision", "pq-info", "pq-csr", "pq-attested"].map((id) => document.getElementById(id));
+pqSeed.value = "5a".repeat(32);
+
+// Shown on releases that define SET_PQ_SEED; usable when the picked runtime
+// has it (runtime 1.3+).
+function updatePqCard() {
+  const releaseList = releaseCommandLists[RELEASE];
+  pqCard.hidden = resolveIn(releaseList, "SET_PQ_SEED") === undefined;
+  if (pqCard.hidden) return;
+  const usable = resolveIn(runtimeCommandList ?? releaseList, "SET_PQ_SEED") !== undefined;
+  for (const b of pqButtons) b.disabled = !usable || mailboxBusy;
+  if (!usable) {
+    pqStatus.textContent = "Needs runtime 1.3 or later";
+    pqStatus.className = "status status-warn";
+  } else if (pqStatus.textContent === "Needs runtime 1.3 or later") {
+    pqStatus.textContent = "";
+  }
+}
+
+async function runPqStep(label, cmdKey, payload) {
+  if (!emulator) {
+    pqStatus.textContent = "Run the emulator first";
+    pqStatus.className = "status status-warn";
+    return;
+  }
+  if (mailboxBusy) return;
+  for (const b of pqButtons) b.disabled = true;
+  showDownloads(pqDownloads, []);
+  const id = commandId(cmdKey);
+  try {
+    await withRunLoopPaused(async () => {
+      const t0 = performance.now();
+      const buf = await sendMailbox(id, makeChecksummedRequest(id, payload), (cycles) => {
+        pqStatus.textContent = `${label}: ${(cycles / 1e6).toFixed(1)}M cycles`;
+        pqStatus.className = "status running";
+      });
+      const cycles = pqStatus.textContent.split(": ")[1] || "";
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
+      const named = NAMED_FORMATTERS[cmdKey];
+      if (named && buf) {
+        const r = named(buf);
+        pqOutput.textContent = r.text;
+        showDownloads(pqDownloads, r.downloads);
+      } else {
+        pqOutput.textContent = `${cmdKey} succeeded.\n`;
+      }
+      pqStatus.textContent = `${label}: done (${cycles}, ${secs} s)`;
+      pqStatus.className = "status status-ok";
+    });
+  } catch (err) {
+    const code = String(err).match(/MailboxCmdFailed\((\d+)\)/);
+    const info = code && lookupError("0x" + (Number(code[1]) >>> 0).toString(16).padStart(8, "0"));
+    pqOutput.textContent = `${cmdKey} failed: ${err}${info ? `\n${info.name}: ${info.desc}` : ""}\n`;
+    pqStatus.textContent = `${label}: failed`;
+    pqStatus.className = "status status-err";
+  } finally {
+    updatePqCard();
+  }
+}
+
+document.getElementById("pq-provision").addEventListener("click", () => {
+  const seed = parseHexPayload(pqSeed.value.trim());
+  if (seed.length !== 32) {
+    pqStatus.textContent = `The seed must be 32 bytes; got ${seed.length}`;
+    pqStatus.className = "status status-err";
+    return;
+  }
+  runPqStep("Provision seed", "SET_PQ_SEED", seed);
+});
+document.getElementById("pq-info").addEventListener("click", () => runPqStep("Public key", "GET_PQ_INFO", new Uint8Array(0)));
+document.getElementById("pq-csr").addEventListener("click", () => runPqStep("CSR", "GET_PQ_CSR", new Uint8Array(0)));
+document.getElementById("pq-attested").addEventListener("click", () => {
+  // key_id 1 (PQ.DevID) and a fresh 32-byte nonce.
+  const payload = new Uint8Array(36);
+  payload[0] = 1;
+  crypto.getRandomValues(payload.subarray(4));
+  runPqStep("Attested CSR", "GET_ATTESTED_PQ_CSR", payload);
+});
+
+startup().then(loadMailboxCommandLists);
 
 // Render initial form fields for the default selected command
 updateInputSection(mboxCmdSelect.value, getInputMode());

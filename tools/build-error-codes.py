@@ -97,7 +97,7 @@ def main():
     p.add_argument("--caliptra-sw", default=cap_default,
                    help="Path to caliptra-sw error/src/lib.rs")
     p.add_argument("--mcu-sw", default=mcu_default,
-                   help="Path to caliptra-mcu-sw error/src/lib.rs")
+                   help="Path to caliptra-mcu-sw error/src/lib.rs, or 'none' for a release without an MCU")
     p.add_argument("-o", "--output", default="www/error-codes.json",
                    help="Output JSON path (default: www/error-codes.json)")
     args = p.parse_args()
@@ -105,14 +105,17 @@ def main():
     if not args.caliptra_sw or not os.path.exists(args.caliptra_sw):
         print(f"error: caliptra-sw error file not found: {args.caliptra_sw}", file=sys.stderr)
         sys.exit(1)
-    if not args.mcu_sw or not os.path.exists(args.mcu_sw):
+    no_mcu = args.mcu_sw == "none"
+    if not no_mcu and (not args.mcu_sw or not os.path.exists(args.mcu_sw)):
         print(f"error: caliptra-mcu-sw error file not found: {args.mcu_sw}", file=sys.stderr)
         sys.exit(1)
 
     print(f"Reading {args.caliptra_sw}")
     cap = extract(args.caliptra_sw, "CaliptraError")
-    print(f"Reading {args.mcu_sw}")
-    mcu = extract(args.mcu_sw, "McuError")
+    mcu = {}
+    if not no_mcu:
+        print(f"Reading {args.mcu_sw}")
+        mcu = extract(args.mcu_sw, "McuError")
     combined = {**cap, **mcu}
     print(f"Caliptra errors: {len(cap)}, MCU errors: {len(mcu)}, combined: {len(combined)}")
 

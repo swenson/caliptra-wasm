@@ -572,6 +572,9 @@ button.mono { font-family: var(--mono); font-size: 0.78rem; font-weight: 500; }
 
 .parsed { margin-top: 14px; }
 
+.downloads { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 0.85rem; }
+.downloads:empty { display: none; }
+
 /* -------------------------------------------------------------- mobile */
 
 @media (max-width: 640px) {

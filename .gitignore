@@ -14,3 +14,7 @@ primary_flash
 secondary_flash
 /www/v*/build-info.json
 /tools/target/
+# Downloaded official releases (tools/fetch-firmware.py)
+/www/v*/rom-*.bin
+/www/v*/fw-*.bin
+/www/v*/firmware.json

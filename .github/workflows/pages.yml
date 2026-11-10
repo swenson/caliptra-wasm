@@ -53,6 +53,15 @@ jobs:
           restore-keys: |
             cargo-${{ runner.os }}-
 
+      - name: Cache downloaded Caliptra 1.x releases
+        # tools/fetch-firmware.py downloads the official ROM / firmware
+        # release zips listed in versions/*/firmware.json and verifies them;
+        # keep them between runs.
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/caliptra-mcu-sw/releases
+          key: caliptra-releases-${{ hashFiles('versions/*/firmware.json') }}
+
       - name: Build site
         env:
           # For each release, build-wasm.sh clones swenson/caliptra-mcu-sw at

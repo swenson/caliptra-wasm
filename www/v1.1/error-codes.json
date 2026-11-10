@@ -1,0 +1,1827 @@
+{
+ "0x0000d100": {
+  "desc": "Driver Error: Handoff Invalid Vault",
+  "name": "DRIVER_HANDOFF_INVALID_VAULT",
+  "source": "CaliptraError"
+ },
+ "0x0000d101": {
+  "desc": "Driver Error: Handoff Invalid Key ID",
+  "name": "DRIVER_HANDOFF_INVALID_KEY_ID",
+  "source": "CaliptraError"
+ },
+ "0x0000d102": {
+  "desc": "Driver Error: Handoff Invalid Cold Reset Entry 4",
+  "name": "DRIVER_HANDOFF_INVALID_COLD_RESET_ENTRY4",
+  "source": "CaliptraError"
+ },
+ "0x0000d103": {
+  "desc": "Driver Error: Handoff Invalid Cold Reset Entry 48",
+  "name": "DRIVER_HANDOFF_INVALID_COLD_RESET_ENTRY48",
+  "source": "CaliptraError"
+ },
+ "0x0000d104": {
+  "desc": "Driver Error: Handoff Invalid Warm Reset Entry 4",
+  "name": "DRIVER_HANDOFF_INVALID_WARM_RESET_ENTRY4",
+  "source": "CaliptraError"
+ },
+ "0x0000d105": {
+  "desc": "Driver Error: Handoff Invalid Warm Reset Entry 48",
+  "name": "DRIVER_HANDOFF_INVALID_WARM_RESET_ENTRY48",
+  "source": "CaliptraError"
+ },
+ "0x00010001": {
+  "desc": "Driver Error: Bad Datastore Vault Type",
+  "name": "DRIVER_BAD_DATASTORE_VAULT_TYPE",
+  "source": "CaliptraError"
+ },
+ "0x00010002": {
+  "desc": "Driver Error: Bad Datastore Register Type",
+  "name": "DRIVER_BAD_DATASTORE_REG_TYPE",
+  "source": "CaliptraError"
+ },
+ "0x00020001": {
+  "desc": "Driver Error: SHA256 Invalid State",
+  "name": "DRIVER_SHA256_INVALID_STATE",
+  "source": "CaliptraError"
+ },
+ "0x00020002": {
+  "desc": "Driver Error: SHA256 Max Data",
+  "name": "DRIVER_SHA256_MAX_DATA",
+  "source": "CaliptraError"
+ },
+ "0x00020003": {
+  "desc": "Driver Error: SHA256 Invalid Slice",
+  "name": "DRIVER_SHA256_INVALID_SLICE",
+  "source": "CaliptraError"
+ },
+ "0x00020004": {
+  "desc": "Driver Error: SHA256 Index Out of Bounds",
+  "name": "DRIVER_SHA256_INDEX_OUT_OF_BOUNDS",
+  "source": "CaliptraError"
+ },
+ "0x00030001": {
+  "desc": "Driver Error: SHA384 Read Data KV Read",
+  "name": "DRIVER_SHA384_READ_DATA_KV_READ",
+  "source": "CaliptraError"
+ },
+ "0x00030002": {
+  "desc": "Driver Error: SHA384 Read Data KV Write",
+  "name": "DRIVER_SHA384_READ_DATA_KV_WRITE",
+  "source": "CaliptraError"
+ },
+ "0x00030003": {
+  "desc": "Driver Error: SHA384 Read Data KV Unknown",
+  "name": "DRIVER_SHA384_READ_DATA_KV_UNKNOWN",
+  "source": "CaliptraError"
+ },
+ "0x00030007": {
+  "desc": "Driver Error: SHA384 Invalid State",
+  "name": "DRIVER_SHA384_INVALID_STATE_ERR",
+  "source": "CaliptraError"
+ },
+ "0x00030008": {
+  "desc": "Driver Error: SHA384 Max Data",
+  "name": "DRIVER_SHA384_MAX_DATA_ERR",
+  "source": "CaliptraError"
+ },
+ "0x00030009": {
+  "desc": "Driver Error: SHA384 Invalid Key Size",
+  "name": "DRIVER_SHA384_INVALID_KEY_SIZE",
+  "source": "CaliptraError"
+ },
+ "0x0003000a": {
+  "desc": "Driver Error: SHA384 Invalid Slice",
+  "name": "DRIVER_SHA384_INVALID_SLICE",
+  "source": "CaliptraError"
+ },
+ "0x0003000b": {
+  "desc": "Driver Error: SHA384 Index Out of Bounds",
+  "name": "DRIVER_SHA384_INDEX_OUT_OF_BOUNDS",
+  "source": "CaliptraError"
+ },
+ "0x00038000": {
+  "desc": "Driver Error: SHA2_512_384ACC Unexpected Acquired Lock State",
+  "name": "DRIVER_SHA2_512_384ACC_UNEXPECTED_ACQUIRED_LOCK_STATE",
+  "source": "CaliptraError"
+ },
+ "0x00040001": {
+  "desc": "Driver Error: HMAC384 Read Key KV Read",
+  "name": "DRIVER_HMAC384_READ_KEY_KV_READ",
+  "source": "CaliptraError"
+ },
+ "0x00040002": {
+  "desc": "Driver Error: HMAC384 Read Key KV Write",
+  "name": "DRIVER_HMAC384_READ_KEY_KV_WRITE",
+  "source": "CaliptraError"
+ },
+ "0x00040003": {
+  "desc": "Driver Error: HMAC384 Read Key KV Unknown",
+  "name": "DRIVER_HMAC384_READ_KEY_KV_UNKNOWN",
+  "source": "CaliptraError"
+ },
+ "0x00040004": {
+  "desc": "Driver Error: HMAC384 Read Data KV Read",
+  "name": "DRIVER_HMAC384_READ_DATA_KV_READ",
+  "source": "CaliptraError"
+ },
+ "0x00040005": {
+  "desc": "Driver Error: HMAC384 Read Data KV Write",
+  "name": "DRIVER_HMAC384_READ_DATA_KV_WRITE",
+  "source": "CaliptraError"
+ },
+ "0x00040006": {
+  "desc": "Driver Error: HMAC384 Read Data KV Unknown",
+  "name": "DRIVER_HMAC384_READ_DATA_KV_UNKNOWN",
+  "source": "CaliptraError"
+ },
+ "0x00040007": {
+  "desc": "Driver Error: HMAC384 Write Tag KV Read",
+  "name": "DRIVER_HMAC384_WRITE_TAG_KV_READ",
+  "source": "CaliptraError"
+ },
+ "0x00040008": {
+  "desc": "Driver Error: HMAC384 Write Tag KV Write",
+  "name": "DRIVER_HMAC384_WRITE_TAG_KV_WRITE",
+  "source": "CaliptraError"
+ },
+ "0x00040009": {
+  "desc": "Driver Error: HMAC384 Write Tag KV Unknown",
+  "name": "DRIVER_HMAC384_WRITE_TAG_KV_UNKNOWN",
+  "source": "CaliptraError"
+ },
+ "0x0004000b": {
+  "desc": "Driver Error: HMAC384 Invalid State",
+  "name": "DRIVER_HMAC384_INVALID_STATE",
+  "source": "CaliptraError"
+ },
+ "0x0004000c": {
+  "desc": "Driver Error: HMAC384 Max Data",
+  "name": "DRIVER_HMAC384_MAX_DATA",
+  "source": "CaliptraError"
+ },
+ "0x0004000d": {
+  "desc": "Driver Error: HMAC384 Invalid Slice",
+  "name": "DRIVER_HMAC384_INVALID_SLICE",
+  "source": "CaliptraError"
+ },
+ "0x0004000e": {
+  "desc": "Driver Error: HMAC384 Index Out of Bounds",
+  "name": "DRIVER_HMAC384_INDEX_OUT_OF_BOUNDS",
+  "source": "CaliptraError"
+ },
+ "0x00050001": {
+  "desc": "Driver Error: ECC384 Read Seed KV Read",
+  "name": "DRIVER_ECC384_READ_SEED_KV_READ",
+  "source": "CaliptraError"
+ },
+ "0x00050002": {
+  "desc": "Driver Error: ECC384 Read Seed KV Write",
+  "name": "DRIVER_ECC384_READ_SEED_KV_WRITE",
+  "source": "CaliptraError"
+ },
+ "0x00050003": {
+  "desc": "Driver Error: ECC384 Read Seed KV Unknown",
+  "name": "DRIVER_ECC384_READ_SEED_KV_UNKNOWN",
+  "source": "CaliptraError"
+ },
+ "0x00050004": {
+  "desc": "Driver Error: ECC384 Write Private Key KV Read",
+  "name": "DRIVER_ECC384_WRITE_PRIV_KEY_KV_READ",
+  "source": "CaliptraError"
+ },
+ "0x00050005": {
+  "desc": "Driver Error: ECC384 Write Private Key KV Write",
+  "name": "DRIVER_ECC384_WRITE_PRIV_KEY_KV_WRITE",
+  "source": "CaliptraError"
+ },
+ "0x00050006": {
+  "desc": "Driver Error: ECC384 Write Private Key KV Unknown",
+  "name": "DRIVER_ECC384_WRITE_PRIV_KEY_KV_UNKNOWN",
+  "source": "CaliptraError"
+ },
+ "0x00050007": {
+  "desc": "Driver Error: ECC384 Read Private Key KV Read",
+  "name": "DRIVER_ECC384_READ_PRIV_KEY_KV_READ",
+  "source": "CaliptraError"
+ },
+ "0x00050008": {
+  "desc": "Driver Error: ECC384 Read Private Key KV Write",
+  "name": "DRIVER_ECC384_READ_PRIV_KEY_KV_WRITE",
+  "source": "CaliptraError"
+ },
+ "0x00050009": {
+  "desc": "Driver Error: ECC384 Read Private Key KV Unknown",
+  "name": "DRIVER_ECC384_READ_PRIV_KEY_KV_UNKNOWN",
+  "source": "CaliptraError"
+ },
+ "0x0005000a": {
+  "desc": "Driver Error: ECC384 Read Data KV Read",
+  "name": "DRIVER_ECC384_READ_DATA_KV_READ",
+  "source": "CaliptraError"
+ },
+ "0x0005000b": {
+  "desc": "Driver Error: ECC384 Read Data KV Write",
+  "name": "DRIVER_ECC384_READ_DATA_KV_WRITE",
+  "source": "CaliptraError"
+ },
+ "0x0005000c": {
+  "desc": "Driver Error: ECC384 Read Data KV Unknown",
+  "name": "DRIVER_ECC384_READ_DATA_KV_UNKNOWN",
+  "source": "CaliptraError"
+ },
+ "0x0005000d": {
+  "desc": "Driver Error: ECC384 Keygen Pairwise Consistency Failure",
+  "name": "DRIVER_ECC384_KEYGEN_PAIRWISE_CONSISTENCY_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x0005000e": {
+  "desc": "Driver Error: ECC384 Sign Validation Failed",
+  "name": "DRIVER_ECC384_SIGN_VALIDATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x0005000f": {
+  "desc": "Driver Error: ECC384 Scalar Range Check Failed",
+  "name": "DRIVER_ECC384_SCALAR_RANGE_CHECK_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x00050010": {
+  "desc": "Driver Error: ECC384 Keygen Bad Usage",
+  "name": "DRIVER_ECC384_KEYGEN_BAD_USAGE",
+  "source": "CaliptraError"
+ },
+ "0x00050011": {
+  "desc": "Driver Error: ECC384 Hardware Error",
+  "name": "DRIVER_ECC384_HW_ERROR",
+  "source": "CaliptraError"
+ },
+ "0x00060001": {
+  "desc": "Driver Error: KV Erase Use Lock Set Failure",
+  "name": "DRIVER_KV_ERASE_USE_LOCK_SET_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x00060002": {
+  "desc": "Driver Error: KV Erase Write Lock Set Failure",
+  "name": "DRIVER_KV_ERASE_WRITE_LOCK_SET_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x00070001": {
+  "desc": "Driver Error: PCR Bank Erase Write Lock Set Failure",
+  "name": "DRIVER_PCR_BANK_ERASE_WRITE_LOCK_SET_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x00080001": {
+  "desc": "Driver Error: Mailbox Invalid State",
+  "name": "DRIVER_MAILBOX_INVALID_STATE",
+  "source": "CaliptraError"
+ },
+ "0x00080002": {
+  "desc": "Driver Error: Mailbox Invalid Data Length",
+  "name": "DRIVER_MAILBOX_INVALID_DATA_LEN",
+  "source": "CaliptraError"
+ },
+ "0x00080004": {
+  "desc": "Driver Error: Mailbox Enqueue Error",
+  "name": "DRIVER_MAILBOX_ENQUEUE_ERR",
+  "source": "CaliptraError"
+ },
+ "0x00080005": {
+  "desc": "Driver Error: Mailbox Uncorrectable ECC",
+  "name": "DRIVER_MAILBOX_UNCORRECTABLE_ECC",
+  "source": "CaliptraError"
+ },
+ "0x00090003": {
+  "desc": "Driver Error: SHA2_512_384ACC Index Out of Bounds",
+  "name": "DRIVER_SHA2_512_384ACC_INDEX_OUT_OF_BOUNDS",
+  "source": "CaliptraError"
+ },
+ "0x000a0001": {
+  "desc": "Driver Error: SHA1 Invalid State",
+  "name": "DRIVER_SHA1_INVALID_STATE",
+  "source": "CaliptraError"
+ },
+ "0x000a0002": {
+  "desc": "Driver Error: SHA1 Max Data",
+  "name": "DRIVER_SHA1_MAX_DATA",
+  "source": "CaliptraError"
+ },
+ "0x000a0003": {
+  "desc": "Driver Error: SHA1 Invalid Slice",
+  "name": "DRIVER_SHA1_INVALID_SLICE",
+  "source": "CaliptraError"
+ },
+ "0x000a0004": {
+  "desc": "Driver Error: SHA1 Index Out of Bounds",
+  "name": "DRIVER_SHA1_INDEX_OUT_OF_BOUNDS",
+  "source": "CaliptraError"
+ },
+ "0x000b0001": {
+  "desc": "Image Verifier Error: Manifest Marker Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_MANIFEST_MARKER_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0002": {
+  "desc": "Image Verifier Error: Manifest Size Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_MANIFEST_SIZE_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0003": {
+  "desc": "Image Verifier Error: Vendor Public Key Digest Invalid",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_PUB_KEY_DIGEST_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0004": {
+  "desc": "Image Verifier Error: Vendor Public Key Digest Failure",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_PUB_KEY_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b0005": {
+  "desc": "Image Verifier Error: Vendor Public Key Digest Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_PUB_KEY_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0006": {
+  "desc": "Image Verifier Error: Owner Public Key Digest Failure",
+  "name": "IMAGE_VERIFIER_ERR_OWNER_PUB_KEY_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b0007": {
+  "desc": "Image Verifier Error: Owner Public Key Digest Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_OWNER_PUB_KEY_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0008": {
+  "desc": "Image Verifier Error: Vendor ECC Public Key Index Out of Bounds",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_ECC_PUB_KEY_INDEX_OUT_OF_BOUNDS",
+  "source": "CaliptraError"
+ },
+ "0x000b0009": {
+  "desc": "Image Verifier Error: Vendor ECC Public Key Revoked",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_ECC_PUB_KEY_REVOKED",
+  "source": "CaliptraError"
+ },
+ "0x000b000a": {
+  "desc": "Image Verifier Error: Header Digest Failure",
+  "name": "IMAGE_VERIFIER_ERR_HEADER_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b000b": {
+  "desc": "Image Verifier Error: Vendor ECC Verify Failure",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_ECC_VERIFY_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b000c": {
+  "desc": "Image Verifier Error: Vendor ECC Signature Invalid",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_ECC_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b000d": {
+  "desc": "Image Verifier Error: Vendor ECC Public Key Index Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_ECC_PUB_KEY_INDEX_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b000e": {
+  "desc": "Image Verifier Error: Owner ECC Verify Failure",
+  "name": "IMAGE_VERIFIER_ERR_OWNER_ECC_VERIFY_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b000f": {
+  "desc": "Image Verifier Error: Owner ECC Signature Invalid",
+  "name": "IMAGE_VERIFIER_ERR_OWNER_ECC_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0010": {
+  "desc": "Image Verifier Error: TOC Entry Count Invalid",
+  "name": "IMAGE_VERIFIER_ERR_TOC_ENTRY_COUNT_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0011": {
+  "desc": "Image Verifier Error: TOC Digest Failure",
+  "name": "IMAGE_VERIFIER_ERR_TOC_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b0012": {
+  "desc": "Image Verifier Error: TOC Digest Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_TOC_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0013": {
+  "desc": "Image Verifier Error: FMC Digest Failure",
+  "name": "IMAGE_VERIFIER_ERR_FMC_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b0014": {
+  "desc": "Image Verifier Error: FMC Digest Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_FMC_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0015": {
+  "desc": "Image Verifier Error: Runtime Digest Failure",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b0016": {
+  "desc": "Image Verifier Error: Runtime Digest Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0017": {
+  "desc": "Image Verifier Error: FMC Runtime Overlap",
+  "name": "IMAGE_VERIFIER_ERR_FMC_RUNTIME_OVERLAP",
+  "source": "CaliptraError"
+ },
+ "0x000b0018": {
+  "desc": "Image Verifier Error: FMC Runtime Incorrect Order",
+  "name": "IMAGE_VERIFIER_ERR_FMC_RUNTIME_INCORRECT_ORDER",
+  "source": "CaliptraError"
+ },
+ "0x000b0019": {
+  "desc": "Image Verifier Error: Owner ECC Public Key Invalid Argument",
+  "name": "IMAGE_VERIFIER_ERR_OWNER_ECC_PUB_KEY_INVALID_ARG",
+  "source": "CaliptraError"
+ },
+ "0x000b001a": {
+  "desc": "Image Verifier Error: Owner ECC Signature Invalid Argument",
+  "name": "IMAGE_VERIFIER_ERR_OWNER_ECC_SIGNATURE_INVALID_ARG",
+  "source": "CaliptraError"
+ },
+ "0x000b001b": {
+  "desc": "Image Verifier Error: Vendor Public Key Digest Invalid Argument",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_PUB_KEY_DIGEST_INVALID_ARG",
+  "source": "CaliptraError"
+ },
+ "0x000b001c": {
+  "desc": "Image Verifier Error: Vendor ECC Signature Invalid Argument",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_ECC_SIGNATURE_INVALID_ARG",
+  "source": "CaliptraError"
+ },
+ "0x000b001d": {
+  "desc": "Image Verifier Error: Update Reset Owner Digest Failure",
+  "name": "IMAGE_VERIFIER_ERR_UPDATE_RESET_OWNER_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b001e": {
+  "desc": "Image Verifier Error: Update Reset Vendor ECC Public Key Index Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_UPDATE_RESET_VENDOR_ECC_PUB_KEY_IDX_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b001f": {
+  "desc": "Image Verifier Error: Update Reset FMC Digest Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_UPDATE_RESET_FMC_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0021": {
+  "desc": "Image Verifier Error: FMC Load Address Invalid",
+  "name": "IMAGE_VERIFIER_ERR_FMC_LOAD_ADDR_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0022": {
+  "desc": "Image Verifier Error: FMC Load Address Unaligned",
+  "name": "IMAGE_VERIFIER_ERR_FMC_LOAD_ADDR_UNALIGNED",
+  "source": "CaliptraError"
+ },
+ "0x000b0023": {
+  "desc": "Image Verifier Error: FMC Entry Point Invalid",
+  "name": "IMAGE_VERIFIER_ERR_FMC_ENTRY_POINT_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0024": {
+  "desc": "Image Verifier Error: FMC Entry Point Unaligned",
+  "name": "IMAGE_VERIFIER_ERR_FMC_ENTRY_POINT_UNALIGNED",
+  "source": "CaliptraError"
+ },
+ "0x000b0025": {
+  "desc": "Image Verifier Error: FMC SVN Greater Than Max Supported",
+  "name": "IMAGE_VERIFIER_ERR_FMC_SVN_GREATER_THAN_MAX_SUPPORTED",
+  "source": "CaliptraError"
+ },
+ "0x000b0026": {
+  "desc": "Image Verifier Error: FMC SVN Less Than Min Supported",
+  "name": "IMAGE_VERIFIER_ERR_FMC_SVN_LESS_THAN_MIN_SUPPORTED",
+  "source": "CaliptraError"
+ },
+ "0x000b0027": {
+  "desc": "Image Verifier Error: FMC SVN Less Than Fuse",
+  "name": "IMAGE_VERIFIER_ERR_FMC_SVN_LESS_THAN_FUSE",
+  "source": "CaliptraError"
+ },
+ "0x000b0028": {
+  "desc": "Image Verifier Error: Runtime Load Address Invalid",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_LOAD_ADDR_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0029": {
+  "desc": "Image Verifier Error: Runtime Load Address Unaligned",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_LOAD_ADDR_UNALIGNED",
+  "source": "CaliptraError"
+ },
+ "0x000b002a": {
+  "desc": "Image Verifier Error: Runtime Entry Point Invalid",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_ENTRY_POINT_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b002b": {
+  "desc": "Image Verifier Error: Runtime Entry Point Unaligned",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_ENTRY_POINT_UNALIGNED",
+  "source": "CaliptraError"
+ },
+ "0x000b002c": {
+  "desc": "Image Verifier Error: Runtime SVN Greater Than Max Supported",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_SVN_GREATER_THAN_MAX_SUPPORTED",
+  "source": "CaliptraError"
+ },
+ "0x000b002d": {
+  "desc": "Image Verifier Error: Runtime SVN Less Than Min Supported",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_SVN_LESS_THAN_MIN_SUPPORTED",
+  "source": "CaliptraError"
+ },
+ "0x000b002e": {
+  "desc": "Image Verifier Error: Runtime SVN Less Than Fuse",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_SVN_LESS_THAN_FUSE",
+  "source": "CaliptraError"
+ },
+ "0x000b002f": {
+  "desc": "Image Verifier Error: Image Length More Than Bundle Size",
+  "name": "IMAGE_VERIFIER_ERR_IMAGE_LEN_MORE_THAN_BUNDLE_SIZE",
+  "source": "CaliptraError"
+ },
+ "0x000b0030": {
+  "desc": "Image Verifier Error: Vendor LMS Public Key Index Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_LMS_PUB_KEY_INDEX_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0031": {
+  "desc": "Image Verifier Error: Vendor LMS Verify Failure",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_LMS_VERIFY_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b0032": {
+  "desc": "Image Verifier Error: Vendor LMS Public Key Index Out of Bounds",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_LMS_PUB_KEY_INDEX_OUT_OF_BOUNDS",
+  "source": "CaliptraError"
+ },
+ "0x000b0033": {
+  "desc": "Image Verifier Error: Vendor LMS Signature Invalid",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_LMS_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0034": {
+  "desc": "Image Verifier Error: FMC Runtime Load Address Overlap",
+  "name": "IMAGE_VERIFIER_ERR_FMC_RUNTIME_LOAD_ADDR_OVERLAP",
+  "source": "CaliptraError"
+ },
+ "0x000b0036": {
+  "desc": "Image Verifier Error: Owner LMS Verify Failure",
+  "name": "IMAGE_VERIFIER_ERR_OWNER_LMS_VERIFY_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000b0038": {
+  "desc": "Image Verifier Error: Owner LMS Signature Invalid",
+  "name": "IMAGE_VERIFIER_ERR_OWNER_LMS_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b003b": {
+  "desc": "Image Verifier Error: FMC Size Zero",
+  "name": "IMAGE_VERIFIER_ERR_FMC_SIZE_ZERO",
+  "source": "CaliptraError"
+ },
+ "0x000b003c": {
+  "desc": "Image Verifier Error: Runtime Size Zero",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_SIZE_ZERO",
+  "source": "CaliptraError"
+ },
+ "0x000b003d": {
+  "desc": "Image Verifier Error: Update Reset Vendor LMS Public Key Index Mismatch",
+  "name": "IMAGE_VERIFIER_ERR_UPDATE_RESET_VENDOR_LMS_PUB_KEY_IDX_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b003e": {
+  "desc": "Image Verifier Error: FMC Load Address Image Size Arithmetic Overflow",
+  "name": "IMAGE_VERIFIER_ERR_FMC_LOAD_ADDRESS_IMAGE_SIZE_ARITHMETIC_OVERFLOW",
+  "source": "CaliptraError"
+ },
+ "0x000b003f": {
+  "desc": "Image Verifier Error: Runtime Load Address Image Size Arithmetic Overflow",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_LOAD_ADDRESS_IMAGE_SIZE_ARITHMETIC_OVERFLOW",
+  "source": "CaliptraError"
+ },
+ "0x000b0040": {
+  "desc": "Image Verifier Error: TOC Entry Range Arithmetic Overflow",
+  "name": "IMAGE_VERIFIER_ERR_TOC_ENTRY_RANGE_ARITHMETIC_OVERFLOW",
+  "source": "CaliptraError"
+ },
+ "0x000b0041": {
+  "desc": "Image Verifier Error: Digest Out of Bounds",
+  "name": "IMAGE_VERIFIER_ERR_DIGEST_OUT_OF_BOUNDS",
+  "source": "CaliptraError"
+ },
+ "0x000c0001": {
+  "desc": "Driver Error: LMS Invalid LMS Algorithm Type",
+  "name": "DRIVER_LMS_INVALID_LMS_ALGO_TYPE",
+  "source": "CaliptraError"
+ },
+ "0x000c0002": {
+  "desc": "Driver Error: LMS Invalid LMOTS Algorithm Type",
+  "name": "DRIVER_LMS_INVALID_LMOTS_ALGO_TYPE",
+  "source": "CaliptraError"
+ },
+ "0x000c0003": {
+  "desc": "Driver Error: LMS Invalid Winternits Parameter",
+  "name": "DRIVER_LMS_INVALID_WINTERNITS_PARAM",
+  "source": "CaliptraError"
+ },
+ "0x000c0004": {
+  "desc": "Driver Error: LMS Invalid P-Value",
+  "name": "DRIVER_LMS_INVALID_PVALUE",
+  "source": "CaliptraError"
+ },
+ "0x000c0005": {
+  "desc": "Driver Error: LMS Invalid Hash Width",
+  "name": "DRIVER_LMS_INVALID_HASH_WIDTH",
+  "source": "CaliptraError"
+ },
+ "0x000c0006": {
+  "desc": "Driver Error: LMS Invalid Tree Height",
+  "name": "DRIVER_LMS_INVALID_TREE_HEIGHT",
+  "source": "CaliptraError"
+ },
+ "0x000c0007": {
+  "desc": "Driver Error: LMS Invalid Q Value",
+  "name": "DRIVER_LMS_INVALID_Q_VALUE",
+  "source": "CaliptraError"
+ },
+ "0x000c0008": {
+  "desc": "Driver Error: LMS Invalid Index",
+  "name": "DRIVER_LMS_INVALID_INDEX",
+  "source": "CaliptraError"
+ },
+ "0x000c0009": {
+  "desc": "Driver Error: LMS Path Out of Bounds",
+  "name": "DRIVER_LMS_PATH_OUT_OF_BOUNDS",
+  "source": "CaliptraError"
+ },
+ "0x000c000a": {
+  "desc": "Driver Error: LMS Invalid Signature Length",
+  "name": "DRIVER_LMS_INVALID_SIGNATURE_LENGTH",
+  "source": "CaliptraError"
+ },
+ "0x000c000b": {
+  "desc": "Driver Error: LMS Invalid Public Key Length",
+  "name": "DRIVER_LMS_INVALID_PUBLIC_KEY_LENGTH",
+  "source": "CaliptraError"
+ },
+ "0x000c000c": {
+  "desc": "Driver Error: LMS Invalid Signature Depth",
+  "name": "DRIVER_LMS_INVALID_SIGNATURE_DEPTH",
+  "source": "CaliptraError"
+ },
+ "0x000c000d": {
+  "desc": "Driver Error: LMS Signature LMOTS Doesn't Match Public Key LMOTS",
+  "name": "DRIVER_LMS_SIGNATURE_LMOTS_DOESNT_MATCH_PUBKEY_LMOTS",
+  "source": "CaliptraError"
+ },
+ "0x000d0001": {
+  "desc": "Driver Error: CSRNG Instantiate",
+  "name": "DRIVER_CSRNG_INSTANTIATE",
+  "source": "CaliptraError"
+ },
+ "0x000d0002": {
+  "desc": "Driver Error: CSRNG Uninstantiate",
+  "name": "DRIVER_CSRNG_UNINSTANTIATE",
+  "source": "CaliptraError"
+ },
+ "0x000d0003": {
+  "desc": "Driver Error: CSRNG Reseed",
+  "name": "DRIVER_CSRNG_RESEED",
+  "source": "CaliptraError"
+ },
+ "0x000d0004": {
+  "desc": "Driver Error: CSRNG Generate",
+  "name": "DRIVER_CSRNG_GENERATE",
+  "source": "CaliptraError"
+ },
+ "0x000d0005": {
+  "desc": "Driver Error: CSRNG Update",
+  "name": "DRIVER_CSRNG_UPDATE",
+  "source": "CaliptraError"
+ },
+ "0x000d0006": {
+  "desc": "Driver Error: CSRNG Other Health Check Failed",
+  "name": "DRIVER_CSRNG_OTHER_HEALTH_CHECK_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000d0007": {
+  "desc": "Driver Error: CSRNG Repetition Count Health Check Failed",
+  "name": "DRIVER_CSRNG_REPCNT_HEALTH_CHECK_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000d0008": {
+  "desc": "Driver Error: CSRNG Adaptive Proportion Health Check Failed",
+  "name": "DRIVER_CSRNG_ADAPTP_HEALTH_CHECK_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0001": {
+  "desc": "Runtime Error: Internal",
+  "name": "RUNTIME_INTERNAL",
+  "source": "CaliptraError"
+ },
+ "0x000e0002": {
+  "desc": "Runtime Error: Unimplemented Command",
+  "name": "RUNTIME_UNIMPLEMENTED_COMMAND",
+  "source": "CaliptraError"
+ },
+ "0x000e0003": {
+  "desc": "Runtime Error: Insufficient Memory",
+  "name": "RUNTIME_INSUFFICIENT_MEMORY",
+  "source": "CaliptraError"
+ },
+ "0x000e0004": {
+  "desc": "Runtime Error: ECDSA Verify Failed",
+  "name": "RUNTIME_ECDSA_VERIFY_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0005": {
+  "desc": "Runtime Error: Invalid Checksum",
+  "name": "RUNTIME_INVALID_CHECKSUM",
+  "source": "CaliptraError"
+ },
+ "0x000e0006": {
+  "desc": "Runtime Error: Handoff FHT Not Loaded",
+  "name": "RUNTIME_HANDOFF_FHT_NOT_LOADED",
+  "source": "CaliptraError"
+ },
+ "0x000e0007": {
+  "desc": "Runtime Error: Unexpected Update Return",
+  "name": "RUNTIME_UNEXPECTED_UPDATE_RETURN",
+  "source": "CaliptraError"
+ },
+ "0x000e0008": {
+  "desc": "Runtime Error: Shutdown",
+  "name": "RUNTIME_SHUTDOWN",
+  "source": "CaliptraError"
+ },
+ "0x000e0009": {
+  "desc": "Runtime Error: Mailbox Invalid Params",
+  "name": "RUNTIME_MAILBOX_INVALID_PARAMS",
+  "source": "CaliptraError"
+ },
+ "0x000e000a": {
+  "desc": "Runtime Error: Global NMI",
+  "name": "RUNTIME_GLOBAL_NMI",
+  "source": "CaliptraError"
+ },
+ "0x000e000b": {
+  "desc": "Runtime Error: Global Exception",
+  "name": "RUNTIME_GLOBAL_EXCEPTION",
+  "source": "CaliptraError"
+ },
+ "0x000e000c": {
+  "desc": "Runtime Error: Global Panic",
+  "name": "RUNTIME_GLOBAL_PANIC",
+  "source": "CaliptraError"
+ },
+ "0x000e000d": {
+  "desc": "Runtime Error: HMAC Verify Failed",
+  "name": "RUNTIME_HMAC_VERIFY_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e000e": {
+  "desc": "Runtime Error: Initialize DPE Failed",
+  "name": "RUNTIME_INITIALIZE_DPE_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e000f": {
+  "desc": "Runtime Error: Get IDEVID Cert Failed",
+  "name": "RUNTIME_GET_IDEVID_CERT_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0010": {
+  "desc": "Runtime Error: Cert Chain Creation Failed",
+  "name": "RUNTIME_CERT_CHAIN_CREATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0011": {
+  "desc": "Runtime Error: Self Test In Progress",
+  "name": "RUNTIME_SELF_TEST_IN_PROGRESS",
+  "source": "CaliptraError"
+ },
+ "0x000e0012": {
+  "desc": "Runtime Error: Self Test Not Started",
+  "name": "RUNTIME_SELF_TEST_NOT_STARTED",
+  "source": "CaliptraError"
+ },
+ "0x000e0013": {
+  "desc": "Runtime Error: Invalid FMC Size",
+  "name": "RUNTIME_INVALID_FMC_SIZE",
+  "source": "CaliptraError"
+ },
+ "0x000e0014": {
+  "desc": "Runtime Error: Invalid Runtime Size",
+  "name": "RUNTIME_INVALID_RUNTIME_SIZE",
+  "source": "CaliptraError"
+ },
+ "0x000e0015": {
+  "desc": "Runtime Error: FMC Cert Handoff Failed",
+  "name": "RUNTIME_FMC_CERT_HANDOFF_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0016": {
+  "desc": "Runtime Error: Incorrect Pauser Privilege Level",
+  "name": "RUNTIME_INCORRECT_PAUSER_PRIVILEGE_LEVEL",
+  "source": "CaliptraError"
+ },
+ "0x000e0017": {
+  "desc": "Runtime Error: DPE Validation Failed",
+  "name": "RUNTIME_DPE_VALIDATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0018": {
+  "desc": "Runtime Error: Unknown Reset Flow",
+  "name": "RUNTIME_UNKNOWN_RESET_FLOW",
+  "source": "CaliptraError"
+ },
+ "0x000e0019": {
+  "desc": "Runtime Error: PL0 Used DPE Context Threshold Exceeded",
+  "name": "RUNTIME_PL0_USED_DPE_CONTEXT_THRESHOLD_EXCEEDED",
+  "source": "CaliptraError"
+ },
+ "0x000e001a": {
+  "desc": "Runtime Error: PL1 Used DPE Context Threshold Exceeded",
+  "name": "RUNTIME_PL1_USED_DPE_CONTEXT_THRESHOLD_EXCEEDED",
+  "source": "CaliptraError"
+ },
+ "0x000e001b": {
+  "desc": "Runtime Error: Global WDT Expired",
+  "name": "RUNTIME_GLOBAL_WDT_EXPIRED",
+  "source": "CaliptraError"
+ },
+ "0x000e001c": {
+  "desc": "Runtime Error: IDEV Cert Population Failed",
+  "name": "RUNTIME_IDEV_CERT_POPULATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e001d": {
+  "desc": "Runtime Error: Add ROM Measurements to DPE Failed",
+  "name": "RUNTIME_ADD_ROM_MEASUREMENTS_TO_DPE_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e001e": {
+  "desc": "Runtime Error: Tagging Failure",
+  "name": "RUNTIME_TAGGING_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000e001f": {
+  "desc": "Runtime Error: Duplicate Tag",
+  "name": "RUNTIME_DUPLICATE_TAG",
+  "source": "CaliptraError"
+ },
+ "0x000e0020": {
+  "desc": "Runtime Error: Context Already Tagged",
+  "name": "RUNTIME_CONTEXT_ALREADY_TAGGED",
+  "source": "CaliptraError"
+ },
+ "0x000e0021": {
+  "desc": "Runtime Error: Add CCIV Measurement to DPE Failed",
+  "name": "RUNTIME_ADD_CCIV_MEASUREMENT_TO_DPE_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0022": {
+  "desc": "Runtime Error: Mailbox API Response Data Length Too Large",
+  "name": "RUNTIME_MAILBOX_API_RESPONSE_DATA_LEN_TOO_LARGE",
+  "source": "CaliptraError"
+ },
+ "0x000e0023": {
+  "desc": "Runtime Error: Mailbox API Request Data Length Too Large",
+  "name": "RUNTIME_MAILBOX_API_REQUEST_DATA_LEN_TOO_LARGE",
+  "source": "CaliptraError"
+ },
+ "0x000e0024": {
+  "desc": "Runtime Error: LDEVID Cert Handoff Failed",
+  "name": "RUNTIME_LDEVID_CERT_HANDOFF_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0025": {
+  "desc": "Runtime Error: Context Tags Validation Failed",
+  "name": "RUNTIME_CONTEXT_TAGS_VALIDATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0026": {
+  "desc": "Runtime Error: Could Not Get DPE Profile",
+  "name": "RUNTIME_COULD_NOT_GET_DPE_PROFILE",
+  "source": "CaliptraError"
+ },
+ "0x000e0027": {
+  "desc": "Runtime Error: DPE Command Deserialization Failed",
+  "name": "RUNTIME_DPE_COMMAND_DESERIALIZATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0028": {
+  "desc": "Runtime Error: Get LDEVID Cert Failed",
+  "name": "RUNTIME_GET_LDEVID_CERT_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0029": {
+  "desc": "Runtime Error: Get FMC Alias Cert Failed",
+  "name": "RUNTIME_GET_FMC_ALIAS_CERT_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e002a": {
+  "desc": "Runtime Error: Get RT Alias Cert Failed",
+  "name": "RUNTIME_GET_RT_ALIAS_CERT_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e002b": {
+  "desc": "Runtime Error: Command Busy During Warm Reset",
+  "name": "RUNTIME_CMD_BUSY_DURING_WARM_RESET",
+  "source": "CaliptraError"
+ },
+ "0x000e002c": {
+  "desc": "Runtime Error: RT SVN Handoff Failed",
+  "name": "RUNTIME_RT_SVN_HANDOFF_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e002d": {
+  "desc": "Runtime Error: RT Min SVN Handoff Failed",
+  "name": "RUNTIME_RT_MIN_SVN_HANDOFF_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e002e": {
+  "desc": "Runtime Error: FMC SVN Handoff Failed",
+  "name": "RUNTIME_FMC_SVN_HANDOFF_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e002f": {
+  "desc": "Runtime Error: Context Has Tag Validation Failed",
+  "name": "RUNTIME_CONTEXT_HAS_TAG_VALIDATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0030": {
+  "desc": "Runtime Error: LDEV ID Cert Too Big",
+  "name": "RUNTIME_LDEV_ID_CERT_TOO_BIG",
+  "source": "CaliptraError"
+ },
+ "0x000e0031": {
+  "desc": "Runtime Error: FMC Alias Cert Too Big",
+  "name": "RUNTIME_FMC_ALIAS_CERT_TOO_BIG",
+  "source": "CaliptraError"
+ },
+ "0x000e0032": {
+  "desc": "Runtime Error: RT Alias Cert Too Big",
+  "name": "RUNTIME_RT_ALIAS_CERT_TOO_BIG",
+  "source": "CaliptraError"
+ },
+ "0x000e0033": {
+  "desc": "Runtime Error: Compute RT Alias SN Failed",
+  "name": "RUNTIME_COMPUTE_RT_ALIAS_SN_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0034": {
+  "desc": "Runtime Error: RT Journey PCR Validation Failed",
+  "name": "RUNTIME_RT_JOURNEY_PCR_VALIDATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0035": {
+  "desc": "Runtime Error: Unable to Find DPE Root Context",
+  "name": "RUNTIME_UNABLE_TO_FIND_DPE_ROOT_CONTEXT",
+  "source": "CaliptraError"
+ },
+ "0x000e0036": {
+  "desc": "Runtime Error: Increment PCR Reset Max Reached",
+  "name": "RUNTIME_INCREMENT_PCR_RESET_MAX_REACHED",
+  "source": "CaliptraError"
+ },
+ "0x000e0037": {
+  "desc": "Runtime Error: PL0 Used DPE Context Threshold Reached",
+  "name": "RUNTIME_PL0_USED_DPE_CONTEXT_THRESHOLD_REACHED",
+  "source": "CaliptraError"
+ },
+ "0x000e0038": {
+  "desc": "Runtime Error: PL1 Used DPE Context Threshold Reached",
+  "name": "RUNTIME_PL1_USED_DPE_CONTEXT_THRESHOLD_REACHED",
+  "source": "CaliptraError"
+ },
+ "0x000e0039": {
+  "desc": "Runtime Error: CDI KV HDL Handoff Failed",
+  "name": "RUNTIME_CDI_KV_HDL_HANDOFF_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e003a": {
+  "desc": "Runtime Error: Priv Key KV HDL Handoff Failed",
+  "name": "RUNTIME_PRIV_KEY_KV_HDL_HANDOFF_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e003b": {
+  "desc": "Runtime Error: Hash Chain Handoff Failed",
+  "name": "RUNTIME_HASH_CHAIN_HANDOFF_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e003c": {
+  "desc": "Runtime Error: PCR Reserved",
+  "name": "RUNTIME_PCR_RESERVED",
+  "source": "CaliptraError"
+ },
+ "0x000e003d": {
+  "desc": "Runtime Error: PCR Invalid Index",
+  "name": "RUNTIME_PCR_INVALID_INDEX",
+  "source": "CaliptraError"
+ },
+ "0x000e003e": {
+  "desc": "Runtime Error: DMTF Device Info Validation Failed",
+  "name": "RUNTIME_DMTF_DEVICE_INFO_VALIDATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e003f": {
+  "desc": "Runtime Error: Store DMTF Device Info Failed",
+  "name": "RUNTIME_STORE_DMTF_DEVICE_INFO_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0040": {
+  "desc": "Runtime Error: Certify Key Extended Failed",
+  "name": "RUNTIME_CERTIFY_KEY_EXTENDED_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0041": {
+  "desc": "Runtime Error: DPE Response Serialization Failed",
+  "name": "RUNTIME_DPE_RESPONSE_SERIALIZATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0042": {
+  "desc": "Runtime Error: LMS Verify Failed",
+  "name": "RUNTIME_LMS_VERIFY_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0043": {
+  "desc": "Runtime Error: LMS Verify Invalid LMS Algorithm",
+  "name": "RUNTIME_LMS_VERIFY_INVALID_LMS_ALGORITHM",
+  "source": "CaliptraError"
+ },
+ "0x000e0044": {
+  "desc": "Runtime Error: LMS Verify Invalid LMOTS Algorithm",
+  "name": "RUNTIME_LMS_VERIFY_INVALID_LMOTS_ALGORITHM",
+  "source": "CaliptraError"
+ },
+ "0x000e0045": {
+  "desc": "Runtime Error: Invalid Auth Manifest Marker",
+  "name": "RUNTIME_INVALID_AUTH_MANIFEST_MARKER",
+  "source": "CaliptraError"
+ },
+ "0x000e0046": {
+  "desc": "Runtime Error: Auth Manifest Preamble Size Mismatch",
+  "name": "RUNTIME_AUTH_MANIFEST_PREAMBLE_SIZE_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000e0047": {
+  "desc": "Runtime Error: Auth Manifest Vendor ECC Signature Invalid",
+  "name": "RUNTIME_AUTH_MANIFEST_VENDOR_ECC_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e0048": {
+  "desc": "Runtime Error: Auth Manifest Vendor LMS Signature Invalid",
+  "name": "RUNTIME_AUTH_MANIFEST_VENDOR_LMS_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e0049": {
+  "desc": "Runtime Error: Auth Manifest Owner ECC Signature Invalid",
+  "name": "RUNTIME_AUTH_MANIFEST_OWNER_ECC_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e004a": {
+  "desc": "Runtime Error: Auth Manifest Owner LMS Signature Invalid",
+  "name": "RUNTIME_AUTH_MANIFEST_OWNER_LMS_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e004b": {
+  "desc": "Runtime Error: Auth Manifest Preamble Size Less Than Minimum",
+  "name": "RUNTIME_AUTH_MANIFEST_PREAMBLE_SIZE_LT_MIN",
+  "source": "CaliptraError"
+ },
+ "0x000e004c": {
+  "desc": "Runtime Error: Auth Manifest Image Metadata List Invalid Size",
+  "name": "RUNTIME_AUTH_MANIFEST_IMAGE_METADATA_LIST_INVALID_SIZE",
+  "source": "CaliptraError"
+ },
+ "0x000e004d": {
+  "desc": "Runtime Error: Auth Manifest Image Metadata List Invalid Entry Count",
+  "name": "RUNTIME_AUTH_MANIFEST_IMAGE_METADATA_LIST_INVALID_ENTRY_COUNT",
+  "source": "CaliptraError"
+ },
+ "0x000e004e": {
+  "desc": "Runtime Error: Auth and Stash Unsupported Image Source",
+  "name": "RUNTIME_AUTH_AND_STASH_UNSUPPORTED_IMAGE_SOURCE",
+  "source": "CaliptraError"
+ },
+ "0x000e004f": {
+  "desc": "Runtime Error: Command Reserved Pauser",
+  "name": "RUNTIME_CMD_RESERVED_PAUSER",
+  "source": "CaliptraError"
+ },
+ "0x000e0050": {
+  "desc": "Runtime Error: Auth and Stash Measurement DPE Error",
+  "name": "RUNTIME_AUTH_AND_STASH_MEASUREMENT_DPE_ERROR",
+  "source": "CaliptraError"
+ },
+ "0x000e0051": {
+  "desc": "Runtime Error: Get IDEV ID Unprovisioned",
+  "name": "RUNTIME_GET_IDEV_ID_UNPROVISIONED",
+  "source": "CaliptraError"
+ },
+ "0x000e0052": {
+  "desc": "Runtime Error: Get IDEV ID Unsupported ROM",
+  "name": "RUNTIME_GET_IDEV_ID_UNSUPPORTED_ROM",
+  "source": "CaliptraError"
+ },
+ "0x000e0053": {
+  "desc": "Runtime Error: Auth Manifest Image Metadata List Duplicate Firmware ID",
+  "name": "RUNTIME_AUTH_MANIFEST_IMAGE_METADATA_LIST_DUPLICATE_FIRMWARE_ID",
+  "source": "CaliptraError"
+ },
+ "0x000e0054": {
+  "desc": "Runtime Error: Sign with Exported ECDSA Key Derivation Failed",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_ECDSA_KEY_DERIVIATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0055": {
+  "desc": "Runtime Error: Sign with Exported ECDSA Signature Failed",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_ECDSA_SIGNATURE_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0056": {
+  "desc": "Runtime Error: Sign with Exported ECDSA Invalid Digest",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_ECDSA_INVALID_DIGEST",
+  "source": "CaliptraError"
+ },
+ "0x000e0057": {
+  "desc": "Runtime Error: Sign with Exported ECDSA Invalid Signature",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_ECDSA_INVALID_SIGNATURE",
+  "source": "CaliptraError"
+ },
+ "0x000e0058": {
+  "desc": "Runtime Error: Get FMC CSR Unprovisioned",
+  "name": "RUNTIME_GET_FMC_CSR_UNPROVISIONED",
+  "source": "CaliptraError"
+ },
+ "0x000e0059": {
+  "desc": "Runtime Error: Get FMC CSR Unsupported FMC",
+  "name": "RUNTIME_GET_FMC_CSR_UNSUPPORTED_FMC",
+  "source": "CaliptraError"
+ },
+ "0x000e005a": {
+  "desc": "Runtime Error: Revoke Exported CDI Handle Not Found",
+  "name": "RUNTIME_REVOKE_EXPORTED_CDI_HANDLE_NOT_FOUND",
+  "source": "CaliptraError"
+ },
+ "0x000e005b": {
+  "desc": "Runtime Error: Reallocate DPE context requested less than the minimum PL0 contexts",
+  "name": "RUNTIME_REALLOCATE_DPE_CONTEXTS_PL0_LESS_THAN_MIN",
+  "source": "CaliptraError"
+ },
+ "0x000e005c": {
+  "desc": "Runtime Error: Reallocate DPE context requested greater than the maximum PL0 contexts",
+  "name": "RUNTIME_REALLOCATE_DPE_CONTEXTS_PL0_GREATER_THAN_MAX",
+  "source": "CaliptraError"
+ },
+ "0x000e005d": {
+  "desc": "Runtime Error: Reallocate DPE context requested fewer PL0 contexts than are used currently",
+  "name": "RUNTIME_REALLOCATE_DPE_CONTEXTS_PL0_LESS_THAN_USED",
+  "source": "CaliptraError"
+ },
+ "0x000e005e": {
+  "desc": "Runtime Error: Reallocate DPE context requested fewer PL1 contexts than are used currently",
+  "name": "RUNTIME_REALLOCATE_DPE_CONTEXTS_PL1_LESS_THAN_USED",
+  "source": "CaliptraError"
+ },
+ "0x000e005f": {
+  "desc": "Runtime Error: RT current PCR validation failed",
+  "name": "RUNTIME_RT_CURRENT_PCR_VALIDATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0060": {
+  "desc": "Runtime Error: CCIV context not found",
+  "name": "RUNTIME_CCIV_CONTEXT_NOT_FOUND",
+  "source": "CaliptraError"
+ },
+ "0x000e0061": {
+  "desc": "Runtime Error: Multiple CCIV contexts found",
+  "name": "RUNTIME_MULTIPLE_CCIV_CONTEXTS_FOUND",
+  "source": "CaliptraError"
+ },
+ "0x000e0062": {
+  "desc": "Runtime Error: ML-DSA-87 signature verification failed",
+  "name": "RUNTIME_MLDSA87_VERIFY_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0063": {
+  "desc": "Runtime Error: ML-DSA-87 DevID seed too large",
+  "name": "RUNTIME_MLDSA87_DEVID_SEED_TOO_LARGE",
+  "source": "CaliptraError"
+ },
+ "0x000e0064": {
+  "desc": "Runtime Error: SET_PQ_SEED already enabled PQC mode",
+  "name": "RUNTIME_SET_PQ_SEED_ALREADY_SET",
+  "source": "CaliptraError"
+ },
+ "0x000e0065": {
+  "desc": "Runtime Error: PQC mode not initialized (SET_PQ_SEED not performed)",
+  "name": "RUNTIME_PQC_NOT_INITIALIZED",
+  "source": "CaliptraError"
+ },
+ "0x000e0066": {
+  "desc": "Runtime Error: PQ.DevID CSR builder initialization failed",
+  "name": "RUNTIME_PQ_CSR_BUILDER_INIT_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000e0067": {
+  "desc": "Runtime Error: PQ.DevID CSR builder build failed",
+  "name": "RUNTIME_PQ_CSR_BUILDER_BUILD_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000e0068": {
+  "desc": "Runtime Error: PQ.DevID subject serial number generation failed",
+  "name": "RUNTIME_PQ_SUBJECT_SN_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e0069": {
+  "desc": "Runtime Error: PQ Cert Population Failed",
+  "name": "RUNTIME_PQ_CERT_POPULATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e006a": {
+  "desc": "Runtime Error: Get PQ Cert Failed",
+  "name": "RUNTIME_GET_PQ_CERT_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e006b": {
+  "desc": "Runtime Error: Sign with Exported MLDSA Not Supported",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_MLDSA_NOT_SUPPORTED",
+  "source": "CaliptraError"
+ },
+ "0x000e006c": {
+  "desc": "Runtime Error: Sign with Exported MLDSA Handle Not Found",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_MLDSA_NOT_FOUND",
+  "source": "CaliptraError"
+ },
+ "0x000e006d": {
+  "desc": "Runtime Error: Sign with Exported MLDSA Key Derivation Failed",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_MLDSA_KEY_DERIVATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e006e": {
+  "desc": "Runtime Error: Sign with Exported MLDSA Signature Failed",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_MLDSA_SIGNATURE_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e006f": {
+  "desc": "Runtime Error: Sign with Exported MLDSA Invalid Parameters",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_MLDSA_INVALID_PARAMS",
+  "source": "CaliptraError"
+ },
+ "0x000e0070": {
+  "desc": "Runtime Error: SET_PQ_SEED rejected because attestation is disabled",
+  "name": "RUNTIME_SET_PQ_SEED_ATTESTATION_DISABLED",
+  "source": "CaliptraError"
+ },
+ "0x000e0071": {
+  "desc": "Runtime Error: Invalid PQ.DevID Public Key Hash",
+  "name": "RUNTIME_PQ_INVALID_PUBKEY_DIGEST",
+  "source": "CaliptraError"
+ },
+ "0x000e0072": {
+  "desc": "Runtime Error: Invalid FW persistent data marker",
+  "name": "RUNTIME_INVALID_FW_PERSISTENT_DATA_MARKER",
+  "source": "CaliptraError"
+ },
+ "0x000e0073": {
+  "desc": "Runtime Error: Invalid FW persistent data version",
+  "name": "RUNTIME_INVALID_FW_PERSISTENT_DATA_VERSION",
+  "source": "CaliptraError"
+ },
+ "0x000e0074": {
+  "desc": "Runtime Error: ML-DSA-87 pairwise consistency test (PCT) verify failed",
+  "name": "RUNTIME_PQ_PCT_VERIFY_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000e0075": {
+  "desc": "Runtime Error: Attested CSR EAT encoding failed",
+  "name": "RUNTIME_ATTESTED_CSR_EAT_ENCODING_ERROR",
+  "source": "CaliptraError"
+ },
+ "0x000e0076": {
+  "desc": "Runtime Error: Attested CSR COSE_Sign1 encoding failed",
+  "name": "RUNTIME_ATTESTED_CSR_COSE_SIGN1_ENCODING_ERROR",
+  "source": "CaliptraError"
+ },
+ "0x000f0001": {
+  "desc": "FMC Error: Global NMI",
+  "name": "FMC_GLOBAL_NMI",
+  "source": "CaliptraError"
+ },
+ "0x000f0002": {
+  "desc": "FMC Error: Global Exception",
+  "name": "FMC_GLOBAL_EXCEPTION",
+  "source": "CaliptraError"
+ },
+ "0x000f0003": {
+  "desc": "FMC Error: Global Panic",
+  "name": "FMC_GLOBAL_PANIC",
+  "source": "CaliptraError"
+ },
+ "0x000f0004": {
+  "desc": "FMC Error: Handoff Invalid Parameter",
+  "name": "FMC_HANDOFF_INVALID_PARAM",
+  "source": "CaliptraError"
+ },
+ "0x000f0005": {
+  "desc": "FMC Error: RT Alias Derive Failure",
+  "name": "FMC_RT_ALIAS_DERIVE_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000f0006": {
+  "desc": "FMC Error: RT Alias Certificate Verification",
+  "name": "FMC_RT_ALIAS_CERT_VERIFY",
+  "source": "CaliptraError"
+ },
+ "0x000f0007": {
+  "desc": "FMC Error: RT Alias TBS Size Exceeded",
+  "name": "FMC_RT_ALIAS_TBS_SIZE_EXCEEDED",
+  "source": "CaliptraError"
+ },
+ "0x000f0008": {
+  "desc": "FMC Error: CDI KV Collision",
+  "name": "FMC_CDI_KV_COLLISION",
+  "source": "CaliptraError"
+ },
+ "0x000f0009": {
+  "desc": "FMC Error: Alias KV Collision",
+  "name": "FMC_ALIAS_KV_COLLISION",
+  "source": "CaliptraError"
+ },
+ "0x000f000a": {
+  "desc": "FMC Error: Global PCR Log Exhausted",
+  "name": "FMC_GLOBAL_PCR_LOG_EXHAUSTED",
+  "source": "CaliptraError"
+ },
+ "0x000f000b": {
+  "desc": "FMC Error: Address Not in ICCM",
+  "name": "ADDRESS_NOT_IN_ICCM",
+  "source": "CaliptraError"
+ },
+ "0x000f000c": {
+  "desc": "FMC Error: Handoff Not Ready for RT",
+  "name": "FMC_HANDOFF_NOT_READY_FOR_RT",
+  "source": "CaliptraError"
+ },
+ "0x000f000d": {
+  "desc": "FMC Error: Global WDT Expired",
+  "name": "FMC_GLOBAL_WDT_EXPIRED",
+  "source": "CaliptraError"
+ },
+ "0x000f000e": {
+  "desc": "FMC Error: Unknown Reset",
+  "name": "FMC_UNKNOWN_RESET",
+  "source": "CaliptraError"
+ },
+ "0x000f000f": {
+  "desc": "FMC Alias CSR Builder Init Failure",
+  "name": "FMC_ALIAS_CSR_BUILDER_INIT_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000f0010": {
+  "desc": "FMC Alias CSR Builder Build Failure",
+  "name": "FMC_ALIAS_CSR_BUILDER_BUILD_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000f0011": {
+  "desc": "FMC Alias Invalid CSR",
+  "name": "FMC_ALIAS_INVALID_CSR",
+  "source": "CaliptraError"
+ },
+ "0x000f0012": {
+  "desc": "FMC Alias CSR Verification Failure",
+  "name": "FMC_ALIAS_CSR_VERIFICATION_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x000f0013": {
+  "desc": "FMC Alias CSR Overflow",
+  "name": "FMC_ALIAS_CSR_OVERFLOW",
+  "source": "CaliptraError"
+ },
+ "0x000f0014": {
+  "desc": "FMC Error: Regenerating FMC Key Pair Failed",
+  "name": "FMC_REGENERATE_FMC_KEY_PAIR_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000f0015": {
+  "desc": "FMC Error: Invalid FW persistent data marker",
+  "name": "FMC_INVALID_FW_PERSISTENT_DATA_MARKER",
+  "source": "CaliptraError"
+ },
+ "0x000f0016": {
+  "desc": "FMC Error: Invalid FW persistent data version",
+  "name": "FMC_INVALID_FW_PERSISTENT_DATA_VERSION",
+  "source": "CaliptraError"
+ },
+ "0x00100001": {
+  "desc": "TRNG_EXT Error: Timeout",
+  "name": "DRIVER_TRNG_EXT_TIMEOUT",
+  "source": "CaliptraError"
+ },
+ "0x00100002": {
+  "desc": "SOC_IFC Driver Error: Invalid Timer Configuration",
+  "name": "DRIVER_SOC_IFC_INVALID_TIMER_CONFIG",
+  "source": "CaliptraError"
+ },
+ "0x00110000": {
+  "desc": "Bounded Address Error: Address Misaligned",
+  "name": "ADDRESS_MISALIGNED",
+  "source": "CaliptraError"
+ },
+ "0x00110001": {
+  "desc": "Bounded Address Error: Address Not in ROM",
+  "name": "ADDRESS_NOT_IN_ROM",
+  "source": "CaliptraError"
+ },
+ "0x00b0003a": {
+  "desc": "Image Verifier Error: Vendor LMS Public Key Revoked",
+  "name": "IMAGE_VERIFIER_ERR_VENDOR_LMS_PUB_KEY_REVOKED",
+  "source": "CaliptraError"
+ },
+ "0x01000001": {
+  "desc": "ROM Initial Device ID Error: CSR Builder Init Failure",
+  "name": "ROM_IDEVID_CSR_BUILDER_INIT_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01000002": {
+  "desc": "ROM Initial Device ID Error: CSR Builder Build Failure",
+  "name": "ROM_IDEVID_CSR_BUILDER_BUILD_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01000003": {
+  "desc": "ROM Initial Device ID Error: Invalid CSR",
+  "name": "ROM_IDEVID_INVALID_CSR",
+  "source": "CaliptraError"
+ },
+ "0x01000004": {
+  "desc": "ROM Initial Device ID Error: CSR Verification Failure",
+  "name": "ROM_IDEVID_CSR_VERIFICATION_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01000005": {
+  "desc": "ROM Initial Device ID Error: CSR Overflow",
+  "name": "ROM_IDEVID_CSR_OVERFLOW",
+  "source": "CaliptraError"
+ },
+ "0x01010001": {
+  "desc": "ROM Local Device ID Error: CSR Verification Failure",
+  "name": "ROM_LDEVID_CSR_VERIFICATION_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01020001": {
+  "desc": "Firmware Processor Error: Manifest Read Failure",
+  "name": "FW_PROC_MANIFEST_READ_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01020002": {
+  "desc": "Firmware Processor Error: Invalid Image Size",
+  "name": "FW_PROC_INVALID_IMAGE_SIZE",
+  "source": "CaliptraError"
+ },
+ "0x01020003": {
+  "desc": "Firmware Processor Error: Mailbox State Inconsistent",
+  "name": "FW_PROC_MAILBOX_STATE_INCONSISTENT",
+  "source": "CaliptraError"
+ },
+ "0x01020004": {
+  "desc": "Firmware Processor Error: Mailbox Invalid Command",
+  "name": "FW_PROC_MAILBOX_INVALID_COMMAND",
+  "source": "CaliptraError"
+ },
+ "0x01020005": {
+  "desc": "Firmware Processor Error: Mailbox Invalid Checksum",
+  "name": "FW_PROC_MAILBOX_INVALID_CHECKSUM",
+  "source": "CaliptraError"
+ },
+ "0x01020006": {
+  "desc": "Firmware Processor Error: Mailbox Invalid Request Length",
+  "name": "FW_PROC_MAILBOX_INVALID_REQUEST_LENGTH",
+  "source": "CaliptraError"
+ },
+ "0x01020007": {
+  "desc": "Firmware Processor Error: Mailbox Process Failure",
+  "name": "FW_PROC_MAILBOX_PROCESS_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01020008": {
+  "desc": "Firmware Processor Error: Mailbox Stash Measurement Max Limit",
+  "name": "FW_PROC_MAILBOX_STASH_MEASUREMENT_MAX_LIMIT",
+  "source": "CaliptraError"
+ },
+ "0x01020009": {
+  "desc": "Firmware Processor Error: Mailbox Reserved Pauser",
+  "name": "FW_PROC_MAILBOX_RESERVED_PAUSER",
+  "source": "CaliptraError"
+ },
+ "0x0102000a": {
+  "desc": "Firmware Processor Error: Mailbox Get IDEV CSR Unprovisioned CSR",
+  "name": "FW_PROC_MAILBOX_GET_IDEV_CSR_UNPROVISIONED_CSR",
+  "source": "CaliptraError"
+ },
+ "0x01030001": {
+  "desc": "FMC Alias Layer: Certificate Verification Failure",
+  "name": "FMC_ALIAS_CERT_VERIFY",
+  "source": "CaliptraError"
+ },
+ "0x01040002": {
+  "desc": "ROM Update Reset Flow: Manifest Read Failure",
+  "name": "ROM_UPDATE_RESET_FLOW_MANIFEST_READ_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01040003": {
+  "desc": "ROM Update Reset Flow: Invalid Firmware Command",
+  "name": "ROM_UPDATE_RESET_FLOW_INVALID_FIRMWARE_COMMAND",
+  "source": "CaliptraError"
+ },
+ "0x01040004": {
+  "desc": "ROM Update Reset Flow: Mailbox Access Failure",
+  "name": "ROM_UPDATE_RESET_FLOW_MAILBOX_ACCESS_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01040005": {
+  "desc": "ROM Update Reset Flow: Read FHT Failure",
+  "name": "ROM_UPDATE_RESET_READ_FHT_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01040010": {
+  "desc": "ROM Warm Reset Unsuccessful: Previous Cold Reset",
+  "name": "ROM_WARM_RESET_UNSUCCESSFUL_PREVIOUS_COLD_RESET",
+  "source": "CaliptraError"
+ },
+ "0x01040011": {
+  "desc": "ROM Warm Reset Unsuccessful: Previous Update Reset",
+  "name": "ROM_WARM_RESET_UNSUCCESSFUL_PREVIOUS_UPDATE_RESET",
+  "source": "CaliptraError"
+ },
+ "0x01040020": {
+  "desc": "ROM Unknown Reset Flow",
+  "name": "ROM_UNKNOWN_RESET_FLOW",
+  "source": "CaliptraError"
+ },
+ "0x01040050": {
+  "desc": "ROM CFI Error: Panic Unknown",
+  "name": "ROM_CFI_PANIC_UNKNOWN",
+  "source": "CaliptraError"
+ },
+ "0x01040051": {
+  "desc": "ROM CFI Error: Panic Counter Corrupt",
+  "name": "ROM_CFI_PANIC_COUNTER_CORRUPT",
+  "source": "CaliptraError"
+ },
+ "0x01040052": {
+  "desc": "ROM CFI Error: Panic Counter Overflow",
+  "name": "ROM_CFI_PANIC_COUNTER_OVERFLOW",
+  "source": "CaliptraError"
+ },
+ "0x01040053": {
+  "desc": "ROM CFI Error: Panic Counter Underflow",
+  "name": "ROM_CFI_PANIC_COUNTER_UNDERFLOW",
+  "source": "CaliptraError"
+ },
+ "0x01040054": {
+  "desc": "ROM CFI Error: Panic Counter Mismatch",
+  "name": "ROM_CFI_PANIC_COUNTER_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x01040055": {
+  "desc": "ROM CFI Error: Panic Assert Equal Failure",
+  "name": "ROM_CFI_PANIC_ASSERT_EQ_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01040056": {
+  "desc": "ROM CFI Error: Panic Assert Not Equal Failure",
+  "name": "ROM_CFI_PANIC_ASSERT_NE_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01040057": {
+  "desc": "ROM CFI Error: Panic Assert Greater Than Failure",
+  "name": "ROM_CFI_PANIC_ASSERT_GT_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01040058": {
+  "desc": "ROM CFI Error: Panic Assert Less Than Failure",
+  "name": "ROM_CFI_PANIC_ASSERT_LT_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x01040059": {
+  "desc": "ROM CFI Error: Panic Assert Greater or Equal Failure",
+  "name": "ROM_CFI_PANIC_ASSERT_GE_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x0104005a": {
+  "desc": "ROM CFI Error: Panic Assert Less or Equal Failure",
+  "name": "ROM_CFI_PANIC_ASSERT_LE_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x0104005b": {
+  "desc": "ROM CFI Error: Panic TRNG Failure",
+  "name": "ROM_CFI_PANIC_TRNG_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x0104005c": {
+  "desc": "ROM CFI Error: Panic Unexpected Match Branch",
+  "name": "ROM_CFI_PANIC_UNEXPECTED_MATCH_BRANCH",
+  "source": "CaliptraError"
+ },
+ "0x0104005d": {
+  "desc": "ROM CFI Error: Panic Fake TRNG Used with Debug Lock",
+  "name": "ROM_CFI_PANIC_FAKE_TRNG_USED_WITH_DEBUG_LOCK",
+  "source": "CaliptraError"
+ },
+ "0x01050001": {
+  "desc": "ROM Global Error: NMI",
+  "name": "ROM_GLOBAL_NMI",
+  "source": "CaliptraError"
+ },
+ "0x01050002": {
+  "desc": "ROM Global Error: Exception",
+  "name": "ROM_GLOBAL_EXCEPTION",
+  "source": "CaliptraError"
+ },
+ "0x01050003": {
+  "desc": "ROM Global Error: Panic",
+  "name": "ROM_GLOBAL_PANIC",
+  "source": "CaliptraError"
+ },
+ "0x01050004": {
+  "desc": "ROM Global Error: PCR Log Invalid Entry ID",
+  "name": "ROM_GLOBAL_PCR_LOG_INVALID_ENTRY_ID",
+  "source": "CaliptraError"
+ },
+ "0x01050005": {
+  "desc": "ROM Global Error: PCR Log Unsupported Data Length",
+  "name": "ROM_GLOBAL_PCR_LOG_UNSUPPORTED_DATA_LENGTH",
+  "source": "CaliptraError"
+ },
+ "0x01050006": {
+  "desc": "ROM Global Error: PCR Log Exhausted",
+  "name": "ROM_GLOBAL_PCR_LOG_EXHAUSTED",
+  "source": "CaliptraError"
+ },
+ "0x01050007": {
+  "desc": "ROM Global Error: Fuse Log Invalid Entry ID",
+  "name": "ROM_GLOBAL_FUSE_LOG_INVALID_ENTRY_ID",
+  "source": "CaliptraError"
+ },
+ "0x01050008": {
+  "desc": "ROM Global Error: Fuse Log Unsupported Data Length",
+  "name": "ROM_GLOBAL_FUSE_LOG_UNSUPPORTED_DATA_LENGTH",
+  "source": "CaliptraError"
+ },
+ "0x01050009": {
+  "desc": "ROM Global Error: Unsupported LDEVID TBS Size",
+  "name": "ROM_GLOBAL_UNSUPPORTED_LDEVID_TBS_SIZE",
+  "source": "CaliptraError"
+ },
+ "0x0105000a": {
+  "desc": "ROM Global Error: Unsupported FMCALIAS TBS Size",
+  "name": "ROM_GLOBAL_UNSUPPORTED_FMCALIAS_TBS_SIZE",
+  "source": "CaliptraError"
+ },
+ "0x0105000b": {
+  "desc": "ROM Global Error: Fake ROM in Production",
+  "name": "ROM_GLOBAL_FAKE_ROM_IN_PRODUCTION",
+  "source": "CaliptraError"
+ },
+ "0x0105000c": {
+  "desc": "ROM Global Error: WDT Expired",
+  "name": "ROM_GLOBAL_WDT_EXPIRED",
+  "source": "CaliptraError"
+ },
+ "0x0105000d": {
+  "desc": "ROM Global Error: Measurement Log Exhausted",
+  "name": "ROM_GLOBAL_MEASUREMENT_LOG_EXHAUSTED",
+  "source": "CaliptraError"
+ },
+ "0x0105000f": {
+  "desc": "ROM Global Error: FIPS Hooks ROM Exit",
+  "name": "ROM_GLOBAL_FIPS_HOOKS_ROM_EXIT",
+  "source": "CaliptraError"
+ },
+ "0x90010001": {
+  "desc": "KAT Error: SHA256 Digest Failure",
+  "name": "KAT_SHA256_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90010002": {
+  "desc": "KAT Error: SHA256 Digest Mismatch",
+  "name": "KAT_SHA256_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x90020001": {
+  "desc": "KAT Error: SHA384 Digest Failure",
+  "name": "KAT_SHA384_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90020002": {
+  "desc": "KAT Error: SHA384 Digest Mismatch",
+  "name": "KAT_SHA384_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x90030001": {
+  "desc": "KAT Error: HMAC384 Failure",
+  "name": "KAT_HMAC384_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90030002": {
+  "desc": "KAT Error: HMAC384 Tag Mismatch",
+  "name": "KAT_HMAC384_TAG_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x90040003": {
+  "desc": "KAT Error: ECC384 Signature Mismatch",
+  "name": "KAT_ECC384_SIGNATURE_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x90040004": {
+  "desc": "KAT Error: ECC384 Key Pair Generate Failure",
+  "name": "KAT_ECC384_KEY_PAIR_GENERATE_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90040005": {
+  "desc": "KAT Error: ECC384 Key Pair Verify Failure",
+  "name": "KAT_ECC384_KEY_PAIR_VERIFY_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90050001": {
+  "desc": "KAT Error: SHA2_512_384_ACC Digest Start Operation Failure",
+  "name": "KAT_SHA2_512_384_ACC_DIGEST_START_OP_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90050002": {
+  "desc": "KAT Error: SHA2_512_384_ACC Digest Failure",
+  "name": "KAT_SHA2_512_384_ACC_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90050003": {
+  "desc": "KAT Error: SHA2_512_384_ACC Digest Mismatch",
+  "name": "KAT_SHA2_512_384_ACC_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x90060001": {
+  "desc": "KAT Error: SHA1 Digest Failure",
+  "name": "KAT_SHA1_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90060002": {
+  "desc": "KAT Error: SHA1 Digest Mismatch",
+  "name": "KAT_SHA1_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x90070001": {
+  "desc": "KAT Error: LMS Digest Failure",
+  "name": "KAT_LMS_DIGEST_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90070002": {
+  "desc": "KAT Error: LMS Digest Mismatch",
+  "name": "KAT_LMS_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x90080001": {
+  "desc": "ROM Error: Integrity Failure",
+  "name": "ROM_INTEGRITY_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90090001": {
+  "desc": "KAT Error: ML-DSA-87 Signature Verify Failure",
+  "name": "KAT_MLDSA87_SIGNATURE_VERIFY_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90090002": {
+  "desc": "KAT Error: ML-DSA-87 Signature False Accept",
+  "name": "KAT_MLDSA87_SIGNATURE_FALSE_ACCEPT",
+  "source": "CaliptraError"
+ },
+ "0x90090003": {
+  "desc": "KAT Error: ML-DSA-87 Key Pair Generate Failure",
+  "name": "KAT_MLDSA87_KEY_PAIR_GENERATE_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90090004": {
+  "desc": "KAT Error: ML-DSA-87 Key Pair Verify Failure",
+  "name": "KAT_MLDSA87_KEY_PAIR_VERIFY_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90090005": {
+  "desc": "KAT Error: ML-DSA-87 Signature Generate Failure",
+  "name": "KAT_MLDSA87_SIGNATURE_GENERATE_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x90090006": {
+  "desc": "KAT Error: ML-DSA-87 Signature Mismatch",
+  "name": "KAT_MLDSA87_SIGNATURE_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x90100000": {
+  "desc": "FIPS Hooks: Injected Error",
+  "name": "FIPS_HOOKS_INJECTED_ERROR",
+  "source": "CaliptraError"
+ }
+}
