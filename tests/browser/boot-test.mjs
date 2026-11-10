@@ -13,8 +13,9 @@
 // Usage:
 //   node tests/browser/boot-test.mjs [--mode caliptra|mcu]... [--timeout SECS] [--out DIR]
 //
-// With --out, each mode's full UART output and final page state are written
-// to DIR/<mode>-uart.txt and DIR/<mode>-state.json.
+// With --out, each mode's full UART output, final page state and a full-page
+// screenshot are written to DIR/<mode>-uart.txt, DIR/<mode>-state.json and
+// DIR/<mode>.png.
 //
 // Environment:
 //   FIREFOX                 Firefox binary (default: "firefox")
@@ -289,23 +290,29 @@ async function runMode(bidi, context, baseUrl, mode, timeoutSecs, outDir, pageEr
         status: document.getElementById("status").textContent,
         stats: document.getElementById("stats").textContent,
         uart: document.getElementById("uart-output").textContent,
-        decoder: dec && dec.style.display !== "none" ? dec.textContent : "",
+        decoder: dec && !dec.hidden ? dec.textContent : "",
       };
     })()`);
     const elapsed = (Date.now() - t0) / 1000;
     const missing = spec.expect.filter((m) => !seen(st.uart, m));
     const fatalUart = FATAL_UART.find((re) => re.test(st.uart));
     const fatalDecoder = /fw_error_fatal/.test(st.decoder);
-    const save = () => {
+    const save = async () => {
       if (!outDir) return;
       mkdirSync(outDir, { recursive: true });
       writeFileSync(join(outDir, `${mode}-uart.txt`), st.uart);
       const { uart, ...rest } = st;
       writeFileSync(join(outDir, `${mode}-state.json`), JSON.stringify({ ...rest, missing, pageErrors }, null, 2));
+      try {
+        const shot = await bidi.send("browsingContext.captureScreenshot", { context, origin: "document" });
+        writeFileSync(join(outDir, `${mode}.png`), Buffer.from(shot.data, "base64"));
+      } catch (e) {
+        console.warn(`screenshot failed: ${e.message}`);
+      }
     };
 
-    const fail = (why) => {
-      save();
+    const fail = async (why) => {
+      await save();
       throw new Error(
         `${mode}: ${why}\nstatus: ${st.status}\nstats: ${st.stats}\n` +
           (st.decoder ? `error decoder:\n${st.decoder}\n` : "") +
@@ -314,19 +321,19 @@ async function runMode(bidi, context, baseUrl, mode, timeoutSecs, outDir, pageEr
       );
     };
 
-    if (fatalUart) fail(`fatal output in UART (${fatalUart})`);
-    if (fatalDecoder) fail("error decoder reports a fatal error");
-    if (pageErrors.length) fail("JavaScript errors on the page");
-    if (/^Error|Exited — FAILED|MCU exited/.test(st.status)) fail(`emulator stopped: ${st.status}`);
+    if (fatalUart) await fail(`fatal output in UART (${fatalUart})`);
+    if (fatalDecoder) await fail("error decoder reports a fatal error");
+    if (pageErrors.length) await fail("JavaScript errors on the page");
+    if (/^Error|^Failed|Exited: failed|MCU halted/.test(st.status)) await fail(`emulator stopped: ${st.status}`);
     if (missing.length === 0) {
-      save();
+      await save();
       console.log(`PASS ${mode} in ${elapsed.toFixed(0)}s — ${st.stats}`);
       if (st.decoder) console.log(`(non-fatal) error decoder:\n${st.decoder}`);
       // Stop the run loop before moving on.
       await bidi.eval(context, `(document.getElementById("btn-stop").click(), true)`);
       return;
     }
-    if (elapsed > timeoutSecs) fail(`timed out after ${timeoutSecs}s; missing: ${JSON.stringify(missing)}`);
+    if (elapsed > timeoutSecs) await fail(`timed out after ${timeoutSecs}s; missing: ${JSON.stringify(missing)}`);
     if (elapsed - lastReport >= 15) {
       lastReport = elapsed;
       console.log(`  ${elapsed.toFixed(0)}s: ${st.stats || st.status}; waiting for ${JSON.stringify(missing)}`);

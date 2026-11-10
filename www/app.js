@@ -107,21 +107,21 @@ function formatErrorEntry(label, val) {
 // Display error decoder panel (called whenever errors might have changed).
 function updateErrorDecoder() {
   if (!emulator) {
-    errorDecoder.style.display = "none";
+    errorDecoder.hidden = true;
     return;
   }
   let regsJson;
   try {
     regsJson = emulator.get_error_registers();
   } catch (e) {
-    errorDecoder.style.display = "none";
+    errorDecoder.hidden = true;
     return;
   }
   let regs;
   try {
     regs = JSON.parse(regsJson);
   } catch (e) {
-    errorDecoder.style.display = "none";
+    errorDecoder.hidden = true;
     return;
   }
 
@@ -185,11 +185,11 @@ function updateErrorDecoder() {
   }
 
   if (sections.length === 0) {
-    errorDecoder.style.display = "none";
+    errorDecoder.hidden = true;
     errorDecoder.textContent = "";
   } else {
-    errorDecoder.style.display = "";
-    errorDecoder.textContent = "⚠ FATAL ERROR DECODER\n\n" + sections.join("\n\n");
+    errorDecoder.hidden = false;
+    errorDecoder.textContent = "Firmware error registers\n\n" + sections.join("\n\n");
   }
 }
 
@@ -211,16 +211,17 @@ const prodDbgPksFields = document.getElementById("prod-dbg-pks-fields");
 const prodDbgPkInputs = [];
 for (let i = 0; i < 8; i++) {
   const row = document.createElement("div");
-  row.className = "form-row";
+  row.className = "field";
   const label = document.createElement("label");
-  label.textContent = `prod_debug_unlock_pks_${i}:`;
+  label.textContent = `Level ${i + 1}`;
+  label.title = `prod_debug_unlock_pks_${i}`;
   label.htmlFor = `prod-dbg-pk-${i}`;
   const input = document.createElement("input");
   input.type = "text";
   input.id = `prod-dbg-pk-${i}`;
-  input.placeholder = "(default: all zeros) — 96 hex chars";
-  input.style.fontFamily = "'Cascadia Code', 'Fira Code', monospace";
-  input.style.fontSize = "0.7rem";
+  input.placeholder = "All zeros";
+  input.spellcheck = false;
+  input.autocomplete = "off";
   prodDbgPksFields.appendChild(row);
   row.appendChild(label);
   row.appendChild(input);
@@ -315,10 +316,10 @@ function updateInputSection(cmdKey, mode) {
     mboxRawInput.style.display = "block";
     const cmd = COMMAND_INFO[cmdKey];
     if (hasFields || (cmd && cmd.hasInput)) {
-      mboxPayload.placeholder = "Enter payload hex bytes after checksum (e.g., 01020304)";
+      mboxPayload.placeholder = "Payload bytes after the checksum, e.g. 01020304";
       mboxPayload.disabled = false;
     } else {
-      mboxPayload.placeholder = "Header-only command — no payload needed";
+      mboxPayload.placeholder = "This command takes no payload";
       mboxPayload.disabled = true;
     }
     mboxPayload.value = "";
@@ -328,16 +329,15 @@ function updateInputSection(cmdKey, mode) {
 function renderFormFields(fields) {
   mboxFormFields.innerHTML = "";
   if (fields.length === 0) {
-    const msg = document.createElement("div");
-    msg.style.cssText = "color: var(--muted); font-size: 0.85rem; padding: 8px 0;";
-    msg.textContent = "Header-only command \u2014 no additional parameters";
+    const msg = document.createElement("p");
+    msg.className = "note";
+    msg.textContent = "This command has no parameters.";
     mboxFormFields.appendChild(msg);
     return;
   }
   for (const field of fields) {
     const row = document.createElement("div");
-    row.className = "form-row";
-    row.style.marginBottom = "8px";
+    row.className = "field";
 
     const label = document.createElement("label");
     label.textContent = field.desc || field.name;
@@ -426,16 +426,14 @@ function serializeFormFields(cmdKey) {
 function updateModeVisibility() {
   const isMcu = emuModeSelect.value === "mcu";
   // MCU ROM row is only relevant in MCU mode
-  mcuRomRow.style.display = isMcu ? "flex" : "none";
+  mcuRomRow.hidden = !isMcu;
   // Caliptra-only options hidden in MCU mode (MCU handles these internally)
-  vendorPkInput.closest(".form-row").style.display = isMcu ? "none" : "flex";
-  ownerPkInput.closest(".form-row").style.display = isMcu ? "none" : "flex";
-  lifecycleSelect.closest(".form-row").style.display = isMcu ? "none" : "flex";
-  subsystemModeInput.closest(".form-row").style.display = isMcu ? "none" : "flex";
-  ocpLockInput.closest(".form-row").style.display = isMcu ? "none" : "flex";
+  document.getElementById("caliptra-only-options").hidden = isMcu;
+  subsystemModeInput.closest(".check").hidden = isMcu;
+  ocpLockInput.closest(".check").hidden = isMcu;
   // OTP panels only visible in MCU mode
-  otpPanel.style.display = isMcu ? "" : "none";
-  otpLogPanel.style.display = isMcu ? "" : "none";
+  otpPanel.hidden = !isMcu;
+  otpLogPanel.hidden = !isMcu;
 }
 emuModeSelect.addEventListener("change", updateModeVisibility);
 updateModeVisibility();
@@ -486,7 +484,7 @@ const STEPS_PER_FRAME = 50_000;
 async function startup() {
   try {
     await init();
-    setStatus("Loading defaults...", "");
+    setStatus("Loading default images…", "");
 
     // Load default ROM, FW, and hash defaults in parallel
     const [romResp, fwResp, defaultsResp, socManifestResp, mcuFwResp, mcuRomResp, mcuRuntimeResp] = await Promise.allSettled([
@@ -501,16 +499,16 @@ async function startup() {
 
     if (romResp.status === "fulfilled" && romResp.value.ok) {
       defaultRom = new Uint8Array(await romResp.value.arrayBuffer());
-      romInfo.textContent = `Default ROM loaded (${(defaultRom.length / 1024).toFixed(0)} KB)`;
+      romInfo.textContent = `Default ROM (${(defaultRom.length / 1024).toFixed(0)} KB)`;
     } else {
-      romInfo.textContent = "No default ROM — please upload one";
+      romInfo.textContent = "No default ROM. Choose a ROM file.";
     }
 
     if (fwResp.status === "fulfilled" && fwResp.value.ok) {
       defaultFw = new Uint8Array(await fwResp.value.arrayBuffer());
-      fwInfo.textContent = `Default FW loaded (${(defaultFw.length / 1024).toFixed(0)} KB)`;
+      fwInfo.textContent = `Default firmware (${(defaultFw.length / 1024).toFixed(0)} KB)`;
     } else {
-      fwInfo.textContent = "(optional) No default FW";
+      fwInfo.textContent = "Optional. No default firmware is available.";
     }
 
     if (defaultsResp.status === "fulfilled" && defaultsResp.value.ok) {
@@ -533,21 +531,21 @@ async function startup() {
 
     if (mcuRomResp.status === "fulfilled" && mcuRomResp.value.ok) {
       defaultMcuRom = new Uint8Array(await mcuRomResp.value.arrayBuffer());
-      mcuRomInfo.textContent = `Default MCU ROM loaded (${(defaultMcuRom.length / 1024).toFixed(1)} KB)`;
+      mcuRomInfo.textContent = `Default MCU ROM (${(defaultMcuRom.length / 1024).toFixed(0)} KB)`;
     } else {
-      mcuRomInfo.textContent = "No default MCU ROM — upload one for MCU mode";
+      mcuRomInfo.textContent = "No default MCU ROM. Choose one to use subsystem mode.";
     }
 
     if (mcuRuntimeResp.status === "fulfilled" && mcuRuntimeResp.value.ok) {
       defaultMcuRuntime = new Uint8Array(await mcuRuntimeResp.value.arrayBuffer());
-      mcuFwInfo.textContent = `Default MCU runtime loaded (${(defaultMcuRuntime.length / 1024).toFixed(0)} KB)`;
+      mcuFwInfo.textContent = `Default MCU runtime (${(defaultMcuRuntime.length / 1024).toFixed(0)} KB)`;
     }
 
     setStatus("Ready", "");
     btnRun.disabled = false;
     btnReset.disabled = false;
   } catch (err) {
-    setStatus(`WASM init failed: ${err}`, "exited");
+    setStatus(`Failed to load WebAssembly: ${err}`, "exited");
     console.error("WASM init error:", err);
   }
 }
@@ -633,7 +631,7 @@ function getMcuRom() {
 function createEmulator() {
   const rom = getRom();
   if (!rom) {
-    setStatus("No Caliptra ROM loaded — upload a ROM file", "stopped");
+    setStatus("No Caliptra ROM. Choose a ROM file.", "stopped");
     return false;
   }
 
@@ -651,7 +649,7 @@ function createEmulator() {
       // MCU + Caliptra mode
       const mcuRom = getMcuRom();
       if (!mcuRom) {
-        setStatus("No MCU ROM loaded — upload an MCU ROM file", "stopped");
+        setStatus("No MCU ROM. Choose an MCU ROM file.", "stopped");
         return false;
       }
       const fw = getFw();
@@ -728,7 +726,7 @@ function createEmulator() {
     setStepButtonsDisabled(false);
     return true;
   } catch (err) {
-    setStatus(`Error: ${err}`, "exited");
+    setStatus(`Failed to start the emulator: ${err}`, "exited");
     console.error("Emulator creation error:", err);
     return false;
   }
@@ -775,7 +773,7 @@ function runLoop() {
   const steps = Number(emulator.total_steps());
   const elapsed = (performance.now() - startTime) / 1000;
   const mhz = (steps / elapsed / 1_000_000).toFixed(2);
-  statsEl.textContent = `${steps.toLocaleString()} cycles | ${elapsed.toFixed(1)}s | ${mhz} MHz effective`;
+  statsEl.textContent = `${steps.toLocaleString()} cycles · ${elapsed.toFixed(1)} s · ${mhz} MHz`;
 
   // The MCU asks the emulator to exit on a fatal ROM/runtime error. It is
   // halted from then on, so stop the run loop and say why instead of
@@ -788,7 +786,7 @@ function runLoop() {
       const hex = "0x" + (exitStatus >>> 0).toString(16).padStart(8, "0");
       const info = lookupError(hex);
       setStatus(
-        `MCU exited with status ${hex}${info ? ` (${info.name})` : ""} — MCU halted`,
+        `MCU halted: exit status ${hex}${info ? ` (${info.name})` : ""}`,
         "exited"
       );
       btnRun.disabled = false;
@@ -806,7 +804,7 @@ function runLoop() {
     running = false;
     const passed = emulator.passed();
     setStatus(
-      passed ? "Exited — PASSED ✓" : "Exited — FAILED ✗",
+      passed ? "Exited: passed" : "Exited: failed",
       passed ? "passed" : "exited"
     );
     btnRun.disabled = true;
@@ -847,7 +845,7 @@ btnRun.addEventListener("click", () => {
     subsystemModeInput.disabled = true;
     ocpLockInput.disabled = true;
     debugIntentInput.disabled = true;
-    setStatus("Paused (post-boot)", "stopped");
+    setStatus("Paused after boot", "stopped");
     btnRun.disabled = false;
     btnStop.disabled = true;
     setStepButtonsDisabled(false);
@@ -856,7 +854,7 @@ btnRun.addEventListener("click", () => {
 
   running = true;
   startTime = performance.now();
-  setStatus("Running...", "running");
+  setStatus("Running", "running");
   btnRun.disabled = true;
   btnStop.disabled = false;
   setStepButtonsDisabled(true);
@@ -931,11 +929,11 @@ function manualStep(n) {
   updateErrorDecoder();
   // Stats
   const steps = Number(emulator.total_steps());
-  statsEl.textContent = `${steps.toLocaleString()} cycles (paused, manual stepping)`;
+  statsEl.textContent = `${steps.toLocaleString()} cycles · stepping manually`;
   if (!isMcu && exited) {
     const passed = emulator.passed();
     setStatus(
-      passed ? "Exited — PASSED ✓" : "Exited — FAILED ✗",
+      passed ? "Exited: passed" : "Exited: failed",
       passed ? "passed" : "exited"
     );
     btnRun.disabled = true;
@@ -964,13 +962,13 @@ btnReset.addEventListener("click", () => {
   logOutput.textContent = "";
   mboxResponse.textContent = "";
   statsEl.textContent = "";
-  fuseRegisters.textContent = "(Start the emulator to see fuse values)";
-  otpMemory.textContent = "(Start the MCU emulator to see OTP memory)";
+  fuseRegisters.textContent = "Start the emulator to read the fuse registers.";
+  otpMemory.textContent = "Start the emulator in subsystem mode to see OTP memory.";
   otpLogOutput.textContent = "";
   otpLogEnable.checked = true;
-  errorDecoder.style.display = "none";
+  errorDecoder.hidden = true;
   errorDecoder.textContent = "";
-  keyvaultDisplay.textContent = "(Start the emulator to see Key Vault contents)";
+  keyvaultDisplay.textContent = "Start the emulator to see the key vault.";
   setStatus("Ready", "");
   btnRun.disabled = false;
   btnStop.disabled = true;
@@ -1008,7 +1006,7 @@ function updateFuseDisplay() {
     }
     fuseRegisters.textContent = text || "(no fuse registers)";
   } catch (e) {
-    fuseRegisters.textContent = "(error reading fuse registers: " + e + ")";
+    fuseRegisters.textContent = "Could not read the fuse registers: " + e;
   }
 }
 
@@ -1065,7 +1063,7 @@ function updateKeyvaultDisplay() {
   try {
     snap = JSON.parse(emulator.get_keyvault());
   } catch (e) {
-    keyvaultDisplay.textContent = "(error reading keyvault: " + e + ")";
+    keyvaultDisplay.textContent = "Could not read the key vault: " + e;
     return;
   }
   let text = "=== KEYS (24 × 64 bytes) ===\n";
@@ -1153,7 +1151,7 @@ function renderOtpMemory() {
     }
     otpMemory.textContent = text || "(empty OTP)";
   } catch (e) {
-    otpMemory.textContent = "(error reading OTP: " + e + ")";
+    otpMemory.textContent = "Could not read OTP memory: " + e;
   }
 }
 

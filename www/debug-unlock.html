@@ -2,216 +2,228 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Caliptra Debug Unlock Calculator</title>
-<style>
-:root { --bg: #1e1e2e; --surface: #2a2a3c; --border: #3a3a4c; --text: #cdd6f4;
-  --muted: #888; --accent: #89b4fa; --green: #a6e3a1; --yellow: #f9e2af; --red: #f38ba8; }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-h1 { font-size: 1.5rem; color: var(--accent); margin-bottom: 4px; }
-.sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 16px; }
-.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-.panel h2 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 10px; }
-.panel h3 { font-size: 0.85rem; color: var(--accent); margin: 12px 0 6px; }
-label { font-size: 0.8rem; color: var(--text); display: block; margin: 4px 0 2px; }
-input, textarea, select { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
-  color: var(--text); padding: 5px 8px; font-family: 'Cascadia Code', 'Fira Code', monospace;
-  font-size: 0.72rem; width: 100%; }
-select { font-size: 0.8rem; width: auto; min-width: 80px; }
-textarea { resize: vertical; min-height: 36px; }
-input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
-.hash { background: #11111b; color: var(--green); border: 1px solid var(--border); border-radius: 4px;
-  padding: 10px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.82rem;
-  word-break: break-all; margin: 6px 0; user-select: all; line-height: 1.6; }
-.cmd-output { background: #11111b; color: var(--yellow); border: 1px solid var(--border); border-radius: 4px;
-  padding: 10px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.72rem;
-  word-break: break-all; margin: 6px 0; user-select: all; line-height: 1.5; max-height: 200px;
-  overflow-y: auto; }
-button { background: var(--accent); color: var(--bg); border: none; border-radius: 4px;
-  padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-right: 6px; }
-button:hover { opacity: 0.85; }
-button.reset { background: var(--border); color: var(--text); }
-button.copy-btn { background: var(--green); font-size: 0.7rem; padding: 3px 8px; }
-button:disabled { opacity: 0.4; cursor: not-allowed; }
-.row { display: flex; gap: 8px; align-items: center; margin: 6px 0; flex-wrap: wrap; }
-a { color: var(--accent); }
-.help { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
-.status { font-size: 0.75rem; padding: 3px 8px; border-radius: 3px; display: inline-block; }
-.status-ok { background: #1a3a1a; color: var(--green); }
-.status-warn { background: #3a3a1a; color: var(--yellow); }
-.status-err { background: #3a1a1a; color: var(--red); }
-.field-group { margin: 8px 0; padding: 8px; background: var(--bg); border-radius: 4px; }
-.divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
-</style>
+<meta name="description" content="Build Caliptra manufacturing and production debug unlock mailbox commands.">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav style="margin-bottom: 16px; font-size: 0.9rem;">
-  <a href="index.html" style="color: var(--accent);">⚙ Emulator</a>
-  &nbsp;|&nbsp;
-  <a href="pk-hash.html" style="color: var(--accent);">🔑 PK Hash Calculator</a>
-  &nbsp;|&nbsp;
-  <a href="debug-unlock.html" style="color: var(--accent); font-weight: 600;">🔓 Debug Unlock</a>
-</nav>
 
-<h1>🔓 Debug Unlock Calculator</h1>
-<p class="sub">Compute debug unlock tokens for the Caliptra WASM emulator. Manufacturing mode uses a shared secret token; production mode uses a cryptographic challenge-response.</p>
+<header class="site-header">
+  <div class="container narrow">
+    <a class="brand" href="index.html">Caliptra <span class="brand-long">Emulator</span></a>
+    <nav class="site-nav" aria-label="Pages">
+      <a href="index.html">Emulator</a>
+      <a href="pk-hash.html">PK hash calculator</a>
+      <a href="debug-unlock.html" aria-current="page">Debug unlock</a>
+    </nav>
+  </div>
+</header>
 
-<!-- ==================== MANUFACTURING DEBUG UNLOCK ==================== -->
-<div class="panel">
-  <h2>Manufacturing Debug Unlock</h2>
-  <p class="help">
-    Send a 32-byte token via the <code>MANUF_DEBUG_UNLOCK_REQ_TOKEN</code> (0x4D445554) mailbox command.
-    The ROM computes SHA-512 of the token and compares against the fuse value.
-  </p>
-
-  <h3>Default Token (Caliptra-only mode)</h3>
-  <p class="help">Used when running with default <code>Fuses</code> (non-subsystem mode).</p>
-  <label>Token (32 bytes hex):</label>
-  <input type="text" id="manuf-token" value="d8922c55792b737f2913f3e5cbe654756252016eaee963a1dd4e753af787f096">
-  <div class="row" style="margin-top: 6px;">
-    <button onclick="computeManufHash()">Compute SHA-512 Hash</button>
-    <button class="reset" onclick="resetManufToken()">Reset to Default</button>
+<div class="container narrow">
+  <div class="page-head">
+    <h1>Debug unlock calculator</h1>
+    <p class="lede">
+      Build debug unlock mailbox commands for the emulator. Manufacturing
+      unlock sends a shared-secret token. Production unlock is a
+      challenge-response signed with ECC P-384 and ML-DSA-87.
+    </p>
+    <p class="lede">
+      To send one, start the emulator with <em>Debug intent</em> on, pick the
+      command in its Mailbox panel, switch the input to Raw hex and paste the
+      payload. The emulator adds the checksum, so use <em>Copy payload</em>;
+      <em>Copy command</em> includes the checksum for use with other tools.
+    </p>
   </div>
 
-  <label>SHA-512 Hash (stored in fuses, 64 bytes):</label>
-  <div id="manuf-hash" class="hash" style="min-height: 30px;"></div>
+  <main class="tool">
 
-  <label>Mailbox Command Bytes (with checksum):</label>
-  <div id="manuf-cmd" class="cmd-output" style="min-height: 30px;"></div>
-  <div class="row">
-    <button class="copy-btn" onclick="copyText('manuf-cmd')">📋 Copy Command</button>
-  </div>
+    <!-- Manufacturing debug unlock -->
+    <section class="card" aria-labelledby="manuf-title">
+      <h2 id="manuf-title">Manufacturing debug unlock</h2>
+      <p class="note">
+        Send a 32-byte token with <code>MANUF_DEBUG_UNLOCK_REQ_TOKEN</code> (0x4D445554).
+        The ROM hashes the token with SHA-512 and compares the result with the fuse value.
+      </p>
 
-  <hr class="divider">
+      <h3>Caliptra-only mode</h3>
+      <p class="help">The token that matches the emulator's default fuses.</p>
+      <div class="field" style="margin-top: 10px">
+        <label for="manuf-token">Token (32 bytes, hex)</label>
+        <input type="text" id="manuf-token" value="d8922c55792b737f2913f3e5cbe654756252016eaee963a1dd4e753af787f096" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="toolbar">
+        <button type="button" class="primary" onclick="computeManufHash()">Compute</button>
+        <button type="button" onclick="resetManufToken()">Reset token</button>
+      </div>
+      <div class="field" style="margin-top: 14px">
+        <span class="label">SHA-512 of the token (the 64-byte fuse value)</span>
+        <div id="manuf-hash" class="hash muted"></div>
+      </div>
+      <div class="field">
+        <span class="label">Mailbox command, with checksum</span>
+        <div id="manuf-cmd" class="console cmd" data-empty="Press Compute to build the command."></div>
+        <div class="toolbar"><button type="button" class="small primary" onclick="copyPayload('manuf-cmd')">Copy payload</button><button type="button" class="small" onclick="copyText('manuf-cmd')">Copy command</button></div>
+      </div>
 
-  <h3>Default Token (Subsystem / MCU mode)</h3>
-  <p class="help">Used with OTP provisioning (<code>DEFAULT_MANUF_DEBUG_UNLOCK_RAW_TOKEN</code> from hw-model).</p>
-  <label>Token (32 bytes hex):</label>
-  <input type="text" id="manuf-token-otp" value="ebefcdab0000000000000000000000000000000000000000000000008a8888f8">
-  <div class="row" style="margin-top: 6px;">
-    <button onclick="computeManufHashOtp()">Compute SHA-512 Hash</button>
-    <button class="reset" onclick="resetManufTokenOtp()">Reset to Default</button>
-  </div>
+      <hr class="divider">
 
-  <label>SHA-512 Hash:</label>
-  <div id="manuf-hash-otp" class="hash" style="min-height: 30px;"></div>
+      <h3>Caliptra + MCU mode</h3>
+      <p class="help">The token that matches the emulator's default OTP contents (<code>DEFAULT_MANUF_DEBUG_UNLOCK_RAW_TOKEN</code> in caliptra-mcu-sw's hardware model).</p>
+      <div class="field" style="margin-top: 10px">
+        <label for="manuf-token-otp">Token (32 bytes, hex)</label>
+        <input type="text" id="manuf-token-otp" value="ebefcdab0000000000000000000000000000000000000000000000008a8888f8" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="toolbar">
+        <button type="button" class="primary" onclick="computeManufHashOtp()">Compute</button>
+        <button type="button" onclick="resetManufTokenOtp()">Reset token</button>
+      </div>
+      <div class="field" style="margin-top: 14px">
+        <span class="label">SHA-512 of the token</span>
+        <div id="manuf-hash-otp" class="hash muted"></div>
+      </div>
+      <div class="field">
+        <span class="label">Mailbox command, with checksum</span>
+        <div id="manuf-cmd-otp" class="console cmd" data-empty="Press Compute to build the command."></div>
+        <div class="toolbar"><button type="button" class="small primary" onclick="copyPayload('manuf-cmd-otp')">Copy payload</button><button type="button" class="small" onclick="copyText('manuf-cmd-otp')">Copy command</button></div>
+      </div>
+    </section>
 
-  <label>Mailbox Command Bytes (with checksum):</label>
-  <div id="manuf-cmd-otp" class="cmd-output" style="min-height: 30px;"></div>
-  <div class="row">
-    <button class="copy-btn" onclick="copyText('manuf-cmd-otp')">📋 Copy Command</button>
-  </div>
-</div>
+    <!-- Production auth debug unlock -->
+    <section class="card" aria-labelledby="prod-title">
+      <h2 id="prod-title">Production debug unlock</h2>
+      <p class="note">
+        A challenge-response in four steps, signed with ECC P-384 and ML-DSA-87.
+        It runs in the emulator's Caliptra + MCU mode. The hash of the two
+        public keys must be in OTP for the unlock level you request: paste it
+        into that level under <em>Fuse overrides → Production debug unlock PK
+        hashes</em> on the emulator page before starting it.
+      </p>
 
-<!-- ==================== PRODUCTION AUTH DEBUG UNLOCK ==================== -->
-<div class="panel">
-  <h2>Production Auth Debug Unlock</h2>
-  <p class="help">
-    Two-step challenge-response flow using ECC P-384 + ML-DSA-87 signatures.
-    The public key hash must be programmed into OTP fuses for the desired unlock level.
-  </p>
+      <h3>1. Keys</h3>
+      <p class="help">Generate both key pairs, or import existing ones as hex.</p>
 
-  <!-- Step 1: Key Setup -->
-  <h3>Step 1: Key Setup</h3>
-  <p class="help">Generate or import key pairs. The PK hash must match OTP fuses for the unlock level.</p>
+      <div class="key-block" style="margin-top: 10px">
+        <div class="card-head" style="margin-bottom: 10px">
+          <span class="label">ECC P-384</span>
+          <span id="ecc-status" class="status status-warn">Not generated</span>
+        </div>
+        <div class="toolbar" style="margin-bottom: 12px">
+          <button type="button" id="btn-ecc-gen" class="primary" onclick="generateEccKeys()">Generate ECC keys</button>
+        </div>
+        <div class="field">
+          <label for="ecc-pub-x">Public key X (48 bytes)</label>
+          <input type="text" id="ecc-pub-x" readonly placeholder="Generate or import a key pair">
+        </div>
+        <div class="field">
+          <label for="ecc-pub-y">Public key Y (48 bytes)</label>
+          <input type="text" id="ecc-pub-y" readonly>
+        </div>
+        <div class="field">
+          <label for="ecc-priv-d">Private key D (48 bytes)</label>
+          <input type="text" id="ecc-priv-d" placeholder="Paste a private key to import it" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="toolbar"><button type="button" onclick="importEccPrivateKey()">Import ECC private key</button></div>
+      </div>
 
-  <div class="field-group">
-    <label><strong>ECC P-384 Key Pair</strong></label>
-    <div class="row">
-      <button id="btn-ecc-gen" onclick="generateEccKeys()">Generate ECC Keys</button>
-      <span id="ecc-status" class="status status-warn">Not generated</span>
-    </div>
-    <label>Public Key X (48 bytes):</label>
-    <input type="text" id="ecc-pub-x" readonly placeholder="Generate or import keys...">
-    <label>Public Key Y (48 bytes):</label>
-    <input type="text" id="ecc-pub-y" readonly placeholder="">
-    <label>Private Key D (48 bytes):</label>
-    <input type="text" id="ecc-priv-d" placeholder="Paste private key hex to import, or generate above">
-    <div class="row" style="margin-top: 4px;">
-      <button onclick="importEccPrivateKey()">Import ECC Private Key</button>
-    </div>
-  </div>
+      <div class="key-block">
+        <div class="card-head" style="margin-bottom: 10px">
+          <span class="label">ML-DSA-87</span>
+          <span class="toolbar">
+            <span id="mldsa-lib-status" class="status status-warn">Loading library…</span>
+            <span id="mldsa-status" class="status status-warn">Not generated</span>
+          </span>
+        </div>
+        <div class="toolbar" style="margin-bottom: 12px">
+          <button type="button" id="btn-mldsa-gen" class="primary" onclick="generateMldsaKeys()" disabled>Generate ML-DSA-87 keys</button>
+        </div>
+        <div class="field">
+          <label for="mldsa-pub">Public key (2592 bytes)</label>
+          <textarea id="mldsa-pub" rows="2" placeholder="Generated, or paste one to import" spellcheck="false"></textarea>
+        </div>
+        <div class="field">
+          <label for="mldsa-sec">Secret key (4896 bytes)</label>
+          <textarea id="mldsa-sec" rows="2" placeholder="Paste a secret key to import it" spellcheck="false"></textarea>
+        </div>
+        <div class="toolbar"><button type="button" onclick="importMldsaKeys()">Import ML-DSA-87 keys</button></div>
+      </div>
 
-  <div class="field-group">
-    <label><strong>ML-DSA-87 Key Pair</strong> <span id="mldsa-lib-status" class="status status-warn">Loading library...</span></label>
-    <div class="row">
-      <button id="btn-mldsa-gen" onclick="generateMldsaKeys()" disabled>Generate MLDSA Keys</button>
-      <span id="mldsa-status" class="status status-warn">Not generated</span>
-    </div>
-    <label>Public Key (2592 bytes):</label>
-    <textarea id="mldsa-pub" rows="2" readonly placeholder="Generate keys or paste below..."></textarea>
-    <label>Secret Key (4896 bytes) — paste to import:</label>
-    <textarea id="mldsa-sec" rows="2" placeholder="Paste secret key hex to import, or generate above"></textarea>
-    <div class="row" style="margin-top: 4px;">
-      <button onclick="importMldsaKeys()">Import MLDSA Keys</button>
-    </div>
-  </div>
+      <div class="field">
+        <span class="label">Public key hash</span>
+        <span class="hint">SHA-384 of the ECC public key followed by the MLDSA public key, both in hardware format. Program this 48-byte value into OTP for the unlock level.</span>
+        <div id="pk-hash-output" class="hash">Generate or import both key pairs first.</div>
+      </div>
 
-  <div class="field-group">
-    <label><strong>Public Key Hash</strong> (SHA-384 of ECC pub key [hw format] || MLDSA pub key [hw format])</label>
-    <p class="help">Program this 48-byte hash into OTP for the desired unlock level.</p>
-    <div id="pk-hash-output" class="hash" style="min-height: 24px;">Generate both key pairs first</div>
-  </div>
+      <hr class="divider">
 
-  <hr class="divider">
+      <h3>2. Request</h3>
+      <p class="help">Send <code>PRODUCTION_AUTH_DEBUG_UNLOCK_REQ</code> (0x50445552) to get a challenge.</p>
+      <div class="toolbar" style="margin: 10px 0 14px">
+        <label class="label" for="unlock-level">Unlock level</label>
+        <select id="unlock-level" style="width: auto">
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+          <option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+        </select>
+        <button type="button" class="primary" onclick="generateRequest()">Build request</button>
+      </div>
+      <div class="field">
+        <span class="label">Mailbox command</span>
+        <div id="prod-req-cmd" class="console cmd" data-empty="Press Build request."></div>
+        <div class="toolbar"><button type="button" class="small primary" onclick="copyPayload('prod-req-cmd')">Copy payload</button><button type="button" class="small" onclick="copyText('prod-req-cmd')">Copy command</button></div>
+      </div>
 
-  <!-- Step 2: Generate Request -->
-  <h3>Step 2: Send Debug Unlock Request</h3>
-  <p class="help">Send <code>PRODUCTION_AUTH_DEBUG_UNLOCK_REQ</code> (0x50445552) to get a challenge.</p>
-  <div class="row">
-    <label style="margin: 0;">Unlock Level (1–8):</label>
-    <select id="unlock-level">
-      <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
-      <option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
-    </select>
-    <button onclick="generateRequest()">Generate Request Command</button>
-  </div>
-  <label>Mailbox Command Bytes:</label>
-  <div id="prod-req-cmd" class="cmd-output" style="min-height: 24px;"></div>
-  <div class="row">
-    <button class="copy-btn" onclick="copyText('prod-req-cmd')">📋 Copy</button>
-  </div>
+      <hr class="divider">
 
-  <hr class="divider">
+      <h3>3. Challenge</h3>
+      <p class="help">Paste the emulator's response to <code>PRODUCTION_AUTH_DEBUG_UNLOCK_REQ</code>.</p>
+      <div class="field" style="margin-top: 10px">
+        <label for="challenge-hex">Response (88 bytes, hex)</label>
+        <textarea id="challenge-hex" rows="3" placeholder="Paste the hex response from the Mailbox panel" spellcheck="false"></textarea>
+      </div>
+      <div class="toolbar">
+        <button type="button" class="primary" onclick="parseChallenge()">Parse</button>
+        <span id="challenge-status" class="status"></span>
+      </div>
+      <div class="key-block parsed" id="challenge-parsed" hidden>
+        <div class="field-grid">
+          <div class="field">
+            <label for="challenge-fips">FIPS status</label>
+            <input type="text" id="challenge-fips" readonly>
+          </div>
+          <div class="field">
+            <label for="challenge-length">Length</label>
+            <input type="text" id="challenge-length" readonly>
+          </div>
+        </div>
+        <div class="field">
+          <label for="challenge-uid">Unique device identifier (32 bytes)</label>
+          <input type="text" id="challenge-uid" readonly>
+        </div>
+        <div class="field">
+          <label for="challenge-nonce">Challenge nonce (48 bytes)</label>
+          <input type="text" id="challenge-nonce" readonly>
+        </div>
+      </div>
 
-  <!-- Step 3: Parse Challenge -->
-  <h3>Step 3: Parse Challenge Response</h3>
-  <p class="help">Paste the hex response from <code>PRODUCTION_AUTH_DEBUG_UNLOCK_REQ</code> command.</p>
-  <label>Challenge Response Hex (88 bytes):</label>
-  <textarea id="challenge-hex" rows="3" placeholder="Paste the hex response from the emulator mailbox..."></textarea>
-  <div class="row" style="margin-top: 4px;">
-    <button onclick="parseChallenge()">Parse Challenge</button>
-  </div>
-  <div class="field-group" id="challenge-parsed" style="display: none;">
-    <label>FIPS Status:</label>
-    <input type="text" id="challenge-fips" readonly>
-    <label>Length (DWORDs):</label>
-    <input type="text" id="challenge-length" readonly>
-    <label>Unique Device Identifier (32 bytes):</label>
-    <input type="text" id="challenge-uid" readonly>
-    <label>Challenge Nonce (48 bytes):</label>
-    <input type="text" id="challenge-nonce" readonly>
-  </div>
+      <hr class="divider">
 
-  <hr class="divider">
-
-  <!-- Step 4: Sign & Build Token -->
-  <h3>Step 4: Sign &amp; Generate Token</h3>
-  <p class="help">
-    Signs SHA-384(uid || level || reserved || challenge) with ECC, and
-    SHA-512(uid || level || reserved || challenge) with MLDSA.
-    Assembles the complete <code>PRODUCTION_AUTH_DEBUG_UNLOCK_TOKEN</code> (0x50445554) mailbox command.
-  </p>
-  <div class="row">
-    <button id="btn-sign" onclick="signAndBuildToken()" disabled>Sign &amp; Generate Token</button>
-    <span id="sign-status"></span>
-  </div>
-  <label>Token Command Bytes (<span id="token-size">7504</span> bytes):</label>
-  <div id="prod-token-cmd" class="cmd-output" style="min-height: 24px; max-height: 300px;"></div>
-  <div class="row">
-    <button class="copy-btn" onclick="copyText('prod-token-cmd')">📋 Copy Token</button>
-  </div>
+      <h3>4. Token</h3>
+      <p class="help">
+        Signs SHA-384(uid || level || reserved || challenge) with ECC and
+        SHA-512(uid || level || reserved || challenge) with MLDSA, then builds the
+        <code>PRODUCTION_AUTH_DEBUG_UNLOCK_TOKEN</code> (0x50445554) command.
+      </p>
+      <div class="toolbar" style="margin: 10px 0 14px">
+        <button type="button" id="btn-sign" class="primary" onclick="signAndBuildToken()" disabled>Sign and build token</button>
+        <span id="sign-status" class="status"></span>
+      </div>
+      <div class="field">
+        <span class="label">Token command (<span id="token-size">7504</span> bytes)</span>
+        <div id="prod-token-cmd" class="console cmd token" data-empty="Sign to build the token command."></div>
+        <div class="toolbar"><button type="button" class="small primary" onclick="copyPayload('prod-token-cmd')">Copy payload</button><button type="button" class="small" onclick="copyText('prod-token-cmd')">Copy command</button></div>
+      </div>
+    </section>
+  </main>
 </div>
 
 <script type="module">
@@ -274,6 +286,13 @@ function copyText(elementId) {
   navigator.clipboard.writeText(el.textContent);
 }
 
+// The emulator's Mailbox panel computes the checksum itself, so copy only
+// the bytes after the 4-byte checksum.
+function copyPayload(elementId) {
+  const el = document.getElementById(elementId);
+  navigator.clipboard.writeText(el.textContent.slice(8));
+}
+
 // ==================== State ====================
 
 let eccKeyPair = null;    // { privateKey: CryptoKey, publicKey: CryptoKey }
@@ -293,7 +312,7 @@ const CMD_MANUF_DEBUG_UNLOCK = 0x4D445554;
 async function computeManufHashGeneric(tokenInputId, hashOutputId, cmdOutputId) {
   const hex = document.getElementById(tokenInputId).value.replace(/\s+/g, '');
   if (hex.length !== 64) {
-    document.getElementById(hashOutputId).textContent = 'Error: token must be exactly 32 bytes (64 hex chars)';
+    document.getElementById(hashOutputId).textContent = 'The token must be exactly 32 bytes (64 hex characters).';
     return;
   }
   const tokenBytes = hexToBytes(hex);
@@ -338,7 +357,7 @@ async function generateEccKeys() {
     // Decode base64url d coordinate
     eccPrivRaw = base64urlToBytes(jwk.d);
     document.getElementById('ecc-priv-d').value = bytesToHex(eccPrivRaw);
-    document.getElementById('ecc-status').textContent = 'Generated ✓';
+    document.getElementById('ecc-status').textContent = 'Generated';
     document.getElementById('ecc-status').className = 'status status-ok';
     updateSignButton();
     computePkHash();
@@ -351,7 +370,7 @@ async function generateEccKeys() {
 async function importEccPrivateKey() {
   const dHex = document.getElementById('ecc-priv-d').value.replace(/\s+/g, '');
   if (dHex.length !== 96) {
-    document.getElementById('ecc-status').textContent = 'Private key must be 48 bytes (96 hex)';
+    document.getElementById('ecc-status').textContent = 'The private key must be 48 bytes (96 hex characters).';
     document.getElementById('ecc-status').className = 'status status-err';
     return;
   }
@@ -390,12 +409,12 @@ async function importEccPrivateKey() {
       true, ["verify"]
     );
     eccKeyPair = { privateKey, publicKey };
-    document.getElementById('ecc-status').textContent = 'Imported ✓';
+    document.getElementById('ecc-status').textContent = 'Imported';
     document.getElementById('ecc-status').className = 'status status-ok';
     updateSignButton();
     computePkHash();
   } catch (e) {
-    document.getElementById('ecc-status').textContent = 'Import error: ' + e.message;
+    document.getElementById('ecc-status').textContent = 'Import failed: ' + e.message;
     document.getElementById('ecc-status').className = 'status status-err';
   }
 }
@@ -442,19 +461,19 @@ async function loadMldsaLib() {
   try {
     const mod = await import('https://esm.sh/@noble/post-quantum@0.2.1/ml-dsa');
     mldsaLib = mod.ml_dsa87;
-    document.getElementById('mldsa-lib-status').textContent = 'Library loaded ✓';
+    document.getElementById('mldsa-lib-status').textContent = 'Library loaded';
     document.getElementById('mldsa-lib-status').className = 'status status-ok';
     document.getElementById('btn-mldsa-gen').disabled = false;
   } catch (e) {
     console.warn('Failed to load noble-post-quantum:', e);
-    document.getElementById('mldsa-lib-status').textContent = 'CDN unavailable — paste keys manually';
+    document.getElementById('mldsa-lib-status').textContent = 'Library unavailable. Paste keys to import them.';
     document.getElementById('mldsa-lib-status').className = 'status status-warn';
   }
 }
 
 async function generateMldsaKeys() {
   if (!mldsaLib) return;
-  document.getElementById('mldsa-status').textContent = 'Generating (may take a few seconds)...';
+  document.getElementById('mldsa-status').textContent = 'Generating; this takes a few seconds…';
   document.getElementById('mldsa-status').className = 'status status-warn';
   // Use setTimeout to allow UI update
   await new Promise(r => setTimeout(r, 50));
@@ -464,7 +483,7 @@ async function generateMldsaKeys() {
     mldsaSecKey = new Uint8Array(keys.secretKey);
     document.getElementById('mldsa-pub').value = bytesToHex(mldsaPubKey);
     document.getElementById('mldsa-sec').value = bytesToHex(mldsaSecKey);
-    document.getElementById('mldsa-status').textContent = `Generated ✓ (pub: ${mldsaPubKey.length}B, sec: ${mldsaSecKey.length}B)`;
+    document.getElementById('mldsa-status').textContent = `Generated (public ${mldsaPubKey.length} B, secret ${mldsaSecKey.length} B)`;
     document.getElementById('mldsa-status').className = 'status status-ok';
     updateSignButton();
     computePkHash();
@@ -478,18 +497,18 @@ function importMldsaKeys() {
   const pubHex = document.getElementById('mldsa-pub').value.replace(/\s+/g, '');
   const secHex = document.getElementById('mldsa-sec').value.replace(/\s+/g, '');
   if (pubHex.length !== 2592 * 2) {
-    document.getElementById('mldsa-status').textContent = `Public key must be 2592 bytes (got ${pubHex.length/2})`;
+    document.getElementById('mldsa-status').textContent = `The public key must be 2592 bytes; got ${pubHex.length / 2}.`;
     document.getElementById('mldsa-status').className = 'status status-err';
     return;
   }
   if (secHex.length !== 4896 * 2) {
-    document.getElementById('mldsa-status').textContent = `Secret key must be 4896 bytes (got ${secHex.length/2})`;
+    document.getElementById('mldsa-status').textContent = `The secret key must be 4896 bytes; got ${secHex.length / 2}.`;
     document.getElementById('mldsa-status').className = 'status status-err';
     return;
   }
   mldsaPubKey = hexToBytes(pubHex);
   mldsaSecKey = hexToBytes(secHex);
-  document.getElementById('mldsa-status').textContent = 'Imported ✓';
+  document.getElementById('mldsa-status').textContent = 'Imported';
   document.getElementById('mldsa-status').className = 'status status-ok';
   updateSignButton();
   computePkHash();
@@ -502,7 +521,7 @@ window.importMldsaKeys = importMldsaKeys;
 
 async function computePkHash() {
   if (!eccPubRaw || !mldsaPubKey) {
-    document.getElementById('pk-hash-output').textContent = 'Generate both key pairs first';
+    document.getElementById('pk-hash-output').textContent = 'Generate or import both key pairs first.';
     return;
   }
   // ECC pub key in hardware format: u8_to_u32_be then serialize as LE u32
@@ -547,9 +566,12 @@ window.generateRequest = generateRequest;
 function parseChallenge() {
   const hex = document.getElementById('challenge-hex').value.replace(/\s+/g, '');
   if (hex.length < 176) { // 88 bytes minimum
-    alert('Challenge response must be at least 88 bytes (176 hex chars). Got ' + (hex.length/2) + ' bytes.');
+    const st = document.getElementById('challenge-status');
+    st.textContent = `Need at least 88 bytes (176 hex characters); got ${hex.length / 2}.`;
+    st.className = 'status status-err';
     return;
   }
+  document.getElementById('challenge-status').textContent = '';
   const bytes = hexToBytes(hex);
   const fips = readU32LE(bytes, 0);
   const length = readU32LE(bytes, 4);
@@ -562,7 +584,7 @@ function parseChallenge() {
   document.getElementById('challenge-length').value = length + ' (' + (length * 4) + ' bytes)';
   document.getElementById('challenge-uid').value = bytesToHex(uid);
   document.getElementById('challenge-nonce').value = bytesToHex(challenge);
-  document.getElementById('challenge-parsed').style.display = '';
+  document.getElementById('challenge-parsed').hidden = false;
   updateSignButton();
 }
 
@@ -578,7 +600,7 @@ function updateSignButton() {
     if (!eccKeyPair) missing.push('ECC keys');
     if (!mldsaPubKey || !mldsaSecKey) missing.push('MLDSA keys');
     if (!challengeData) missing.push('challenge');
-    document.getElementById('sign-status').textContent = 'Need: ' + missing.join(', ');
+    document.getElementById('sign-status').textContent = 'Still needed: ' + missing.join(', ');
     document.getElementById('sign-status').className = 'status status-warn';
   } else {
     document.getElementById('sign-status').textContent = 'Ready to sign';
@@ -599,7 +621,7 @@ async function signAndBuildToken() {
   message.set(reserved, 33);
   message.set(challengeData.challenge, 36);
 
-  document.getElementById('sign-status').textContent = 'Signing...';
+  document.getElementById('sign-status').textContent = 'Signing…';
   document.getElementById('sign-status').className = 'status status-warn';
 
   try {
@@ -675,7 +697,7 @@ async function signAndBuildToken() {
 
     document.getElementById('token-size').textContent = cmd.length;
     document.getElementById('prod-token-cmd').textContent = bytesToHex(cmd);
-    document.getElementById('sign-status').textContent = `Token generated ✓ (${cmd.length} bytes)`;
+    document.getElementById('sign-status').textContent = `Token built (${cmd.length} bytes)`;
     document.getElementById('sign-status').className = 'status status-ok';
   } catch (e) {
     document.getElementById('sign-status').textContent = 'Error: ' + e.message;
@@ -686,6 +708,7 @@ async function signAndBuildToken() {
 
 window.signAndBuildToken = signAndBuildToken;
 window.copyText = copyText;
+window.copyPayload = copyPayload;
 
 // ==================== Init ====================
 

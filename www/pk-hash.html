@@ -2,112 +2,117 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Caliptra PK Hash Calculator</title>
-<style>
-:root { --bg: #1e1e2e; --surface: #2a2a3c; --border: #3a3a4c; --text: #cdd6f4;
-  --muted: #888; --accent: #89b4fa; --green: #a6e3a1; --yellow: #f9e2af; }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-h1 { font-size: 1.5rem; color: var(--accent); margin-bottom: 4px; }
-.sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 16px; }
-.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-.panel h2 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 10px; }
-label { font-size: 0.8rem; color: var(--text); display: block; margin: 4px 0 2px; }
-input, textarea { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
-  color: var(--text); padding: 5px 8px; font-family: 'Cascadia Code', 'Fira Code', monospace;
-  font-size: 0.72rem; width: 100%; }
-textarea { resize: vertical; min-height: 36px; }
-input:focus, textarea:focus { outline: none; border-color: var(--accent); }
-.hash { background: #11111b; color: var(--green); border: 1px solid var(--border); border-radius: 4px;
-  padding: 10px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.82rem;
-  word-break: break-all; margin: 6px 0; user-select: all; line-height: 1.6; }
-button { background: var(--accent); color: var(--bg); border: none; border-radius: 4px;
-  padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-right: 6px; }
-button:hover { opacity: 0.85; }
-button.reset { background: var(--border); color: var(--text); }
-details { margin: 4px 0; }
-details summary { cursor: pointer; font-size: 0.8rem; color: var(--muted); padding: 4px 0; }
-details[open] summary { color: var(--accent); }
-.row { display: flex; gap: 8px; align-items: center; margin: 6px 0; flex-wrap: wrap; }
-a { color: var(--accent); }
-.help { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
-.match { font-size: 0.8rem; }
-.per-hash { font-size: 0.68rem; color: var(--muted); font-family: 'Cascadia Code', 'Fira Code', monospace;
-  word-break: break-all; margin: 2px 0 6px 0; }
-</style>
+<meta name="description" content="Compute Caliptra vendor and owner public key hashes for fuse programming.">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav style="margin-bottom: 16px; font-size: 0.9rem;">
-  <a href="index.html" style="color: var(--accent);">⚙ Emulator</a>
-  &nbsp;|&nbsp;
-  <a href="pk-hash.html" style="color: var(--accent); font-weight: 600;">🔑 PK Hash Calculator</a>
-  &nbsp;|&nbsp;
-  <a href="debug-unlock.html" style="color: var(--accent);">🔓 Debug Unlock</a>
-</nav>
 
-<h1>&#x1f511; Caliptra PK Hash Calculator</h1>
-<p class="sub">Compute vendor and owner PK hashes for Caliptra fuse programming.</p>
+<header class="site-header">
+  <div class="container narrow">
+    <a class="brand" href="index.html">Caliptra <span class="brand-long">Emulator</span></a>
+    <nav class="site-nav" aria-label="Pages">
+      <a href="index.html">Emulator</a>
+      <a href="pk-hash.html" aria-current="page">PK hash calculator</a>
+      <a href="debug-unlock.html">Debug unlock</a>
+    </nav>
+  </div>
+</header>
 
-<div class="panel">
-<h2>About</h2>
-<p class="help">Caliptra uses SHA-384 hashes of public key structures to validate firmware signatures.
-These hashes are programmed into fuses/OTP during manufacturing.</p>
-<p class="help" style="margin-top:6px"><b>Vendor PK hash</b> uses two-level hashing:
-each individual key (ECC, MLDSA) is SHA-384 hashed, then those per-key digests are packed into an
-<code>ImageVendorPubKeyInfo</code> descriptor (1736 bytes: 4 + 4&times;48 + 4 + 32&times;48) which is itself
-SHA-384 hashed. LMS keys are <em>not</em> included in the hash &mdash; only ECC and MLDSA per-key hashes
-populate the descriptor.</p>
-<p class="help" style="margin-top:6px"><b>Owner PK hash</b> is a single-level hash:
-the owner ECC key (96 bytes) and MLDSA key (2592 bytes) are concatenated into <code>ImageOwnerPubKeys</code>
-(2688 bytes) and SHA-384 hashed directly.</p>
-<div class="row" style="margin-top:10px">
-  <button id="btn-reset" class="reset">&#x21bb; Load Test Key Defaults</button>
-  <span class="help">Pre-fills with caliptra-image-fake-keys test values</span>
-</div>
-</div>
+<div class="container narrow">
+  <div class="page-head">
+    <h1>PK hash calculator</h1>
+    <p class="lede">
+      Caliptra validates firmware signatures against SHA-384 hashes of the
+      vendor and owner public keys, which are programmed into fuses or OTP
+      during manufacturing. Enter the keys to compute both hashes.
+    </p>
+  </div>
 
-<div class="panel">
-<h2>Vendor PK Hash</h2>
-<div class="hash" id="v-hash">Computing...</div>
-<div class="row">
-  <button id="btn-copy-v">&#x1f4cb; Copy Hex</button>
-  <button id="btn-copy-vw">&#x1f4cb; Copy Words</button>
-  <span class="match" id="v-match"></span>
-</div>
-<div id="v-words" class="help" style="margin: 4px 0; font-family: 'Cascadia Code', monospace; font-size: 0.75rem;"></div>
+  <main class="tool">
+    <section class="card" aria-labelledby="about-title">
+      <div class="card-head">
+        <h2 id="about-title">Hash construction</h2>
+        <button type="button" id="btn-reset" title="Fill every key with the caliptra-sw test keys">Load test keys</button>
+      </div>
+      <p class="help">
+        <strong>Vendor PK hash</strong> is two levels deep. Each vendor ECC and
+        MLDSA key is hashed with SHA-384, the per-key digests are packed into an
+        <code>ImageVendorPubKeyInfo</code> descriptor, and that descriptor is
+        hashed with SHA-384. The descriptor is 1736 bytes: a 4-byte header
+        (version, key type, count) and 4 ECC digest slots of 48 bytes, then a
+        4-byte header and 32 PQC digest slots of 48 bytes. The four MLDSA
+        digests fill the first PQC slots and the rest stay zero. LMS keys are
+        not included.
+      </p>
+      <p class="help">
+        <strong>Owner PK hash</strong> is one level. The owner ECC key (96 bytes)
+        and MLDSA key (2592 bytes) are concatenated into
+        <code>ImageOwnerPubKeys</code> (2688 bytes), which is hashed with SHA-384.
+      </p>
+      <p class="help">
+        <em>Load test keys</em> fills every field with the test keys from
+        caliptra-sw (<code>caliptra-image-fake-keys</code>). The page loads with
+        them filled in.
+      </p>
+    </section>
 
-<details>
-  <summary>Per-key SHA-384 hashes (intermediate)</summary>
-  <div id="per-key-hashes"></div>
-</details>
+    <section class="card" aria-labelledby="vendor-title">
+      <div class="card-head">
+        <h2 id="vendor-title">Vendor PK hash</h2>
+        <span class="match" id="v-match"></span>
+      </div>
+      <div class="hash" id="v-hash" aria-live="polite">Computing…</div>
+      <div class="toolbar">
+        <button type="button" id="btn-copy-v" class="small">Copy hex</button>
+        <button type="button" id="btn-copy-vw" class="small">Copy as words</button>
+      </div>
+      <div class="hint" style="margin-top: 10px">As big-endian 32-bit words, the Caliptra fuse format:</div>
+      <div class="words" id="v-words" style="margin-top: 2px"></div>
 
-<details open><summary>Vendor ECC Keys (4 &times; 96 bytes)</summary>
-<div id="v-ecc-section"></div>
-</details>
+      <details class="sub">
+        <summary>Per-key SHA-384 digests</summary>
+        <div id="per-key-hashes"></div>
+      </details>
+      <details class="sub" open>
+        <summary>Vendor ECC keys (4 &times; 96 bytes)</summary>
+        <div id="v-ecc-section"></div>
+      </details>
+      <details class="sub">
+        <summary>Vendor MLDSA keys (4 &times; 2592 bytes)</summary>
+        <div id="v-mldsa-section"></div>
+      </details>
+    </section>
 
-<details><summary>Vendor MLDSA Keys (4 &times; 2592 bytes)</summary>
-<div id="v-mldsa-section"></div>
-</details>
-</div>
+    <section class="card" aria-labelledby="owner-title">
+      <div class="card-head">
+        <h2 id="owner-title">Owner PK hash</h2>
+        <span class="match" id="o-match"></span>
+      </div>
+      <div class="hash" id="o-hash" aria-live="polite">Computing…</div>
+      <div class="toolbar">
+        <button type="button" id="btn-copy-o" class="small">Copy hex</button>
+        <button type="button" id="btn-copy-ow" class="small">Copy as words</button>
+      </div>
+      <div class="hint" style="margin-top: 10px">As big-endian 32-bit words, the Caliptra fuse format:</div>
+      <div class="words" id="o-words" style="margin-top: 2px"></div>
 
-<div class="panel">
-<h2>Owner PK Hash</h2>
-<div class="hash" id="o-hash">Computing...</div>
-<div class="row">
-  <button id="btn-copy-o">&#x1f4cb; Copy Hex</button>
-  <button id="btn-copy-ow">&#x1f4cb; Copy Words</button>
-  <span class="match" id="o-match"></span>
-</div>
-<div id="o-words" class="help" style="margin: 4px 0; font-family: 'Cascadia Code', monospace; font-size: 0.75rem;"></div>
-
-<details open><summary>Owner ECC Key (96 bytes)</summary>
-<label>X (48 bytes):</label><input id="oex" class="of" spellcheck="false">
-<label>Y (48 bytes):</label><input id="oey" class="of" spellcheck="false">
-</details>
-<details><summary>Owner MLDSA Key (2592 bytes)</summary>
-<textarea id="om" class="of" rows="3" spellcheck="false"></textarea>
-</details>
+      <details class="sub" open>
+        <summary>Owner ECC key (96 bytes)</summary>
+        <div class="key-block">
+          <div class="field"><label for="oex">X (48 bytes)</label><input type="text" id="oex" class="of" spellcheck="false" autocomplete="off"></div>
+          <div class="field"><label for="oey">Y (48 bytes)</label><input type="text" id="oey" class="of" spellcheck="false" autocomplete="off"></div>
+        </div>
+      </details>
+      <details class="sub">
+        <summary>Owner MLDSA key (2592 bytes)</summary>
+        <div class="key-block">
+          <div class="field"><label for="om">MLDSA public key</label><textarea id="om" class="of" rows="3" spellcheck="false"></textarea></div>
+        </div>
+      </details>
+    </section>
+  </main>
 </div>
 
 <script>
@@ -176,18 +181,17 @@ function buildUI() {
   const eccSec = document.getElementById("v-ecc-section");
   for (let i = 0; i < 4; i++) {
     eccSec.innerHTML += `
-      <div style="margin-bottom:8px; border-left: 2px solid var(--border); padding-left: 10px;">
-        <div style="font-size:0.78rem; color:var(--yellow); margin-bottom:4px;">ECC Key ${i} (96 bytes)</div>
-        <label>X (48 bytes):</label><input id="ve${i}x" class="vf" spellcheck="false">
-        <label>Y (48 bytes):</label><input id="ve${i}y" class="vf" spellcheck="false">
+      <div class="key-block">
+        <span class="label">ECC key ${i}</span>
+        <div class="field"><label for="ve${i}x">X (48 bytes)</label><input type="text" id="ve${i}x" class="vf" spellcheck="false" autocomplete="off"></div>
+        <div class="field"><label for="ve${i}y">Y (48 bytes)</label><input type="text" id="ve${i}y" class="vf" spellcheck="false" autocomplete="off"></div>
       </div>`;
   }
   const mldsaSec = document.getElementById("v-mldsa-section");
   for (let i = 0; i < 4; i++) {
     mldsaSec.innerHTML += `
-      <div style="margin-bottom:8px; border-left: 2px solid var(--border); padding-left: 10px;">
-        <div style="font-size:0.78rem; color:var(--yellow); margin-bottom:4px;">MLDSA Key ${i} (2592 bytes)</div>
-        <textarea id="vm${i}" class="vf" rows="3" spellcheck="false"></textarea>
+      <div class="key-block">
+        <div class="field"><label for="vm${i}">MLDSA key ${i} (2592 bytes)</label><textarea id="vm${i}" class="vf" rows="3" spellcheck="false"></textarea></div>
       </div>`;
   }
 }
@@ -217,7 +221,7 @@ async function computeVendor() {
   const phDiv = document.getElementById("per-key-hashes");
   let phHtml = "";
   for (let i = 0; i < 4; i++)
-    phHtml += `<div class="per-hash">ECC ${i}: ${bytesToHex(eccHashes[i])}</div>`;
+    phHtml += `<div class="per-hash">ECC ${i}:   ${bytesToHex(eccHashes[i])}</div>`;
   for (let i = 0; i < 4; i++)
     phHtml += `<div class="per-hash">MLDSA ${i}: ${bytesToHex(mldsaHashes[i])}</div>`;
   phDiv.innerHTML = phHtml;
@@ -260,18 +264,18 @@ async function update() {
   const vhex = fmtHash(vh), ohex = fmtHash(oh);
   document.getElementById("v-hash").textContent = vhex;
   document.getElementById("o-hash").textContent = ohex;
-  document.getElementById("v-words").textContent = "Words: " + fmtWords(vh);
-  document.getElementById("o-words").textContent = "Words: " + fmtWords(oh);
+  document.getElementById("v-words").textContent = fmtWords(vh);
+  document.getElementById("o-words").textContent = fmtWords(oh);
   try {
     const r = await fetch("defaults.json");
     if (r.ok) {
       const d = await r.json();
       const vm = vhex === d.vendor_pk_hash, om = ohex === d.owner_pk_hash;
       const vel = document.getElementById("v-match"), oel = document.getElementById("o-match");
-      vel.textContent = vm ? "\u2713 Matches default FW" : "\u26a0 Does not match default FW";
-      vel.style.color = vm ? "var(--green)" : "var(--yellow)";
-      oel.textContent = om ? "\u2713 Matches default FW" : "\u26a0 Does not match default FW";
-      oel.style.color = om ? "var(--green)" : "var(--yellow)";
+      vel.textContent = vm ? "Matches the default firmware" : "Differs from the default firmware";
+      vel.className = "status " + (vm ? "status-ok" : "status-warn");
+      oel.textContent = om ? "Matches the default firmware" : "Differs from the default firmware";
+      oel.className = "status " + (om ? "status-ok" : "status-warn");
     }
   } catch(e) {}
 }
@@ -297,11 +301,11 @@ document.getElementById("btn-reset").onclick = loadDefaults;
 document.getElementById("btn-copy-v").onclick = () =>
   navigator.clipboard.writeText(document.getElementById("v-hash").textContent);
 document.getElementById("btn-copy-vw").onclick = () =>
-  navigator.clipboard.writeText(document.getElementById("v-words").textContent.replace("Words: ", ""));
+  navigator.clipboard.writeText(document.getElementById("v-words").textContent);
 document.getElementById("btn-copy-o").onclick = () =>
   navigator.clipboard.writeText(document.getElementById("o-hash").textContent);
 document.getElementById("btn-copy-ow").onclick = () =>
-  navigator.clipboard.writeText(document.getElementById("o-words").textContent.replace("Words: ", ""));
+  navigator.clipboard.writeText(document.getElementById("o-words").textContent);
 document.querySelectorAll(".vf").forEach(el => el.addEventListener("input", scheduleUpdate));
 document.querySelectorAll(".of").forEach(el => el.addEventListener("input", scheduleUpdate));
 loadDefaults();
