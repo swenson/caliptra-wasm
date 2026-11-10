@@ -25,8 +25,8 @@ fn parse_hex(s: &str) -> Result<Vec<u8>, String> {
     }
     let mut bytes = Vec::with_capacity(cleaned.len() / 2);
     for i in (0..cleaned.len()).step_by(2) {
-        let byte = u8::from_str_radix(&cleaned[i..i + 2], 16)
-            .map_err(|e| format!("invalid hex: {e}"))?;
+        let byte =
+            u8::from_str_radix(&cleaned[i..i + 2], 16).map_err(|e| format!("invalid hex: {e}"))?;
         bytes.push(byte);
     }
     Ok(bytes)
@@ -112,9 +112,8 @@ impl FuseConfig {
                 ));
             }
             for (i, chunk) in bytes.chunks(4).enumerate() {
-                fuses.idevid_cert_attr[i] = u32::from_be_bytes([
-                    chunk[0], chunk[1], chunk[2], chunk[3],
-                ]);
+                fuses.idevid_cert_attr[i] =
+                    u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
             }
         }
         if let Some(s) = &self.idevid_manuf_hsm_id {
@@ -126,9 +125,8 @@ impl FuseConfig {
                 ));
             }
             for (i, chunk) in bytes.chunks(4).enumerate() {
-                fuses.idevid_manuf_hsm_id[i] = u32::from_be_bytes([
-                    chunk[0], chunk[1], chunk[2], chunk[3],
-                ]);
+                fuses.idevid_manuf_hsm_id[i] =
+                    u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
             }
         }
         Ok(())
@@ -176,8 +174,7 @@ impl FuseConfig {
             otp[SW_MANUF_OFF + 104..SW_MANUF_OFF + 120].copy_from_slice(&bytes);
         }
         if let Some(v) = self.soc_stepping_id {
-            otp[SW_MANUF_OFF + 120..SW_MANUF_OFF + 124]
-                .copy_from_slice(&(v as u32).to_le_bytes());
+            otp[SW_MANUF_OFF + 120..SW_MANUF_OFF + 124].copy_from_slice(&(v as u32).to_le_bytes());
         }
         if let Some(pks) = &self.prod_debug_unlock_pks {
             for (i, pk_hex) in pks.iter().take(8).enumerate() {
@@ -287,10 +284,8 @@ mod tests {
 
     #[test]
     fn test_apply_to_otp_svn() {
-        let cfg = FuseConfig::from_json(
-            r#"{"soc_manifest_max_svn":64,"fw_svn":[1,0,0,0]}"#,
-        )
-        .unwrap();
+        let cfg =
+            FuseConfig::from_json(r#"{"soc_manifest_max_svn":64,"fw_svn":[1,0,0,0]}"#).unwrap();
         let mut otp = vec![0u8; 4096];
         cfg.apply_to_otp(&mut otp).unwrap();
         // soc_manifest_max_svn at SVN_OFF + 36
@@ -301,10 +296,9 @@ mod tests {
 
     #[test]
     fn test_apply_to_otp_vendor_revocations() {
-        let cfg = FuseConfig::from_json(
-            r#"{"fuse_lms_revocation":15,"fuse_mldsa_revocation":255}"#,
-        )
-        .unwrap();
+        let cfg =
+            FuseConfig::from_json(r#"{"fuse_lms_revocation":15,"fuse_mldsa_revocation":255}"#)
+                .unwrap();
         let mut otp = vec![0u8; 4096];
         cfg.apply_to_otp(&mut otp).unwrap();
         assert_eq!(otp[0x7c0 + 16], 15);

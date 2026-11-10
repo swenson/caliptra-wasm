@@ -23,18 +23,43 @@ PATTERN = re.compile(
 )
 
 
-def find_default_paths():
-    """Search ~/.cargo/git/checkouts for the latest caliptra-sw and caliptra-mcu-sw checkouts.
+def pinned_revs():
+    """Return the (caliptra-sw, caliptra-mcu-sw) git revs pinned in Cargo.toml."""
+    cargo_toml = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Cargo.toml")
+    try:
+        with open(cargo_toml) as f:
+            text = f.read()
+    except OSError:
+        return (None, None)
 
-    Picks the most recently modified file when multiple checkouts exist.
+    def rev_for(repo):
+        m = re.search(r'git\s*=\s*"[^"]*/' + re.escape(repo) + r'(?:\.git)?"\s*,\s*rev\s*=\s*"([0-9a-f]+)"', text)
+        return m.group(1) if m else None
+
+    return (rev_for("caliptra-sw"), rev_for("caliptra-mcu-sw"))
+
+
+def find_default_paths():
+    """Search ~/.cargo/git/checkouts for the caliptra-sw and caliptra-mcu-sw checkouts.
+
+    Prefers the checkout matching the rev pinned in Cargo.toml (cargo names
+    checkout directories after the first 7 hex digits of the commit), and
+    falls back to the most recently modified checkout.
     """
     home = os.path.expanduser("~")
-    base = os.path.join(home, ".cargo", "git", "checkouts")
-    cap = glob.glob(os.path.join(base, "caliptra-sw-*", "*", "error", "src", "lib.rs"))
-    mcu = glob.glob(os.path.join(base, "caliptra-mcu-sw-*", "*", "error", "src", "lib.rs"))
-    cap.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-    mcu.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-    return (cap[0] if cap else None, mcu[0] if mcu else None)
+    base = os.path.join(os.environ.get("CARGO_HOME", os.path.join(home, ".cargo")), "git", "checkouts")
+    cap_rev, mcu_rev = pinned_revs()
+
+    def pick(repo_glob, rev):
+        paths = glob.glob(os.path.join(base, repo_glob, "*", "error", "src", "lib.rs"))
+        if rev:
+            exact = [p for p in paths if os.path.basename(p.split(os.sep + "error" + os.sep)[0]) == rev[:7]]
+            if exact:
+                return exact[0]
+        paths.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        return paths[0] if paths else None
+
+    return (pick("caliptra-sw-*", cap_rev), pick("caliptra-mcu-sw-*", mcu_rev))
 
 
 def extract(path, source_label):

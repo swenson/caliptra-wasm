@@ -5,6 +5,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Build and boot-test pull requests too; only pushes to main deploy.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -14,14 +17,8 @@ permissions:
 
 # Allow only one concurrent deployment, but let in-progress runs finish.
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
-
-env:
-  # caliptra-mcu-sw revision used to build the MCU ROM/runtime. Keep in sync
-  # with the mcu-hw-model rev pinned in Cargo.toml (3e8144bf). actions/checkout
-  # requires the full 40-character commit SHA to check out a specific commit.
-  MCU_SW_REV: 3e8144bf3451530c28aeb1f835d483f690df6233
 
 jobs:
   build:
@@ -30,38 +27,16 @@ jobs:
       - name: Checkout caliptra-wasm
         uses: actions/checkout@v4
 
-      - name: Checkout caliptra-mcu-sw
-        # Clone OUTSIDE the caliptra-wasm working tree. The MCU build resolves
-        # its Cargo workspace by walking up to the highest directory containing
-        # a Cargo.toml; if mcu-sw lived inside this repo it would pick up
-        # caliptra-wasm's root Cargo.toml and fail. $RUNNER_TEMP is outside the
-        # workspace and has no parent Cargo.toml.
-        run: |
-          git clone --filter=blob:none \
-            https://github.com/swenson/caliptra-mcu-sw \
-            "$RUNNER_TEMP/caliptra-mcu-sw"
-          cd "$RUNNER_TEMP/caliptra-mcu-sw"
-          git fetch --depth 1 origin "$MCU_SW_REV"
-          git checkout FETCH_HEAD
-
       - name: Install Rust toolchain
-        # caliptra-mcu-sw pins Rust 1.85 via its own rust-toolchain.toml and
-        # rustup switches to it automatically for the MCU ROM/runtime build.
-        # For the rest (WASM crate + asset tools) we pin 1.87.0:
-        #   * >= 1.87 is required by the WASM crate (uses is_multiple_of).
-        #   * < 1.89 avoids the mismatched_lifetime_syntaxes lint, which the
-        #     caliptra firmware build (compiled with -D warnings) would turn
-        #     into a hard error on the pinned caliptra-sw register sources.
-        run: |
-          rustup toolchain install 1.87.0 --profile minimal
-          rustup default 1.87.0
-          rustup target add wasm32-unknown-unknown
+        # caliptra-wasm, caliptra-sw and caliptra-mcu-sw (main-2.1) all pin
+        # Rust 1.96.1 via rust-toolchain.toml; rustup picks it up
+        # automatically in each checkout. Install it (with the wasm32 and
+        # riscv32imc targets listed there) up front.
+        run: rustup toolchain install
 
       - name: Install wasm-pack
-        # Use the prebuilt binary rather than `cargo install`: building
-        # wasm-pack from source needs a newer rustc than the 1.85 toolchain
-        # required by caliptra-mcu-sw. The prebuilt binary has no such
-        # constraint and is much faster to install.
+        # Use the prebuilt binary rather than `cargo install`; it is much
+        # faster to install.
         uses: jetli/wasm-pack-action@v0.4.0
         with:
           version: latest
@@ -78,16 +53,33 @@ jobs:
 
       - name: Build site
         env:
-          MCU_SW_DIR: ${{ runner.temp }}/caliptra-mcu-sw
+          # build-wasm.sh clones swenson/caliptra-mcu-sw at the rev pinned in
+          # Cargo.toml and builds the MCU ROM/runtime from it. The checkout
+          # must be outside this repo (its build would otherwise find
+          # caliptra-wasm's Cargo.toml above it); $RUNNER_TEMP is.
+          MCU_SW_CACHE_DIR: ${{ runner.temp }}/caliptra-mcu-sw
         run: ./build-wasm.sh
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Browser boot test
+        # Load the built page in headless Firefox (preinstalled on the
+        # runner) and boot both emulator modes to their runtime milestones.
+        # Blocks the deploy if either mode fails.
+        run: node tests/browser/boot-test.mjs
+
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: www
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

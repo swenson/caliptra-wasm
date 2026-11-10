@@ -9,3 +9,4 @@
 Cargo.lock
 primary_flash
 secondary_flash
+/www/build-info.json

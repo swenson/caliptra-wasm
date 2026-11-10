@@ -64,6 +64,16 @@
   "name": "DRIVER_DMA_INVALID_DMA_TARGET",
   "source": "CaliptraError"
  },
+ "0x0000f007": {
+  "desc": "DMA driver Error: AES cannot be split across multiple transfers",
+  "name": "DRIVER_DMA_AES_CHUNKING_UNSUPPORTED",
+  "source": "CaliptraError"
+ },
+ "0x0000f008": {
+  "desc": "DMA driver Error: AXI address range overflow",
+  "name": "DRIVER_DMA_AXI_ADDRESS_OVERFLOW",
+  "source": "CaliptraError"
+ },
  "0x00010000": {
   "desc": "Cold boot Caliptra fatal error before mailbox was ready",
   "name": "ROM_COLD_BOOT_CALIPTRA_FATAL_ERROR_BEFORE_MB_READY",
@@ -100,13 +110,13 @@
   "source": "McuError"
  },
  "0x00010007": {
-  "desc": "Cold boot failed to start field entropy program",
-  "name": "ROM_COLD_BOOT_FIELD_ENTROPY_PROG_START",
+  "desc": "Cold boot failed to start field entropy program (mailbox command failed)",
+  "name": "ROM_COLD_BOOT_FIELD_ENTROPY_PROG_START_MBOX_CMD_FAILED",
   "source": "McuError"
  },
  "0x00010008": {
-  "desc": "Cold boot failed to finish field entropy program",
-  "name": "ROM_COLD_BOOT_FIELD_ENTROPY_PROG_FINISH",
+  "desc": "Cold boot failed to finish field entropy program (mailbox command failed)",
+  "name": "ROM_COLD_BOOT_FIELD_ENTROPY_PROG_FINISH_MBOX_CMD_FAILED",
   "source": "McuError"
  },
  "0x00010009": {
@@ -115,8 +125,8 @@
   "source": "McuError"
  },
  "0x0001000a": {
-  "desc": "Hitless update failed to clear the Caliptra mailbox",
-  "name": "ROM_FW_HITLESS_UPDATE_CLEAR_MB_ERROR",
+  "desc": "Hitless update failed to clear the Caliptra mailbox (command failed)",
+  "name": "ROM_FW_HITLESS_UPDATE_CLEAR_MB_CMD_FAILED",
   "source": "McuError"
  },
  "0x0001000b": {
@@ -135,8 +145,8 @@
   "source": "McuError"
  },
  "0x0001000e": {
-  "desc": "Device Ownership Transfer generic error",
-  "name": "ROM_COLD_BOOT_DOT_ERROR",
+  "desc": "Device Ownership Transfer failed to derive stable key",
+  "name": "ROM_DOT_DERIVE_STABLE_KEY_FAILED",
   "source": "McuError"
  },
  "0x0001000f": {
@@ -145,18 +155,18 @@
   "source": "McuError"
  },
  "0x00010010": {
-  "desc": "Flash not configured",
-  "name": "ROM_COLD_BOOT_FLASH_NOT_CONFIGURED_ERROR",
+  "desc": "Recovery boot mechanism not configured",
+  "name": "ROM_COLD_BOOT_RECOVERY_NOT_CONFIGURED_ERROR",
   "source": "McuError"
  },
  "0x00010011": {
   "desc": "Cold boot encrypted firmware decrypt DMA start error",
-  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_DECRYPT_START_ERROR",
+  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_DECRYPT_DMA_START_FAILED",
   "source": "McuError"
  },
  "0x00010012": {
   "desc": "Cold boot encrypted firmware decrypt DMA finish error",
-  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_DECRYPT_FINISH_ERROR",
+  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_DECRYPT_DMA_FINISH_FAILED",
   "source": "McuError"
  },
  "0x00010013": {
@@ -166,12 +176,12 @@
  },
  "0x00010014": {
   "desc": "Cold boot encrypted firmware activate start error",
-  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_ACTIVATE_START_ERROR",
+  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_ACTIVATE_START_FAILED",
   "source": "McuError"
  },
  "0x00010015": {
   "desc": "Cold boot encrypted firmware activate finish error",
-  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_ACTIVATE_FINISH_ERROR",
+  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_ACTIVATE_FINISH_FAILED",
   "source": "McuError"
  },
  "0x00010016": {
@@ -182,6 +192,246 @@
  "0x00010017": {
   "desc": "Cold boot ROM integrity check failed",
   "name": "ROM_COLD_BOOT_ROM_DIGEST_MISMATCH",
+  "source": "McuError"
+ },
+ "0x00010018": {
+  "desc": "Firmware manifest DOT checksum mismatch",
+  "name": "ROM_FW_MANIFEST_DOT_CHECKSUM_MISMATCH",
+  "source": "McuError"
+ },
+ "0x00010019": {
+  "desc": "Missing OCP LOCK ROM Config",
+  "name": "OCP_LOCK_ROM_MISSING_CONFIG",
+  "source": "McuError"
+ },
+ "0x0001001a": {
+  "desc": "DOT recovery blob authentication failed",
+  "name": "ROM_DOT_RECOVERY_BLOB_AUTH_ERROR",
+  "source": "McuError"
+ },
+ "0x0001001b": {
+  "desc": "DOT recovery flash write failed",
+  "name": "ROM_DOT_RECOVERY_FLASH_WRITE_ERROR",
+  "source": "McuError"
+ },
+ "0x0001001c": {
+  "desc": "DOT override challenge failed",
+  "name": "ROM_DOT_OVERRIDE_CHALLENGE_FAILED",
+  "source": "McuError"
+ },
+ "0x0001001d": {
+  "desc": "DOT override signature verification failed",
+  "name": "ROM_DOT_OVERRIDE_SIG_VERIFY_FAILED",
+  "source": "McuError"
+ },
+ "0x0001001e": {
+  "desc": "DOT override requested but device not in locked state",
+  "name": "ROM_DOT_OVERRIDE_NOT_LOCKED",
+  "source": "McuError"
+ },
+ "0x0001001f": {
+  "desc": "DOT override no vendor recovery PK hash in OTP fuses",
+  "name": "ROM_DOT_OVERRIDE_NO_RECOVERY_PK_HASH",
+  "source": "McuError"
+ },
+ "0x00010020": {
+  "desc": "DOT recovery transport error",
+  "name": "ROM_DOT_RECOVERY_TRANSPORT_ERROR",
+  "source": "McuError"
+ },
+ "0x00010021": {
+  "desc": "DOT override vendor recovery PK hash mismatch",
+  "name": "ROM_DOT_OVERRIDE_PK_HASH_MISMATCH",
+  "source": "McuError"
+ },
+ "0x00010022": {
+  "desc": "Stable owner key derivation failed during cold boot",
+  "name": "ROM_STABLE_OWNER_KEY_DERIVATION_FAILED",
+  "source": "McuError"
+ },
+ "0x00010023": {
+  "desc": "DOT blob HMAC verification failed",
+  "name": "ROM_DOT_HMAC_FAILED",
+  "source": "McuError"
+ },
+ "0x00010024": {
+  "desc": "No more DOT fuse bits available",
+  "name": "ROM_DOT_NO_MORE_FUSE_BITS",
+  "source": "McuError"
+ },
+ "0x00010025": {
+  "desc": "Failed to write DOT blob to flash",
+  "name": "ROM_DOT_FLASH_WRITE_FAILED",
+  "source": "McuError"
+ },
+ "0x00010026": {
+  "desc": "No DOT locked-state recovery handlers configured",
+  "name": "ROM_COLD_BOOT_DOT_NO_RECOVERY_HANDLERS",
+  "source": "McuError"
+ },
+ "0x00010027": {
+  "desc": "Failed to read DOT blob from flash",
+  "name": "ROM_COLD_BOOT_DOT_FLASH_READ_FAILED",
+  "source": "McuError"
+ },
+ "0x00010028": {
+  "desc": "I3C services timed out",
+  "name": "ROM_I3C_SERVICES_TIMEOUT",
+  "source": "McuError"
+ },
+ "0x00010029": {
+  "desc": "Hitless update failed to clear the Caliptra mailbox (other error)",
+  "name": "ROM_FW_HITLESS_UPDATE_CLEAR_MB_FAILED",
+  "source": "McuError"
+ },
+ "0x0001002a": {
+  "desc": "Encrypted firmware ciphertext size is zero",
+  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_DECRYPT_SIZE_ZERO",
+  "source": "McuError"
+ },
+ "0x0001002b": {
+  "desc": "Failed to import AES key (internal error)",
+  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_DECRYPT_KEY_IMPORT_INTERNAL_FAILED",
+  "source": "McuError"
+ },
+ "0x0001002c": {
+  "desc": "Failed to start AES key import",
+  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_DECRYPT_KEY_IMPORT_START_FAILED",
+  "source": "McuError"
+ },
+ "0x0001002d": {
+  "desc": "Failed to finish AES key import",
+  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_DECRYPT_KEY_IMPORT_FINISH_FAILED",
+  "source": "McuError"
+ },
+ "0x0001002e": {
+  "desc": "AES key import response was invalid",
+  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_DECRYPT_KEY_IMPORT_RESP_INVALID",
+  "source": "McuError"
+ },
+ "0x0001002f": {
+  "desc": "AES GCM decrypt DMA response was invalid",
+  "name": "ROM_COLD_BOOT_ENCRYPTED_FW_DECRYPT_DMA_RESP_INVALID",
+  "source": "McuError"
+ },
+ "0x00010030": {
+  "desc": "Failed to start GET_MCU_FW_SIZE command",
+  "name": "ROM_COLD_BOOT_GET_FW_SIZE_START_FAILED",
+  "source": "McuError"
+ },
+ "0x00010031": {
+  "desc": "Failed to finish GET_MCU_FW_SIZE command",
+  "name": "ROM_COLD_BOOT_GET_FW_SIZE_FINISH_FAILED",
+  "source": "McuError"
+ },
+ "0x00010032": {
+  "desc": "GET_MCU_FW_SIZE response was invalid (too short)",
+  "name": "ROM_COLD_BOOT_GET_FW_SIZE_RESP_INVALID",
+  "source": "McuError"
+ },
+ "0x00010033": {
+  "desc": "GET_MCU_FW_SIZE response was missing SHA-384 digest",
+  "name": "ROM_COLD_BOOT_GET_FW_SIZE_RESP_MISSING_SHA384",
+  "source": "McuError"
+ },
+ "0x00010034": {
+  "desc": "Unsupported firmware manifest DOT version",
+  "name": "ROM_FW_MANIFEST_DOT_UNSUPPORTED_VERSION",
+  "source": "McuError"
+ },
+ "0x00010035": {
+  "desc": "Firmware manifest DOT contains too many commands",
+  "name": "ROM_FW_MANIFEST_DOT_TOO_MANY_COMMANDS",
+  "source": "McuError"
+ },
+ "0x00010036": {
+  "desc": "Firmware manifest DOT commands slice is invalid",
+  "name": "ROM_FW_MANIFEST_DOT_COMMANDS_INVALID",
+  "source": "McuError"
+ },
+ "0x00010037": {
+  "desc": "Firmware manifest DOT contains conflicting commands",
+  "name": "ROM_FW_MANIFEST_DOT_CONFLICTING_COMMANDS",
+  "source": "McuError"
+ },
+ "0x00010038": {
+  "desc": "Unknown DOT command in firmware manifest",
+  "name": "ROM_FW_MANIFEST_DOT_UNKNOWN_COMMAND",
+  "source": "McuError"
+ },
+ "0x00010039": {
+  "desc": "Stable owner key personalization seed size mismatch",
+  "name": "ROM_STABLE_OWNER_KEY_PERSONALIZATION_SEED_SIZE_MISMATCH",
+  "source": "McuError"
+ },
+ "0x0001003a": {
+  "desc": "Failed to read stable owner key personalization seed from OTP",
+  "name": "ROM_STABLE_OWNER_KEY_PERSONALIZATION_SEED_READ_FAILED",
+  "source": "McuError"
+ },
+ "0x0001003b": {
+  "desc": "Cold boot failed to start field entropy program (other error)",
+  "name": "ROM_COLD_BOOT_FIELD_ENTROPY_PROG_START_FAILED",
+  "source": "McuError"
+ },
+ "0x0001003c": {
+  "desc": "Cold boot failed to finish field entropy program (other error)",
+  "name": "ROM_COLD_BOOT_FIELD_ENTROPY_PROG_FINISH_FAILED",
+  "source": "McuError"
+ },
+ "0x0001003d": {
+  "desc": "Field entropy slot is zeroized",
+  "name": "ROM_COLD_BOOT_FIELD_ENTROPY_ZEROIZED",
+  "source": "McuError"
+ },
+ "0x0001003e": {
+  "desc": "Field entropy slot is partially programmed",
+  "name": "ROM_COLD_BOOT_FIELD_ENTROPY_PARTIAL",
+  "source": "McuError"
+ },
+ "0x0001003f": {
+  "desc": "Field entropy partition is invalid",
+  "name": "ROM_COLD_BOOT_FIELD_ENTROPY_INVALID_PARTITION",
+  "source": "McuError"
+ },
+ "0x00010040": {
+  "desc": "Failed to read FIELD_ENTROPY_STATE from OTP",
+  "name": "ROM_COLD_BOOT_READ_FIELD_ENTROPY_STATE_ERROR",
+  "source": "McuError"
+ },
+ "0x00010041": {
+  "desc": "Failed to write FIELD_ENTROPY_STATE (started) to OTP",
+  "name": "ROM_COLD_BOOT_WRITE_FIELD_ENTROPY_STATE_STARTED_ERROR",
+  "source": "McuError"
+ },
+ "0x00010042": {
+  "desc": "Failed to write FIELD_ENTROPY_STATE (finished) to OTP",
+  "name": "ROM_COLD_BOOT_WRITE_FIELD_ENTROPY_STATE_FINISHED_ERROR",
+  "source": "McuError"
+ },
+ "0x00010043": {
+  "desc": "INSTALL_OWNER_PK_HASH mailbox command failed",
+  "name": "ROM_DOT_INSTALL_OWNER_PK_HASH_FAILED",
+  "source": "McuError"
+ },
+ "0x00010044": {
+  "desc": "Forced fuse owner requested but CPTRA_SS_OWNER_PK_HASH is not provisioned",
+  "name": "ROM_DOT_FORCE_FUSE_OWNER_NOT_PROVISIONED",
+  "source": "McuError"
+ },
+ "0x00010045": {
+  "desc": "Caliptra runtime SVN fuse burn failed",
+  "name": "ROM_CALIPTRA_RUNTIME_SVN_BURN_ERROR",
+  "source": "McuError"
+ },
+ "0x00010046": {
+  "desc": "DOT cold boot error",
+  "name": "ROM_COLD_BOOT_DOT_ERROR",
+  "source": "McuError"
+ },
+ "0x00010047": {
+  "desc": "Cold boot failed to initiate network recovery",
+  "name": "ROM_COLD_BOOT_NETWORK_INITIATE_ERROR",
   "source": "McuError"
  },
  "0x0001f000": {
@@ -249,6 +499,16 @@
   "name": "ROM_FIPS_ZEROIZATION_UDS_FE_FINISH_ERROR",
   "source": "McuError"
  },
+ "0x0002000b": {
+  "desc": "FIPS zeroization failed to write FIELD_ENTROPY_STATE (zeroized) to OTP",
+  "name": "ROM_FIPS_ZEROIZATION_WRITE_FIELD_ENTROPY_STATE_ZEROIZED_ERROR",
+  "source": "McuError"
+ },
+ "0x0002000c": {
+  "desc": "FIPS zeroization failed to read FIELD_ENTROPY_STATE from OTP",
+  "name": "ROM_FIPS_ZEROIZATION_READ_FIELD_ENTROPY_STATE_ERROR",
+  "source": "McuError"
+ },
  "0x00030000": {
   "desc": "OTP controller status error during initialization",
   "name": "ROM_OTP_INIT_STATUS_ERROR",
@@ -295,7 +555,7 @@
   "source": "McuError"
  },
  "0x00030009": {
-  "desc": "One-hot encoded output should be single u32",
+  "desc": "Bit-count encoded output should be single u32",
   "name": "ROM_FUSE_LAYOUT_ONE_HOT_RESULT_SHOULD_BE_SINGLE_U32",
   "source": "McuError"
  },
@@ -310,9 +570,194 @@
   "source": "McuError"
  },
  "0x0003000c": {
-  "desc": "Driver Error: SHA2_512_384 SHA2_512_384_ACC digest start op failure",
-  "name": "DRIVER_SHA2_512_384_ACC_DIGEST_START_OP_FAILURE",
-  "source": "CaliptraError"
+  "desc": "OTP failure in OCP LOCK",
+  "name": "ROM_OTP_OCP_LOCK_FAILURE",
+  "source": "McuError"
+ },
+ "0x0003000d": {
+  "desc": "OTP fuse provisioning: invalid partition",
+  "name": "ROM_OTP_FUSE_INVALID_PARTITION",
+  "source": "McuError"
+ },
+ "0x0003000e": {
+  "desc": "OTP fuse provisioning: read entry out of bounds",
+  "name": "ROM_OTP_FUSE_READ_ENTRY_OUT_OF_BOUNDS",
+  "source": "McuError"
+ },
+ "0x0003000f": {
+  "desc": "MCI mailbox fuse request invalid length",
+  "name": "ROM_MCI_MBOX_FUSE_REQ_INVALID_LENGTH",
+  "source": "McuError"
+ },
+ "0x00030010": {
+  "desc": "OTP fuse provisioning: invalid start bit",
+  "name": "ROM_OTP_FUSE_INVALID_START_BIT",
+  "source": "McuError"
+ },
+ "0x00030011": {
+  "desc": "OTP fuse provisioning: DAI read error",
+  "name": "ROM_OTP_FUSE_DAI_READ_ERROR",
+  "source": "McuError"
+ },
+ "0x00030012": {
+  "desc": "OTP fuse provisioning: DAI write error",
+  "name": "ROM_OTP_FUSE_DAI_WRITE_ERROR",
+  "source": "McuError"
+ },
+ "0x00030013": {
+  "desc": "OTP fuse provisioning: partition lock error",
+  "name": "ROM_OTP_FUSE_LOCK_ERROR",
+  "source": "McuError"
+ },
+ "0x00030014": {
+  "desc": "OTP fuse provisioning: secret partition read denied",
+  "name": "ROM_OTP_FUSE_SECRET_READ_DENIED",
+  "source": "McuError"
+ },
+ "0x00030015": {
+  "desc": "OTP fuse provisioning: bit clear not allowed",
+  "name": "ROM_OTP_FUSE_BIT_CLEAR_NOT_ALLOWED",
+  "source": "McuError"
+ },
+ "0x00030016": {
+  "desc": "OTP fuse provisioning: request checksum error",
+  "name": "ROM_OTP_FUSE_CHECKSUM_ERROR",
+  "source": "McuError"
+ },
+ "0x00030017": {
+  "desc": "OTP fuse provisioning: data too large",
+  "name": "ROM_OTP_FUSE_DATA_TOO_LARGE",
+  "source": "McuError"
+ },
+ "0x00030018": {
+  "desc": "MCI mailbox fuse write header too short",
+  "name": "ROM_MCI_MBOX_FUSE_WRITE_HDR_TOO_SHORT",
+  "source": "McuError"
+ },
+ "0x00030019": {
+  "desc": "OTP fuse provisioning: unknown command",
+  "name": "ROM_MCI_MBOX_UNKNOWN_COMMAND",
+  "source": "McuError"
+ },
+ "0x0003001a": {
+  "desc": "OTP SW digest readback verification failed",
+  "name": "ROM_OTP_DIGEST_VERIFY_ERROR",
+  "source": "McuError"
+ },
+ "0x0003001b": {
+  "desc": "Failed to read CPTRA_ITRNG_WINDOW_SIZE from OTP",
+  "name": "ROM_OTP_READ_CPTRA_ITRNG_WINDOW_SIZE_ERROR",
+  "source": "McuError"
+ },
+ "0x0003001c": {
+  "desc": "Failed to read CPTRA_ITRNG_ENTROPY_CONFIG_0 from OTP",
+  "name": "ROM_OTP_READ_CPTRA_ITRNG_CONFIG0_ERROR",
+  "source": "McuError"
+ },
+ "0x0003001d": {
+  "desc": "Failed to read CPTRA_ITRNG_ENTROPY_CONFIG_1 from OTP",
+  "name": "ROM_OTP_READ_CPTRA_ITRNG_CONFIG1_ERROR",
+  "source": "McuError"
+ },
+ "0x0003001e": {
+  "desc": "MCI mailbox fuse read request invalid length",
+  "name": "ROM_MCI_MBOX_FUSE_READ_REQ_INVALID_LENGTH",
+  "source": "McuError"
+ },
+ "0x0003001f": {
+  "desc": "MCI mailbox fuse read request parse failed",
+  "name": "ROM_MCI_MBOX_FUSE_READ_REQ_PARSE_FAILED",
+  "source": "McuError"
+ },
+ "0x00030020": {
+  "desc": "MCI mailbox fuse read response parse failed",
+  "name": "ROM_MCI_MBOX_FUSE_READ_RESP_PARSE_FAILED",
+  "source": "McuError"
+ },
+ "0x00030021": {
+  "desc": "MCI mailbox fuse write request parse failed",
+  "name": "ROM_MCI_MBOX_FUSE_WRITE_REQ_PARSE_FAILED",
+  "source": "McuError"
+ },
+ "0x00030022": {
+  "desc": "MCI mailbox fuse write expected length overflow",
+  "name": "ROM_MCI_MBOX_FUSE_WRITE_DLEN_OVERFLOW",
+  "source": "McuError"
+ },
+ "0x00030023": {
+  "desc": "MCI mailbox fuse write input too long",
+  "name": "ROM_MCI_MBOX_FUSE_WRITE_INPUT_TOO_LONG",
+  "source": "McuError"
+ },
+ "0x00030024": {
+  "desc": "MCI mailbox fuse lock request invalid length",
+  "name": "ROM_MCI_MBOX_FUSE_LOCK_REQ_INVALID_LENGTH",
+  "source": "McuError"
+ },
+ "0x00030025": {
+  "desc": "MCI mailbox fuse lock request parse failed",
+  "name": "ROM_MCI_MBOX_FUSE_LOCK_REQ_PARSE_FAILED",
+  "source": "McuError"
+ },
+ "0x00030026": {
+  "desc": "OTP fuse write length is zero",
+  "name": "ROM_OTP_FUSE_WRITE_LEN_ZERO",
+  "source": "McuError"
+ },
+ "0x00030027": {
+  "desc": "OTP fuse write data length too short",
+  "name": "ROM_OTP_FUSE_WRITE_DATA_LEN_TOO_SHORT",
+  "source": "McuError"
+ },
+ "0x00030028": {
+  "desc": "OTP fuse write entry out of bounds or unaligned",
+  "name": "ROM_OTP_FUSE_WRITE_ENTRY_OUT_OF_BOUNDS",
+  "source": "McuError"
+ },
+ "0x00030029": {
+  "desc": "OTP fuse write overflow: start_bit + length wraps u32",
+  "name": "ROM_OTP_FUSE_WRITE_OVERFLOW",
+  "source": "McuError"
+ },
+ "0x0003002a": {
+  "desc": "OTP fuse write out of bounds",
+  "name": "ROM_OTP_FUSE_WRITE_OUT_OF_BOUNDS",
+  "source": "McuError"
+ },
+ "0x0003002b": {
+  "desc": "MCI mailbox fuse write data too short",
+  "name": "ROM_MCI_MBOX_FUSE_WRITE_DATA_TOO_SHORT",
+  "source": "McuError"
+ },
+ "0x0003002c": {
+  "desc": "OTP partition does not support software digest",
+  "name": "ROM_OTP_PARTITION_NO_SW_DIGEST",
+  "source": "McuError"
+ },
+ "0x0003002d": {
+  "desc": "OTP partition is too small for digest",
+  "name": "ROM_OTP_PARTITION_TOO_SMALL_FOR_DIGEST",
+  "source": "McuError"
+ },
+ "0x0003002e": {
+  "desc": "OTP partition data is not 8-byte aligned for digest",
+  "name": "ROM_OTP_PARTITION_NOT_8BYTE_ALIGNED_FOR_DIGEST",
+  "source": "McuError"
+ },
+ "0x0003002f": {
+  "desc": "OTP partition does not have a digest offset",
+  "name": "ROM_OTP_PARTITION_NO_DIGEST_OFFSET",
+  "source": "McuError"
+ },
+ "0x00030030": {
+  "desc": "OTP fuse provisioning: input too short",
+  "name": "ROM_OTP_FUSE_INPUT_TOO_SHORT",
+  "source": "McuError"
+ },
+ "0x00030031": {
+  "desc": "OTP fuse provisioning: invalid length",
+  "name": "ROM_OTP_FUSE_INVALID_LENGTH",
+  "source": "McuError"
  },
  "0x00038000": {
   "desc": "Driver Error: SHA2_512_384ACC unexpected acquired lock state",
@@ -480,13 +925,13 @@
   "source": "McuError"
  },
  "0x0005000e": {
-  "desc": "Production debug unlock PK hash verification failed after locking",
-  "name": "ROM_SOC_PK_HASH_VERIFY_FAILED",
+  "desc": "Production debug unlock PK hash verification failed (mismatch)",
+  "name": "ROM_SOC_PK_HASH_VERIFY_MISMATCH",
   "source": "McuError"
  },
  "0x0005000f": {
-  "desc": "MCU mailbox AXI user verification failed after locking",
-  "name": "ROM_SOC_MCU_MBOX_AXI_USER_VERIFY_FAILED",
+  "desc": "MCU mailbox 0 AXI user verification failed after locking",
+  "name": "ROM_SOC_MCU_MBOX0_AXI_USER_VERIFY_FAILED",
   "source": "McuError"
  },
  "0x00050010": {
@@ -507,6 +952,61 @@
  "0x00050013": {
   "desc": "Caliptra WDT config index out of range",
   "name": "ROM_SOC_WDT_CFG_OUT_OF_RANGE",
+  "source": "McuError"
+ },
+ "0x00050014": {
+  "desc": "Caliptra Core boot FSM timed out",
+  "name": "ROM_BOOTFSM_TIMEOUT",
+  "source": "McuError"
+ },
+ "0x00050015": {
+  "desc": "Failed to select a valid and functional vendor PK slot",
+  "name": "ROM_PK_HASH_SELECTION_FAILED",
+  "source": "McuError"
+ },
+ "0x00050016": {
+  "desc": "ICCM uncorrectable ECC error",
+  "name": "ROM_SOC_ICCM_ECC_UNC",
+  "source": "McuError"
+ },
+ "0x00050017": {
+  "desc": "DCCM uncorrectable ECC error",
+  "name": "ROM_SOC_DCCM_ECC_UNC",
+  "source": "McuError"
+ },
+ "0x00050018": {
+  "desc": "MCU mailbox 0 AXI user lock verification failed after locking",
+  "name": "ROM_SOC_MCU_MBOX0_AXI_USER_LOCK_VERIFY_FAILED",
+  "source": "McuError"
+ },
+ "0x00050019": {
+  "desc": "MCU mailbox 1 AXI user verification failed after locking",
+  "name": "ROM_SOC_MCU_MBOX1_AXI_USER_VERIFY_FAILED",
+  "source": "McuError"
+ },
+ "0x0005001a": {
+  "desc": "MCU mailbox 1 AXI user lock verification failed after locking",
+  "name": "ROM_SOC_MCU_MBOX1_AXI_USER_LOCK_VERIFY_FAILED",
+  "source": "McuError"
+ },
+ "0x0005001b": {
+  "desc": "Production debug unlock PK hash verification internal error",
+  "name": "ROM_SOC_PK_HASH_VERIFY_INTERNAL_ERROR",
+  "source": "McuError"
+ },
+ "0x0005001c": {
+  "desc": "Production debug unlock PK hash verification OTP read failed",
+  "name": "ROM_SOC_PK_HASH_VERIFY_OTP_READ_FAILED",
+  "source": "McuError"
+ },
+ "0x0005001d": {
+  "desc": "Production debug unlock PK hash verification length mismatch",
+  "name": "ROM_SOC_PK_HASH_VERIFY_LEN_MISMATCH",
+  "source": "McuError"
+ },
+ "0x0005001e": {
+  "desc": "MCU Component SVN Manifest validation error",
+  "name": "ROM_COMPONENT_SVN_MANIFEST_ERROR",
   "source": "McuError"
  },
  "0x00052000": {
@@ -554,6 +1054,11 @@
   "name": "DRIVER_MLDSA87_UNSUPPORTED_SIGNATURE",
   "source": "CaliptraError"
  },
+ "0x00058007": {
+  "desc": "Driver Error: MLDSA87 key generation pairwise consistency failure",
+  "name": "DRIVER_MLDSA87_KEYGEN_PAIRWISE_CONSISTENCY_FAILURE",
+  "source": "CaliptraError"
+ },
  "0x00059000": {
   "desc": "Driver Error: ML-KEM read seed KV read",
   "name": "DRIVER_MLKEM_READ_SEED_KV_READ",
@@ -589,10 +1094,20 @@
   "name": "DRIVER_MLKEM_READ_MSG_KV_UNKNOWN",
   "source": "CaliptraError"
  },
- "0x00060001": {
-  "desc": "Driver Error: KV erase use lock set failure",
-  "name": "DRIVER_KV_ERASE_USE_LOCK_SET_FAILURE",
+ "0x00059007": {
+  "desc": "Driver Error: ML-KEM key generation pairwise consistency failure",
+  "name": "DRIVER_MLKEM_KEYGEN_PAIRWISE_CONSISTENCY_FAILURE",
   "source": "CaliptraError"
+ },
+ "0x00060000": {
+  "desc": "ROM CFI panic",
+  "name": "ROM_CFI_PANIC",
+  "source": "McuError"
+ },
+ "0x00060001": {
+  "desc": "CFI enabled but no early entropy source available",
+  "name": "ROM_CFI_NO_EARLY_ENTROPY_SOURCE",
+  "source": "McuError"
  },
  "0x00060002": {
   "desc": "Driver Error: KV erase write lock set failure",
@@ -1107,6 +1622,36 @@
  "0x000b0062": {
   "desc": "OCP LOCK Encryption Engine Invalid MEK size",
   "name": "OCP_LOCK_ENGINE_INVALID_MEK_SIZE",
+  "source": "CaliptraError"
+ },
+ "0x000b0063": {
+  "desc": "Image Verifier Error: Debug image not allowed",
+  "name": "IMAGE_VERIFIER_ERR_DEBUG_IMAGE_NOT_ALLOWED",
+  "source": "CaliptraError"
+ },
+ "0x000b0064": {
+  "desc": "Image Verifier Error: FMC offset invalid (gap between manifest and FMC)",
+  "name": "IMAGE_VERIFIER_ERR_FMC_OFFSET_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0065": {
+  "desc": "Image Verifier Error: Update reset FMC load address or size mismatch",
+  "name": "IMAGE_VERIFIER_ERR_UPDATE_RESET_FMC_LOAD_ADDR_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0066": {
+  "desc": "Image Verifier Error: Runtime offset invalid (gap between FMC and Runtime)",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_OFFSET_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0067": {
+  "desc": "Image Verifier Error: FMC entry point must equal load address",
+  "name": "IMAGE_VERIFIER_ERR_FMC_ENTRY_POINT_NOT_AT_LOAD_ADDR",
+  "source": "CaliptraError"
+ },
+ "0x000b0068": {
+  "desc": "Image Verifier Error: Runtime entry point must equal load address",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_ENTRY_POINT_NOT_AT_LOAD_ADDR",
   "source": "CaliptraError"
  },
  "0x000c0001": {
@@ -1950,13 +2495,173 @@
   "source": "CaliptraError"
  },
  "0x000e0093": {
-  "desc": "Runtime Error: CCIV context not found",
-  "name": "RUNTIME_CCIV_CONTEXT_NOT_FOUND",
+  "desc": "Runtime Error: DPE context not found",
+  "name": "RUNTIME_DPE_CONTEXT_NOT_FOUND",
   "source": "CaliptraError"
  },
  "0x000e0094": {
-  "desc": "Runtime Error: Multiple CCIV contexts found",
-  "name": "RUNTIME_MULTIPLE_CCIV_CONTEXTS_FOUND",
+  "desc": "Runtime Error: Multiple DPE contexts found",
+  "name": "RUNTIME_MULTIPLE_DPE_CONTEXTS_FOUND",
+  "source": "CaliptraError"
+ },
+ "0x000e0095": {
+  "desc": "OCP LOCK Error: SEK is not valid",
+  "name": "RUNTIME_OCP_LOCK_SEK_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e0096": {
+  "desc": "OCP LOCK Error: DPK is not valid",
+  "name": "RUNTIME_OCP_LOCK_DPK_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e0097": {
+  "desc": "Runtime Error: Disable attestation failed during warm reset",
+  "name": "RUNTIME_DISABLE_ATTESTATION_FAILED_WARM_RESET",
+  "source": "CaliptraError"
+ },
+ "0x000e0098": {
+  "desc": "Runtime Error: Disable attestation failed during reset flow",
+  "name": "RUNTIME_DISABLE_ATTESTATION_FAILED_RESET_FLOW",
+  "source": "CaliptraError"
+ },
+ "0x000e0099": {
+  "desc": "Runtime Error: Disable attestation failed during DPE validation",
+  "name": "RUNTIME_DISABLE_ATTESTATION_FAILED_DPE_VALIDATION",
+  "source": "CaliptraError"
+ },
+ "0x000e009a": {
+  "desc": "Runtime Error: Disable attestation failed during DPE limits check",
+  "name": "RUNTIME_DISABLE_ATTESTATION_FAILED_DPE_LIMITS",
+  "source": "CaliptraError"
+ },
+ "0x000e009b": {
+  "desc": "Runtime Error: Disable attestation failed during PCR validation",
+  "name": "RUNTIME_DISABLE_ATTESTATION_FAILED_PCR_VALIDATION",
+  "source": "CaliptraError"
+ },
+ "0x000e009c": {
+  "desc": "Runtime Error: Sign with exported MLDSA key derivation failed",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_MLDSA_KEY_DERIVIATION_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e009d": {
+  "desc": "Runtime Error: Sign with exported MLDSA signature failed",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_MLDSA_SIGNATURE_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x000e009e": {
+  "desc": "Runtime Error: Sign with exported MLDSA invalid signature",
+  "name": "RUNTIME_SIGN_WITH_EXPORTED_MLDSA_INVALID_SIGNATURE",
+  "source": "CaliptraError"
+ },
+ "0x000e009f": {
+  "desc": "Runtime Error: Owner auth manifest invalid marker",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_INVALID_MARKER",
+  "source": "CaliptraError"
+ },
+ "0x000e00a0": {
+  "desc": "Runtime Error: Owner auth manifest preamble too small",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_PREAMBLE_SIZE_LT_MIN",
+  "source": "CaliptraError"
+ },
+ "0x000e00a1": {
+  "desc": "Runtime Error: Owner auth manifest preamble size mismatch",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_PREAMBLE_SIZE_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000e00a2": {
+  "desc": "Runtime Error: Owner auth manifest SVN less than enforced minimum from SS_STRAP_GENERIC",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_SVN_LESS_THAN_MIN",
+  "source": "CaliptraError"
+ },
+ "0x000e00a3": {
+  "desc": "Runtime Error: Owner auth manifest SVN greater than maximum",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_SVN_GREATER_THAN_MAX",
+  "source": "CaliptraError"
+ },
+ "0x000e00a4": {
+  "desc": "Runtime Error: Owner auth manifest owner ECC signature invalid",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_OWNER_ECC_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e00a5": {
+  "desc": "Runtime Error: Owner auth manifest owner LMS signature invalid",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_OWNER_LMS_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e00a6": {
+  "desc": "Runtime Error: Owner auth manifest owner MLDSA signature invalid",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_OWNER_MLDSA_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e00a7": {
+  "desc": "Runtime Error: Owner auth manifest IMC owner ECC signature invalid",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_IMC_OWNER_ECC_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e00a8": {
+  "desc": "Runtime Error: Owner auth manifest IMC owner LMS signature invalid",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_IMC_OWNER_LMS_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e00a9": {
+  "desc": "Runtime Error: Owner auth manifest IMC owner MLDSA signature invalid",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_IMC_OWNER_MLDSA_SIGNATURE_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e00aa": {
+  "desc": "Runtime Error: Owner auth manifest IMC invalid size",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_IMC_INVALID_SIZE",
+  "source": "CaliptraError"
+ },
+ "0x000e00ab": {
+  "desc": "Runtime Error: Owner auth manifest IMC invalid entry count",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_IMC_INVALID_ENTRY_COUNT",
+  "source": "CaliptraError"
+ },
+ "0x000e00ac": {
+  "desc": "Runtime Error: Owner auth manifest IMC duplicate firmware ID",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_IMC_DUPLICATE_FW_ID",
+  "source": "CaliptraError"
+ },
+ "0x000e00ad": {
+  "desc": "Runtime Error: Owner auth manifest flags must be zero",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_INVALID_FLAGS",
+  "source": "CaliptraError"
+ },
+ "0x000e00ae": {
+  "desc": "Runtime Error: Owner auth manifest owner public key does not match firmware-image owner pub key",
+  "name": "RUNTIME_OWNER_AUTH_MANIFEST_OWNER_PUB_KEY_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000e00af": {
+  "desc": "OCP LOCK Error: LOCKED MPK is not valid",
+  "name": "RUNTIME_OCP_LOCK_LOCKED_MPK_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000e00b0": {
+  "desc": "Runtime Error: Stash measurement firmware ID is reserved for Caliptra internal use",
+  "name": "RUNTIME_STASH_MEASUREMENT_RESERVED_FW_ID",
+  "source": "CaliptraError"
+ },
+ "0x000e00b1": {
+  "desc": "OCP LOCK Error: MEK is invalid XTS key",
+  "name": "RUNTIME_OCP_LOCK_MEK_INVALID_XTS_KEY",
+  "source": "CaliptraError"
+ },
+ "0x000e00b2": {
+  "desc": "Runtime Error: Auth manifest debug image not allowed",
+  "name": "RUNTIME_AUTH_MANIFEST_DEBUG_IMAGE_NOT_ALLOWED",
+  "source": "CaliptraError"
+ },
+ "0x000e00b3": {
+  "desc": "Runtime Error: Auth manifest invalid flags",
+  "name": "RUNTIME_AUTH_MANIFEST_INVALID_FLAGS",
+  "source": "CaliptraError"
+ },
+ "0x000e00b4": {
+  "desc": "Runtime Error: Auth manifest UEID does not match device UEID",
+  "name": "RUNTIME_AUTH_MANIFEST_UEID_MISMATCH",
   "source": "CaliptraError"
  },
  "0x000f0000": {
@@ -2354,6 +3059,11 @@
   "name": "ROM_UDS_PROG_IN_PASSIVE_MODE",
   "source": "CaliptraError"
  },
+ "0x01045002": {
+  "desc": "ROM UDS Programming Error: Debug intent set",
+  "name": "ROM_UDS_PROG_DEBUG_INTENT_SET",
+  "source": "CaliptraError"
+ },
  "0x01050001": {
   "desc": "ROM Global Error: NMI",
   "name": "ROM_GLOBAL_NMI",
@@ -2514,6 +3224,11 @@
   "name": "KAT_MLDSA87_KEY_PAIR_VERIFY_FAILURE",
   "source": "CaliptraError"
  },
+ "0x9004000a": {
+  "desc": "ROM KAT Error: MLDSA87 signature verification failure",
+  "name": "KAT_MLDSA87_VERIFY_FAILURE",
+  "source": "CaliptraError"
+ },
  "0x90040010": {
   "desc": "ROM KAT Error: ECDH verify failure",
   "name": "KAT_ECDH_VERIFY_FAILURE",
@@ -2619,6 +3334,31 @@
   "name": "KAT_MLKEM1024_CIPHERTEXT_MISMATCH",
   "source": "CaliptraError"
  },
+ "0x900c0001": {
+  "desc": "ROM KAT Error: CSRNG instantiate failure",
+  "name": "KAT_CSRNG_INSTANTIATE_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x900c0002": {
+  "desc": "ROM KAT Error: CSRNG generate failure",
+  "name": "KAT_CSRNG_GENERATE_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x900c0003": {
+  "desc": "ROM KAT Error: CSRNG output mismatch against known answer",
+  "name": "KAT_CSRNG_DIGEST_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x900c0004": {
+  "desc": "ROM KAT Error: CSRNG failed to restore entropy-sourced instance after KAT",
+  "name": "KAT_CSRNG_RESTORE_FAILURE",
+  "source": "CaliptraError"
+ },
+ "0x900c0005": {
+  "desc": "ROM KAT Error: CSRNG reseed failure",
+  "name": "KAT_CSRNG_RESEED_FAILURE",
+  "source": "CaliptraError"
+ },
  "0x90100000": {
   "desc": "FIPS Hooks: Injected error",
   "name": "FIPS_HOOKS_INJECTED_ERROR",
@@ -2682,6 +3422,11 @@
  "0xa000000b": {
   "desc": "Debug unlock error: Req bit not set in soc_ifc",
   "name": "SS_DBG_UNLOCK_REQ_BIT_NOT_SET",
+  "source": "CaliptraError"
+ },
+ "0xa000000c": {
+  "desc": "Debug unlock error: Production debug unlock disabled",
+  "name": "SS_DBG_UNLOCK_PROD_DISABLED",
   "source": "CaliptraError"
  },
  "0xa0040001": {
@@ -2794,6 +3539,11 @@
   "name": "RUNTIME_DRIVER_HPKE_INVALID_PUB_KEY_BUFFER_SIZE",
   "source": "CaliptraError"
  },
+ "0xa0041005": {
+  "desc": "Driver Error: HPKE failed to open the encrypted message",
+  "name": "RUNTIME_DRIVER_HPKE_OPEN_FAILED",
+  "source": "CaliptraError"
+ },
  "0xa0041010": {
   "desc": "Driver Error: HPKE ml-kem failed to generate a key pair due to trng failure",
   "name": "RUNTIME_DRIVER_HPKE_ML_KEM_TRNG_KEYGEN_FAIL",
@@ -2847,6 +3597,11 @@
  "0xa0055000": {
   "desc": "DOT Error: Invalid key type",
   "name": "DOT_INVALID_KEY_TYPE",
+  "source": "CaliptraError"
+ },
+ "0xa0055001": {
+  "desc": "Crypto Mailbox Error: Stable Owner Key is not available when OCP LOCK is enabled",
+  "name": "CMB_STABLE_OWNER_KEY_NOT_AVAILABLE",
   "source": "CaliptraError"
  },
  "0xa0055020": {

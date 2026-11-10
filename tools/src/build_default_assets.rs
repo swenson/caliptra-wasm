@@ -195,5 +195,43 @@ fn build_assets(output_dir: &Path, mcu_runtime_path: Option<&Path>) -> Result<()
         DEFAULT_MCU_FW.len()
     );
 
+    write_build_info(output_dir)?;
+
+    Ok(())
+}
+
+/// Write `build-info.json` describing which Caliptra release the default
+/// images come from, so the UI can display it. The upstream revisions are
+/// passed in by build-wasm.sh via `CALIPTRA_SW_REV` / `CALIPTRA_MCU_SW_REV`.
+fn write_build_info(output_dir: &Path) -> Result<()> {
+    let rev = |var: &str| env::var(var).unwrap_or_default();
+    let info = format!(
+        concat!(
+            "{{\n",
+            "  \"caliptra_release\": \"{}.{}\",\n",
+            "  \"rom_version\": \"{}.{}.{}\",\n",
+            "  \"fmc_version\": \"{}.{}.{}\",\n",
+            "  \"runtime_version\": \"{}.{}.{}\",\n",
+            "  \"caliptra_sw_rev\": \"{}\",\n",
+            "  \"caliptra_mcu_sw_rev\": \"{}\"\n",
+            "}}\n"
+        ),
+        version::ROM_VERSION_MAJOR,
+        version::ROM_VERSION_MINOR,
+        version::ROM_VERSION_MAJOR,
+        version::ROM_VERSION_MINOR,
+        version::ROM_VERSION_PATCH,
+        version::FMC_VERSION_MAJOR,
+        version::FMC_VERSION_MINOR,
+        version::FMC_VERSION_PATCH,
+        version::RUNTIME_VERSION_MAJOR,
+        version::RUNTIME_VERSION_MINOR,
+        version::RUNTIME_VERSION_PATCH,
+        rev("CALIPTRA_SW_REV"),
+        rev("CALIPTRA_MCU_SW_REV"),
+    );
+    let path = output_dir.join("build-info.json");
+    std::fs::write(&path, info).with_context(|| format!("Failed to write {}", path.display()))?;
+    println!("Wrote {}", path.display());
     Ok(())
 }

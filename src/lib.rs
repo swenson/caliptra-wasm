@@ -87,7 +87,9 @@ fn read_fuse_registers_json(mgr: &mut impl SocManager) -> String {
     macro_rules! fuse_array {
         ($mgr:expr, $name:expr, $accessor:ident, $count:expr) => {
             for i in 0..$count {
-                if !first { json.push(','); }
+                if !first {
+                    json.push(',');
+                }
                 first = false;
                 let val: u32 = $mgr.soc_ifc().$accessor().at(i).read();
                 let _ = write!(json, "\"{}[{}]\":\"0x{:08x}\"", $name, i, val);
@@ -96,9 +98,13 @@ fn read_fuse_registers_json(mgr: &mut impl SocManager) -> String {
     }
     macro_rules! fuse_scalar {
         ($mgr:expr, $name:expr, $accessor:ident) => {
-            if !first { json.push(','); }
+            if !first {
+                json.push(',');
+            }
             #[allow(unused_assignments)]
-            { first = false; }
+            {
+                first = false;
+            }
             let val: u32 = $mgr.soc_ifc().$accessor().read().into();
             let _ = write!(json, "\"{}\":\"0x{:08x}\"", $name, val);
         };
@@ -108,13 +114,22 @@ fn read_fuse_registers_json(mgr: &mut impl SocManager) -> String {
     fuse_scalar!(mgr, "fuse_ecc_revocation", fuse_ecc_revocation);
     fuse_scalar!(mgr, "fuse_fmc_key_manifest_svn", fuse_fmc_key_manifest_svn);
     fuse_array!(mgr, "fuse_runtime_svn", fuse_runtime_svn, 4);
-    fuse_scalar!(mgr, "fuse_anti_rollback_disable", fuse_anti_rollback_disable);
+    fuse_scalar!(
+        mgr,
+        "fuse_anti_rollback_disable",
+        fuse_anti_rollback_disable
+    );
     fuse_array!(mgr, "fuse_idevid_cert_attr", fuse_idevid_cert_attr, 24);
     fuse_array!(mgr, "fuse_idevid_manuf_hsm_id", fuse_idevid_manuf_hsm_id, 4);
     fuse_scalar!(mgr, "fuse_lms_revocation", fuse_lms_revocation);
     fuse_scalar!(mgr, "fuse_mldsa_revocation", fuse_mldsa_revocation);
     fuse_scalar!(mgr, "fuse_soc_stepping_id", fuse_soc_stepping_id);
-    fuse_array!(mgr, "fuse_manuf_dbg_unlock_token", fuse_manuf_dbg_unlock_token, 16);
+    fuse_array!(
+        mgr,
+        "fuse_manuf_dbg_unlock_token",
+        fuse_manuf_dbg_unlock_token,
+        16
+    );
     fuse_scalar!(mgr, "fuse_pqc_key_type", fuse_pqc_key_type);
     fuse_array!(mgr, "fuse_soc_manifest_svn", fuse_soc_manifest_svn, 4);
     fuse_scalar!(mgr, "fuse_soc_manifest_max_svn", fuse_soc_manifest_max_svn);
@@ -480,53 +495,31 @@ impl McuEmulator {
         };
 
         let init_params = mcu_hw_model::InitParams {
-            fuses: Default::default(),
             caliptra_rom,
             caliptra_firmware: caliptra_fw,
             soc_manifest,
             mcu_rom,
             mcu_firmware,
-            caliptra_dccm: Default::default(),
-            caliptra_iccm: Default::default(),
             otp_memory: Some(&otp),
-            lifecycle_controller_state: None,
-            lifecycle_tokens: None,
             // vendor_pk_hash: model writes vendor_pk_hash from FW manifest into
             // VENDOR_HASHES_MANUF partition. Pass FW-derived hash so it stays
             // consistent with the firmware.
             vendor_pk_hash: vendor_pk_hash_from_fw(caliptra_fw),
             vendor_pqc_type: Some(vendor_pqc_type),
             log_writer: Box::new(log_buffer.clone()),
-            dbg_manuf_service: Default::default(),
-            active_mode: false,
-            prod_dbg_unlock_keypairs: Default::default(),
-            num_prod_dbg_unlock_pk_hashes: 8,
-            prod_dbg_unlock_pk_hashes_offset: 0x480,
-            bootfsm_break: false,
-            rma_or_scrap_ppd: false,
             debug_intent,
-            uds_program_req: false,
-            cptra_obf_key: DEFAULT_CPTRA_OBF_KEY,
-            csr_hmac_key: [1; 16],
-            uds_granularity_32: false,
-            otp_dai_idle_bit_offset: 22,
-            otp_direct_access_cmd_reg_offset: 0x60,
             itrng_nibbles,
             etrng_responses,
             random_sram_puf: false,
-            trace_path: None,
-            stack_info: None,
-            enable_mcu_uart_log: false,
-            i3c_port: None,
-            dot_flash_initial_contents: None,
-            primary_flash_initial_contents: None,
             check_booted_to_runtime: false,
-            caliptra_soc_axi_user: None,
-            flash_boot: false,
             ocp_lock_en: true,
-            fips_zeroization: false,
-            network_rom: Default::default(),
-            rom_callback: None,
+            // Record the MCU's exit request (e.g. on a ROM fatal error) and
+            // halt the MCU instead of terminating the host process.
+            capture_mcu_exit: true,
+            // Everything else (OTP controller register offsets, prod debug
+            // unlock straps, flash/network boot, ...) follows the upstream
+            // caliptra-mcu-sw emulator defaults.
+            ..Default::default()
         };
 
         let mut model = {
@@ -598,6 +591,14 @@ impl McuEmulator {
     /// Get total steps executed.
     pub fn total_steps(&self) -> u64 {
         self.total_steps
+    }
+
+    /// The status the MCU passed when it asked the emulator to exit (it does
+    /// this on a fatal ROM/runtime error), or `undefined` while it is running.
+    /// After an exit the MCU is halted; Caliptra keeps running.
+    pub fn mcu_exit_status(&self) -> Option<i32> {
+        use mcu_hw_model::McuHwModel;
+        self.model.mcu_exit_status()
     }
 
     /// Execute a Caliptra mailbox command from the SoC side.
@@ -725,6 +726,7 @@ impl McuEmulator {
     /// Get a snapshot of the Caliptra Key Vault as JSON. Same shape as
     /// `CaliptraEmulator::get_keyvault`.
     pub fn get_keyvault(&mut self) -> String {
+        use mcu_hw_model::McuHwModel;
         format_keyvault_json(self.model.key_vault_snapshot())
     }
 }
@@ -732,9 +734,40 @@ impl McuEmulator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // The emulators share process-wide state (e.g. caliptra-sw's SS MCI
+    // offset, which the MCU model sets through an environment variable on
+    // native targets), so the boot tests must not run concurrently.
+    static EMULATOR_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Caliptra and the MCU share one UART stream, so lines they print at the
+    /// same time interleave character by character. Treat `needle` as seen if
+    /// it appears verbatim or as an in-order subsequence of a short window.
+    fn uart_seen(uart: &str, needle: &str) -> bool {
+        if uart.contains(needle) {
+            return true;
+        }
+        let hay = uart.as_bytes();
+        let pat = needle.as_bytes();
+        let max_span = pat.len() * 4;
+        (0..hay.len()).filter(|&i| hay[i] == pat[0]).any(|start| {
+            let mut j = 0;
+            for &b in &hay[start..hay.len().min(start + max_span)] {
+                if b == pat[j] {
+                    j += 1;
+                    if j == pat.len() {
+                        return true;
+                    }
+                }
+            }
+            false
+        })
+    }
 
     #[test]
     fn test_caliptra_emulator_boots() {
+        let _guard = EMULATOR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let rom = std::fs::read("www/default-rom.bin").expect("default-rom.bin");
         let fw = std::fs::read("www/default-fw.bin").expect("default-fw.bin");
         let soc_manifest = std::fs::read("www/default-soc-manifest.bin").expect("soc-manifest");
@@ -773,11 +806,14 @@ mod tests {
 
     #[test]
     fn test_mcu_emulator_boots_and_steps() {
+        let _guard = EMULATOR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let caliptra_rom = std::fs::read("www/default-rom.bin").expect("default-rom.bin");
         let caliptra_fw = std::fs::read("www/default-fw.bin").expect("default-fw.bin");
         let soc_manifest = std::fs::read("www/default-soc-manifest.bin").expect("soc-manifest.bin");
         let mcu_rom = std::fs::read("www/default-mcu-rom.bin").expect("default-mcu-rom.bin");
-        let mcu_fw = std::fs::read("www/default-mcu-fw.bin").expect("default-mcu-fw.bin");
+        // The default SoC manifest authorizes the real MCU runtime (see
+        // build-wasm.sh), so boot with that rather than the placeholder.
+        let mcu_fw = std::fs::read("www/default-mcu-runtime.bin").expect("default-mcu-runtime.bin");
 
         let mut emu = McuEmulator::new(
             &caliptra_rom,
@@ -792,13 +828,41 @@ mod tests {
 
         // Step through boot — 50k steps per batch like the browser does
         // Browser runs many frames, so test with lots of steps
-        for i in 0..200 {
-            emu.step(50_000);
-            if i % 50 == 0 {
-                eprintln!("Step batch {}, total: {}", i, emu.total_steps());
+        // Step in browser-sized batches until the MCU runtime reaches its
+        // main loop (about 60M cycles), failing fast on any fatal error.
+        const MILESTONES: [&str; 4] = [
+            "[mcu-rom] Hello from ROM",
+            "[rt] RT listening for mailbox commands",
+            "[mcu-rom] Jumping to firmware",
+            "[mcu-runtime] Entering main loop.",
+        ];
+        let mut uart = String::new();
+        while emu.total_steps() < 150_000_000 {
+            emu.step(1_000_000);
+            uart.push_str(&emu.get_uart_output());
+            let errs = emu.get_error_registers();
+            let fatal = !errs.contains("\"mci_fw_error_fatal\":\"0x00000000\"")
+                || !errs.contains("\"cptra_fw_error_fatal\":\"0x00000000\"")
+                || emu.mcu_exit_status().is_some()
+                || uart.contains("MCU fatal error");
+            if fatal {
+                panic!(
+                    "fatal error after {} steps (MCU exit status {:?}): {errs}\nUART tail:\n{}",
+                    emu.total_steps(),
+                    emu.mcu_exit_status(),
+                    &uart[uart.len().saturating_sub(4000)..]
+                );
+            }
+            if MILESTONES.iter().all(|m| uart_seen(&uart, m)) {
+                return;
             }
         }
-        assert_eq!(emu.total_steps(), 10_000_000);
+        let missing: Vec<_> = MILESTONES.iter().filter(|m| !uart_seen(&uart, m)).collect();
+        panic!(
+            "boot milestones not reached after {} steps: {missing:?}\nUART tail:\n{}",
+            emu.total_steps(),
+            &uart[uart.len().saturating_sub(4000)..]
+        );
     }
 }
 

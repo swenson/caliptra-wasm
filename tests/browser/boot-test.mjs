@@ -1,0 +1,380 @@
+#!/usr/bin/env node
+// Licensed under the Apache-2.0 license
+//
+// End-to-end boot test for the emulator page, run in a real (headless)
+// browser.
+//
+// Serves www/ on a local port, launches headless Firefox, drives it over
+// WebDriver BiDi (built into Firefox, so no npm packages or driver binaries
+// are needed), and for each emulator mode clicks Run on the page exactly as a
+// user would. Each mode must reach its boot milestones in the UART output
+// without a fatal error in the page's error decoder.
+//
+// Usage:
+//   node tests/browser/boot-test.mjs [--mode caliptra|mcu]... [--timeout SECS] [--out DIR]
+//
+// With --out, each mode's full UART output and final page state are written
+// to DIR/<mode>-uart.txt and DIR/<mode>-state.json.
+//
+// Environment:
+//   FIREFOX                 Firefox binary (default: "firefox")
+//   BROWSER_TEST_PROFILE_DIR  Parent dir for the temporary Firefox profile.
+//                           Defaults to the OS temp dir, or
+//                           ~/snap/firefox/common/tmp for snap Firefox
+//                           (which cannot see the host /tmp).
+//
+// Requires Node 22+ (global WebSocket).
+
+import { spawn } from "node:child_process";
+import { createReadStream, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
+import { homedir, tmpdir } from "node:os";
+import { dirname, extname, join, normalize, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const WWW = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "www");
+
+// Boot milestones per mode. All `expect` strings must appear in the UART
+// output; any `fatal` pattern fails the run immediately.
+const MODES = {
+  caliptra: {
+    label: "Caliptra only",
+    expect: ["[rt] RT listening for mailbox commands"],
+  },
+  mcu: {
+    label: "MCU + Caliptra (subsystem)",
+    expect: [
+      "[mcu-rom] Hello from ROM",
+      "[rt] RT listening for mailbox commands",
+      "[mcu-rom] Jumping to firmware",
+      "[mcu-runtime] Entering main loop.",
+    ],
+  },
+};
+// Caliptra and the MCU share one UART panel, and lines they print at the same
+// moment interleave character by character (how they interleave varies from
+// run to run). So a milestone counts as seen if it appears verbatim, or if its
+// characters appear in order within a window a few times its length.
+function seen(uart, needle) {
+  if (uart.includes(needle)) return true;
+  const maxSpan = needle.length * 4;
+  for (let start = uart.indexOf(needle[0]); start !== -1; start = uart.indexOf(needle[0], start + 1)) {
+    let j = 1;
+    let i = start + 1;
+    const end = Math.min(uart.length, start + maxSpan);
+    for (; i < end && j < needle.length; i++) if (uart[i] === needle[j]) j++;
+    if (j === needle.length) return true;
+  }
+  return false;
+}
+
+const FATAL_UART = [/MCU fatal error/i, /panicked at/i, /RuntimeError: unreachable/];
+
+function parseArgs(argv) {
+  const out = { modes: [], timeout: 600, outDir: null };
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--mode") out.modes.push(argv[++i]);
+    else if (argv[i] === "--timeout") out.timeout = Number(argv[++i]);
+    else if (argv[i] === "--out") out.outDir = argv[++i];
+    else if (argv[i] === "-h" || argv[i] === "--help") {
+      console.log("usage: boot-test.mjs [--mode caliptra|mcu]... [--timeout SECS] [--out DIR]");
+      process.exit(0);
+    } else throw new Error(`unknown argument: ${argv[i]}`);
+  }
+  if (out.modes.length === 0) out.modes = Object.keys(MODES);
+  for (const m of out.modes) if (!MODES[m]) throw new Error(`unknown mode: ${m}`);
+  return out;
+}
+
+// ---------------------------------------------------------------- web server
+
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json",
+  ".wasm": "application/wasm",
+  ".bin": "application/octet-stream",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+};
+
+function serveWww() {
+  const server = createServer((req, res) => {
+    let path = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    if (path.endsWith("/")) path += "index.html";
+    const file = normalize(join(WWW, path));
+    if (!file.startsWith(WWW + sep) || !existsSync(file) || !statSync(file).isFile()) {
+      res.writeHead(404).end("not found");
+      return;
+    }
+    res.writeHead(200, {
+      "Content-Type": MIME[extname(file)] || "application/octet-stream",
+      "Cache-Control": "no-store",
+    });
+    createReadStream(file).pipe(res);
+  });
+  return new Promise((ok) => server.listen(0, "127.0.0.1", () => ok(server)));
+}
+
+// ------------------------------------------------------------------- browser
+
+function freePort() {
+  return new Promise((ok, fail) => {
+    const s = createServer();
+    s.on("error", fail);
+    s.listen(0, "127.0.0.1", () => {
+      const { port } = s.address();
+      s.close(() => ok(port));
+    });
+  });
+}
+
+function profileParent() {
+  if (process.env.BROWSER_TEST_PROFILE_DIR) return process.env.BROWSER_TEST_PROFILE_DIR;
+  // Snap-packaged Firefox has a private /tmp, so a profile created under the
+  // host's /tmp is invisible to it. Use the snap's own writable area instead.
+  if (!process.env.FIREFOX && existsSync("/snap/bin/firefox")) {
+    return join(homedir(), "snap", "firefox", "common", "tmp");
+  }
+  return tmpdir();
+}
+
+async function launchFirefox() {
+  const bin = process.env.FIREFOX || "firefox";
+  const parent = profileParent();
+  mkdirSync(parent, { recursive: true });
+  const profile = mkdtempSync(join(parent, "caliptra-wasm-boot-test-"));
+  const port = await freePort();
+  const proc = spawn(
+    bin,
+    ["--headless", "--no-remote", "--profile", profile, "--remote-debugging-port", String(port), "about:blank"],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  let stderr = "";
+  const wsUrl = await new Promise((ok, fail) => {
+    const timer = setTimeout(() => fail(new Error(`Firefox did not start BiDi within 60s:\n${stderr}`)), 60_000);
+    const onData = (d) => {
+      stderr += d;
+      const m = stderr.match(/WebDriver BiDi listening on (ws:\/\/\S+)/);
+      if (m) {
+        clearTimeout(timer);
+        ok(m[1]);
+      }
+    };
+    proc.stderr.on("data", onData);
+    proc.stdout.on("data", onData);
+    proc.on("exit", (code) => {
+      clearTimeout(timer);
+      fail(new Error(`Firefox exited (${code}) before BiDi was ready:\n${stderr}`));
+    });
+    proc.on("error", (e) => {
+      clearTimeout(timer);
+      fail(new Error(`could not launch ${bin}: ${e.message}`));
+    });
+  });
+  const cleanup = () => {
+    proc.kill("SIGTERM");
+    try {
+      rmSync(profile, { recursive: true, force: true });
+    } catch {}
+  };
+  return { wsUrl, cleanup, proc };
+}
+
+class Bidi {
+  constructor(ws) {
+    this.ws = ws;
+    this.nextId = 1;
+    this.pending = new Map();
+    this.listeners = [];
+    ws.addEventListener("message", (ev) => {
+      const msg = JSON.parse(ev.data);
+      if (msg.id !== undefined && this.pending.has(msg.id)) {
+        const { ok, fail } = this.pending.get(msg.id);
+        this.pending.delete(msg.id);
+        if (msg.type === "error") fail(new Error(`${msg.error}: ${msg.message}`));
+        else ok(msg.result);
+      } else if (msg.type === "event") {
+        for (const l of this.listeners) l(msg);
+      }
+    });
+  }
+
+  static async connect(url) {
+    const ws = new WebSocket(url.replace(/\/?$/, "/session"));
+    await new Promise((ok, fail) => {
+      ws.addEventListener("open", ok, { once: true });
+      ws.addEventListener("error", () => fail(new Error(`cannot connect to ${url}`)), { once: true });
+    });
+    const bidi = new Bidi(ws);
+    await bidi.send("session.new", { capabilities: { alwaysMatch: {} } });
+    return bidi;
+  }
+
+  send(method, params = {}) {
+    const id = this.nextId++;
+    this.ws.send(JSON.stringify({ id, method, params }));
+    return new Promise((ok, fail) => this.pending.set(id, { ok, fail }));
+  }
+
+  on(fn) {
+    this.listeners.push(fn);
+  }
+
+  // Evaluate `expression` in the page; it must produce a JSON-serializable
+  // value (or a promise of one).
+  async eval(context, expression) {
+    const r = await this.send("script.evaluate", {
+      expression: `(async () => JSON.stringify(await (${expression})))()`,
+      target: { context },
+      awaitPromise: true,
+      resultOwnership: "none",
+    });
+    if (r.type === "exception") {
+      throw new Error(`page script threw: ${r.exceptionDetails?.text}`);
+    }
+    return r.result.value === undefined ? undefined : JSON.parse(r.result.value);
+  }
+}
+
+// ---------------------------------------------------------------------- test
+
+const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
+const tail = (s, n = 3000) => (s.length > n ? "…" + s.slice(-n) : s);
+
+async function runMode(bidi, context, baseUrl, mode, timeoutSecs, outDir, pageErrors) {
+  const spec = MODES[mode];
+  console.log(`\n=== ${spec.label} (${mode}) ===`);
+  pageErrors.length = 0;
+  await bidi.send("browsingContext.navigate", { context, url: baseUrl, wait: "complete" });
+
+  // Wait for WASM init + default assets.
+  const readyBy = Date.now() + 60_000;
+  for (;;) {
+    const st = await bidi.eval(context, `({
+      status: document.getElementById("status").textContent,
+      runDisabled: document.getElementById("btn-run").disabled,
+      badge: document.getElementById("caliptra-release-badge")?.textContent,
+      buildInfo: document.getElementById("build-info")?.textContent,
+    })`);
+    if (st.status === "Ready" && !st.runDisabled) {
+      console.log(`page ready: ${st.badge} — ${st.buildInfo}`);
+      break;
+    }
+    if (/failed|error/i.test(st.status)) throw new Error(`page failed to initialize: ${st.status}`);
+    if (Date.now() > readyBy) throw new Error(`page not ready after 60s (status: ${st.status})`);
+    await sleep(250);
+  }
+
+  // Select the mode and press Run, as a user would.
+  await bidi.eval(context, `(() => {
+    const sel = document.getElementById("emu-mode");
+    sel.value = ${JSON.stringify(mode)};
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    document.getElementById("start-paused").checked = false;
+    document.getElementById("btn-run").click();
+    return true;
+  })()`);
+
+  const t0 = Date.now();
+  let lastReport = 0;
+  for (;;) {
+    await sleep(1000);
+    const st = await bidi.eval(context, `(() => {
+      const dec = document.getElementById("error-decoder");
+      return {
+        status: document.getElementById("status").textContent,
+        stats: document.getElementById("stats").textContent,
+        uart: document.getElementById("uart-output").textContent,
+        decoder: dec && dec.style.display !== "none" ? dec.textContent : "",
+      };
+    })()`);
+    const elapsed = (Date.now() - t0) / 1000;
+    const missing = spec.expect.filter((m) => !seen(st.uart, m));
+    const fatalUart = FATAL_UART.find((re) => re.test(st.uart));
+    const fatalDecoder = /fw_error_fatal/.test(st.decoder);
+    const save = () => {
+      if (!outDir) return;
+      mkdirSync(outDir, { recursive: true });
+      writeFileSync(join(outDir, `${mode}-uart.txt`), st.uart);
+      const { uart, ...rest } = st;
+      writeFileSync(join(outDir, `${mode}-state.json`), JSON.stringify({ ...rest, missing, pageErrors }, null, 2));
+    };
+
+    const fail = (why) => {
+      save();
+      throw new Error(
+        `${mode}: ${why}\nstatus: ${st.status}\nstats: ${st.stats}\n` +
+          (st.decoder ? `error decoder:\n${st.decoder}\n` : "") +
+          (pageErrors.length ? `page errors:\n${pageErrors.join("\n")}\n` : "") +
+          `UART (tail):\n${tail(st.uart)}`,
+      );
+    };
+
+    if (fatalUart) fail(`fatal output in UART (${fatalUart})`);
+    if (fatalDecoder) fail("error decoder reports a fatal error");
+    if (pageErrors.length) fail("JavaScript errors on the page");
+    if (/^Error|Exited — FAILED|MCU exited/.test(st.status)) fail(`emulator stopped: ${st.status}`);
+    if (missing.length === 0) {
+      save();
+      console.log(`PASS ${mode} in ${elapsed.toFixed(0)}s — ${st.stats}`);
+      if (st.decoder) console.log(`(non-fatal) error decoder:\n${st.decoder}`);
+      // Stop the run loop before moving on.
+      await bidi.eval(context, `(document.getElementById("btn-stop").click(), true)`);
+      return;
+    }
+    if (elapsed > timeoutSecs) fail(`timed out after ${timeoutSecs}s; missing: ${JSON.stringify(missing)}`);
+    if (elapsed - lastReport >= 15) {
+      lastReport = elapsed;
+      console.log(`  ${elapsed.toFixed(0)}s: ${st.stats || st.status}; waiting for ${JSON.stringify(missing)}`);
+    }
+  }
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  if (typeof WebSocket === "undefined") throw new Error("Node 22+ is required (global WebSocket)");
+  for (const f of ["caliptra_wasm_demo.js", "caliptra_wasm_demo_bg.wasm", "default-rom.bin"]) {
+    if (!existsSync(join(WWW, f))) throw new Error(`www/${f} is missing; run ./build-wasm.sh first`);
+  }
+
+  const server = await serveWww();
+  const baseUrl = `http://127.0.0.1:${server.address().port}/`;
+  console.log(`serving ${WWW} at ${baseUrl}`);
+  const ff = await launchFirefox();
+  let failed = false;
+  try {
+    const bidi = await Bidi.connect(ff.wsUrl);
+    const pageErrors = [];
+    await bidi.send("session.subscribe", { events: ["log.entryAdded"] });
+    bidi.on((ev) => {
+      if (ev.method === "log.entryAdded" && ev.params.level === "error") {
+        pageErrors.push(ev.params.text);
+      }
+    });
+    const tree = await bidi.send("browsingContext.getTree", {});
+    const context = tree.contexts[0].context;
+    for (const mode of args.modes) {
+      try {
+        await runMode(bidi, context, baseUrl, mode, args.timeout, args.outDir, pageErrors);
+      } catch (e) {
+        failed = true;
+        console.error(`FAIL ${e.message}`);
+      }
+    }
+    await bidi.send("session.end").catch(() => {});
+  } finally {
+    ff.cleanup();
+    server.close();
+  }
+  if (failed) process.exit(1);
+  console.log("\nAll browser boot tests passed.");
+}
+
+main().catch((e) => {
+  console.error(e.stack || String(e));
+  process.exit(1);
+});
