@@ -258,6 +258,23 @@ async function computeOwner() {
   return await sha384(buf);
 }
 
+// defaults.json of the release chosen on the emulator page (?version=, then
+// the last release picked there, then the newest build).
+let defaultsRelease = null;
+async function defaultsUrl() {
+  if (!defaultsRelease) {
+    let rel = new URLSearchParams(location.search).get("version");
+    try { rel = rel || localStorage.getItem("caliptra-wasm.release"); } catch (e) {}
+    try {
+      const v = await (await fetch("versions.json", { cache: "no-cache" })).json();
+      defaultsRelease = v.releases.includes(rel) ? rel : v.default;
+    } catch (e) {
+      defaultsRelease = rel || "2.1";
+    }
+  }
+  return `v${defaultsRelease}/defaults.json`;
+}
+
 let timer = null;
 async function update() {
   const vh = await computeVendor(), oh = await computeOwner();
@@ -267,14 +284,15 @@ async function update() {
   document.getElementById("v-words").textContent = fmtWords(vh);
   document.getElementById("o-words").textContent = fmtWords(oh);
   try {
-    const r = await fetch("defaults.json");
+    const r = await fetch(await defaultsUrl());
     if (r.ok) {
       const d = await r.json();
       const vm = vhex === d.vendor_pk_hash, om = ohex === d.owner_pk_hash;
       const vel = document.getElementById("v-match"), oel = document.getElementById("o-match");
-      vel.textContent = vm ? "Matches the default firmware" : "Differs from the default firmware";
+      const fw = `the Caliptra ${defaultsRelease} default firmware`;
+      vel.textContent = vm ? `Matches ${fw}` : `Differs from ${fw}`;
       vel.className = "status " + (vm ? "status-ok" : "status-warn");
-      oel.textContent = om ? "Matches the default firmware" : "Differs from the default firmware";
+      oel.textContent = om ? `Matches ${fw}` : `Differs from ${fw}`;
       oel.className = "status " + (om ? "status-ok" : "status-warn");
     }
   } catch(e) {}

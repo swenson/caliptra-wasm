@@ -2,12 +2,14 @@
 # Licensed under the Apache-2.0 license
 """Generate www/error-codes.json from the Caliptra and MCU error source files.
 
-This walks the cargo registry to find the active checkout of caliptra-sw
-and caliptra-mcu-sw and parses the `(NAME, 0xHEX, "doc")` tuples from
-error/src/lib.rs in each.
+Parses the `(NAME, 0xHEX, "doc")` tuples from error/src/lib.rs in
+caliptra-sw and caliptra-mcu-sw. By default it finds the cargo git
+checkouts of the revisions pinned in a release's Cargo.toml
+(--manifest); build-wasm.sh passes the paths explicitly.
 
 Usage:
-    ./tools/build-error-codes.py [--caliptra-sw PATH] [--mcu-sw PATH] [-o PATH]
+    ./tools/build-error-codes.py [--manifest versions/2.1/Cargo.toml]
+        [--caliptra-sw PATH] [--mcu-sw PATH] [-o PATH]
 """
 
 import argparse
@@ -23,9 +25,8 @@ PATTERN = re.compile(
 )
 
 
-def pinned_revs():
-    """Return the (caliptra-sw, caliptra-mcu-sw) git revs pinned in Cargo.toml."""
-    cargo_toml = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Cargo.toml")
+def pinned_revs(cargo_toml):
+    """Return the (caliptra-sw, caliptra-mcu-sw) git revs pinned in cargo_toml."""
     try:
         with open(cargo_toml) as f:
             text = f.read()
@@ -39,7 +40,7 @@ def pinned_revs():
     return (rev_for("caliptra-sw"), rev_for("caliptra-mcu-sw"))
 
 
-def find_default_paths():
+def find_default_paths(cargo_toml):
     """Search ~/.cargo/git/checkouts for the caliptra-sw and caliptra-mcu-sw checkouts.
 
     Prefers the checkout matching the rev pinned in Cargo.toml (cargo names
@@ -48,7 +49,7 @@ def find_default_paths():
     """
     home = os.path.expanduser("~")
     base = os.path.join(os.environ.get("CARGO_HOME", os.path.join(home, ".cargo")), "git", "checkouts")
-    cap_rev, mcu_rev = pinned_revs()
+    cap_rev, mcu_rev = pinned_revs(cargo_toml)
 
     def pick(repo_glob, rev):
         paths = glob.glob(os.path.join(base, repo_glob, "*", "error", "src", "lib.rs"))
@@ -76,9 +77,23 @@ def extract(path, source_label):
     return out
 
 
+def newest_manifest():
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "versions")
+    releases = sorted(
+        (d for d in os.listdir(root) if os.path.exists(os.path.join(root, d, "Cargo.toml"))),
+        key=lambda v: [int(x) for x in v.split(".")],
+    )
+    return os.path.join(root, releases[-1], "Cargo.toml")
+
+
 def main():
-    cap_default, mcu_default = find_default_paths()
-    p = argparse.ArgumentParser(description=__doc__)
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--manifest", default=newest_manifest())
+    known, _ = pre.parse_known_args()
+    cap_default, mcu_default = find_default_paths(known.manifest)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--manifest", default=known.manifest,
+                   help="Release Cargo.toml whose pinned revisions to look up (default: newest release)")
     p.add_argument("--caliptra-sw", default=cap_default,
                    help="Path to caliptra-sw error/src/lib.rs")
     p.add_argument("--mcu-sw", default=mcu_default,

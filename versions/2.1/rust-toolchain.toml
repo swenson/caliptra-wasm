@@ -1,6 +1,6 @@
 # Licensed under the Apache-2.0 license
 #
-# Matches the toolchain pinned by caliptra-sw and caliptra-mcu-sw (main-2.1).
+# Matches the toolchain pinned by caliptra-sw and caliptra-mcu-sw for 2.1.
 # The Caliptra ROM/FW images are compiled by caliptra-builder with whatever
 # toolchain runs the asset tools, so keep this in sync with upstream.
 [toolchain]

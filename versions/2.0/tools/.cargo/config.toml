@@ -1,0 +1,4 @@
+# Resolve crates.io dependencies to versions that build with this directory's
+# Rust 1.85 toolchain (see rust-toolchain.toml).
+[resolver]
+incompatible-rust-versions = "fallback"

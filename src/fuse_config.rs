@@ -14,6 +14,7 @@
 //!   * `debug_locked` (debug-intent checkbox)
 
 use caliptra_api_types::{Fuses, U4};
+use mcu_registers_generated::fuses as otp_map;
 use serde::Deserialize;
 
 /// Hex string parsing. Accepts optional "0x" prefix and ignores whitespace.
@@ -139,19 +140,30 @@ impl FuseConfig {
     /// but the MCU OTP byte uses the inverse encoding (0=MLDSA, 1=LMS). This
     /// helper translates automatically.
     pub fn apply_to_otp(&self, otp: &mut [u8]) -> Result<(), String> {
-        // SW_MANUF partition starts at 0xf8.
-        // Layout (offsets within partition):
-        //   0:    anti_rollback_disable     (4 bytes)
-        //   4:    idevid_cert_attr          (96 bytes)
-        //   100:  idevid_cert (soc_specific) (4 bytes)  -- skipped
-        //   104:  idevid_manuf_hsm_id       (16 bytes)
-        //   120:  soc_stepping_id           (4 bytes)
-        //   124:  prod_debug_unlock_pks_0   (48 bytes)
-        //   ...   prod_debug_unlock_pks_1..7 (8 total, 384 bytes)
-        const SW_MANUF_OFF: usize = 0xf8;
+        // Byte offsets come from the release's generated OTP map; the
+        // partitions moved between releases (2.0's start 0x28 bytes earlier
+        // than 2.1's).
+        //
+        // SW_MANUF partition: anti_rollback_disable (4), idevid_cert_attr
+        // (96), idevid_cert (4, skipped), idevid_manuf_hsm_id (16),
+        // soc_stepping_id (4), prod_debug_unlock_pks_0..7 (48 each).
+        let anti_rollback = otp_map::OTP_CPTRA_CORE_ANTI_ROLLBACK_DISABLE.byte_offset;
+        let cert_attr = otp_map::OTP_CPTRA_CORE_IDEVID_CERT_IDEVID_ATTR.byte_offset;
+        let hsm_id = otp_map::OTP_CPTRA_CORE_IDEVID_MANUF_HSM_IDENTIFIER.byte_offset;
+        let stepping_id = otp_map::OTP_CPTRA_CORE_SOC_STEPPING_ID.byte_offset;
+        let prod_dbg_pks = [
+            otp_map::OTP_CPTRA_SS_PROD_DEBUG_UNLOCK_PKS_0.byte_offset,
+            otp_map::OTP_CPTRA_SS_PROD_DEBUG_UNLOCK_PKS_1.byte_offset,
+            otp_map::OTP_CPTRA_SS_PROD_DEBUG_UNLOCK_PKS_2.byte_offset,
+            otp_map::OTP_CPTRA_SS_PROD_DEBUG_UNLOCK_PKS_3.byte_offset,
+            otp_map::OTP_CPTRA_SS_PROD_DEBUG_UNLOCK_PKS_4.byte_offset,
+            otp_map::OTP_CPTRA_SS_PROD_DEBUG_UNLOCK_PKS_5.byte_offset,
+            otp_map::OTP_CPTRA_SS_PROD_DEBUG_UNLOCK_PKS_6.byte_offset,
+            otp_map::OTP_CPTRA_SS_PROD_DEBUG_UNLOCK_PKS_7.byte_offset,
+        ];
         if let Some(v) = self.anti_rollback_disable {
             let val = if v { 1u32 } else { 0 };
-            otp[SW_MANUF_OFF..SW_MANUF_OFF + 4].copy_from_slice(&val.to_le_bytes());
+            otp[anti_rollback..anti_rollback + 4].copy_from_slice(&val.to_le_bytes());
         }
         if let Some(s) = &self.idevid_cert_attr {
             let bytes = parse_hex(s)?;
@@ -161,7 +173,7 @@ impl FuseConfig {
                     bytes.len()
                 ));
             }
-            otp[SW_MANUF_OFF + 4..SW_MANUF_OFF + 100].copy_from_slice(&bytes);
+            otp[cert_attr..cert_attr + 96].copy_from_slice(&bytes);
         }
         if let Some(s) = &self.idevid_manuf_hsm_id {
             let bytes = parse_hex(s)?;
@@ -171,10 +183,10 @@ impl FuseConfig {
                     bytes.len()
                 ));
             }
-            otp[SW_MANUF_OFF + 104..SW_MANUF_OFF + 120].copy_from_slice(&bytes);
+            otp[hsm_id..hsm_id + 16].copy_from_slice(&bytes);
         }
         if let Some(v) = self.soc_stepping_id {
-            otp[SW_MANUF_OFF + 120..SW_MANUF_OFF + 124].copy_from_slice(&(v as u32).to_le_bytes());
+            otp[stepping_id..stepping_id + 4].copy_from_slice(&(v as u32).to_le_bytes());
         }
         if let Some(pks) = &self.prod_debug_unlock_pks {
             for (i, pk_hex) in pks.iter().take(8).enumerate() {
@@ -185,7 +197,7 @@ impl FuseConfig {
                         bytes.len()
                     ));
                 }
-                let off = SW_MANUF_OFF + 124 + i * 48;
+                let off = prod_dbg_pks[i];
                 otp[off..off + 48].copy_from_slice(&bytes);
             }
         }
@@ -198,22 +210,23 @@ impl FuseConfig {
         // / `soc_manifest_svn` OtpArgs (currently always None from mcu-hw-model
         // InitParams). Writes here will be clobbered. The fields are kept so
         // they take effect in core mode (Caliptra Fuses struct).
-        const SVN_OFF: usize = 0x3b8;
+        let runtime_svn = otp_map::OTP_CPTRA_CORE_RUNTIME_SVN.byte_offset;
+        let manifest_svn = otp_map::OTP_CPTRA_CORE_SOC_MANIFEST_SVN.byte_offset;
+        let manifest_max_svn = otp_map::OTP_CPTRA_CORE_SOC_MANIFEST_MAX_SVN.byte_offset;
         if let Some(v) = self.fw_svn {
-            // OTP runtime_svn at offset +4
             for (i, w) in v.iter().enumerate() {
-                let off = SVN_OFF + 4 + i * 4;
+                let off = runtime_svn + i * 4;
                 otp[off..off + 4].copy_from_slice(&w.to_le_bytes());
             }
         }
         if let Some(v) = self.soc_manifest_svn {
             for (i, w) in v.iter().enumerate() {
-                let off = SVN_OFF + 20 + i * 4;
+                let off = manifest_svn + i * 4;
                 otp[off..off + 4].copy_from_slice(&w.to_le_bytes());
             }
         }
         if let Some(v) = self.soc_manifest_max_svn {
-            otp[SVN_OFF + 36..SVN_OFF + 40].copy_from_slice(&(v as u32).to_le_bytes());
+            otp[manifest_max_svn..manifest_max_svn + 4].copy_from_slice(&(v as u32).to_le_bytes());
         }
 
         // VENDOR_HASHES_MANUF (0x420): vendor_pk_hash (48) + pqc_key_type (4)
@@ -222,26 +235,27 @@ impl FuseConfig {
         // its `vendor_pqc_type` init param. The lib.rs constructor derives that
         // init param from `fuse_pqc_key_type` here. We still write the byte for
         // completeness in case the model ever stops overriding it.
-        const VENDOR_HASHES_MANUF_OFF: usize = 0x420;
+        let pqc_key_type = otp_map::OTP_CPTRA_CORE_PQC_KEY_TYPE_0.byte_offset;
         if let Some(v) = self.fuse_pqc_key_type {
             // Caliptra: 0=LMS, 1=MLDSA. OTP: 0=MLDSA, 1=LMS.
             let otp_val: u32 = if v == 1 { 0 } else { 1 };
-            otp[VENDOR_HASHES_MANUF_OFF + 48..VENDOR_HASHES_MANUF_OFF + 52]
-                .copy_from_slice(&otp_val.to_le_bytes());
+            otp[pqc_key_type..pqc_key_type + 4].copy_from_slice(&otp_val.to_le_bytes());
         }
 
         // VENDOR_REVOCATIONS_PROD (0x7c0): owner_ecc/lms/mldsa_revocation (4 ea),
         // then cptra_core_ecc/lms/mldsa_revocation_0..3 (4 bytes each, 36 bytes total).
-        const VENDOR_REV_OFF: usize = 0x7c0;
+        let ecc_rev = otp_map::OTP_CPTRA_CORE_ECC_REVOCATION_0.byte_offset;
+        let lms_rev = otp_map::OTP_CPTRA_CORE_LMS_REVOCATION_0.byte_offset;
+        let mldsa_rev = otp_map::OTP_CPTRA_CORE_MLDSA_REVOCATION_0.byte_offset;
         // We populate the cptra_core_*_revocation_0 slot for the core fuse fields.
         if let Some(v) = self.fuse_ecc_revocation {
-            otp[VENDOR_REV_OFF + 12..VENDOR_REV_OFF + 16].copy_from_slice(&v.to_le_bytes());
+            otp[ecc_rev..ecc_rev + 4].copy_from_slice(&v.to_le_bytes());
         }
         if let Some(v) = self.fuse_lms_revocation {
-            otp[VENDOR_REV_OFF + 16..VENDOR_REV_OFF + 20].copy_from_slice(&v.to_le_bytes());
+            otp[lms_rev..lms_rev + 4].copy_from_slice(&v.to_le_bytes());
         }
         if let Some(v) = self.fuse_mldsa_revocation {
-            otp[VENDOR_REV_OFF + 20..VENDOR_REV_OFF + 24].copy_from_slice(&v.to_le_bytes());
+            otp[mldsa_rev..mldsa_rev + 4].copy_from_slice(&v.to_le_bytes());
         }
 
         Ok(())
@@ -282,16 +296,25 @@ mod tests {
         assert_eq!(fuses.soc_manifest_max_svn, 64);
     }
 
+    // Partition start offsets, written out per release so these tests also
+    // check the generated OTP map that apply_to_otp uses.
+    #[cfg(feature = "caliptra-2-0")]
+    const SVN_PARTITION: usize = 0x390;
+    #[cfg(feature = "caliptra-2-1")]
+    const SVN_PARTITION: usize = 0x3b8;
+    #[cfg(feature = "caliptra-2-0")]
+    const VENDOR_REVOCATIONS_PARTITION: usize = 0x798;
+    #[cfg(feature = "caliptra-2-1")]
+    const VENDOR_REVOCATIONS_PARTITION: usize = 0x7c0;
+
     #[test]
     fn test_apply_to_otp_svn() {
         let cfg =
             FuseConfig::from_json(r#"{"soc_manifest_max_svn":64,"fw_svn":[1,0,0,0]}"#).unwrap();
         let mut otp = vec![0u8; 4096];
         cfg.apply_to_otp(&mut otp).unwrap();
-        // soc_manifest_max_svn at SVN_OFF + 36
-        assert_eq!(otp[0x3b8 + 36], 64);
-        // fw_svn[0] = 1 at SVN_OFF + 4
-        assert_eq!(otp[0x3b8 + 4], 1);
+        assert_eq!(otp[SVN_PARTITION + 36], 64); // soc_manifest_max_svn
+        assert_eq!(otp[SVN_PARTITION + 4], 1); // fw_svn[0]
     }
 
     #[test]
@@ -301,8 +324,8 @@ mod tests {
                 .unwrap();
         let mut otp = vec![0u8; 4096];
         cfg.apply_to_otp(&mut otp).unwrap();
-        assert_eq!(otp[0x7c0 + 16], 15);
-        assert_eq!(otp[0x7c0 + 20], 255);
+        assert_eq!(otp[VENDOR_REVOCATIONS_PARTITION + 16], 15);
+        assert_eq!(otp[VENDOR_REVOCATIONS_PARTITION + 20], 255);
     }
 
     #[test]

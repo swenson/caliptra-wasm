@@ -42,8 +42,8 @@
           <legend>Release and mode</legend>
           <div class="field">
             <label for="caliptra-version">Caliptra version</label>
-            <!-- TODO: support selecting other Caliptra releases (see README).
-                 Only 2.1 is built today; the other entries are placeholders. -->
+            <!-- app.js enables the releases listed in versions.json; the others
+                 are placeholders until they are built (see README). -->
             <select id="caliptra-version">
               <optgroup label="Caliptra 2.x (subsystem)">
                 <option value="2.2" disabled>2.2 (coming soon)</option>
@@ -57,7 +57,7 @@
                 <option value="1.0" disabled>1.0 (coming soon)</option>
               </optgroup>
             </select>
-            <span class="hint">The emulator, ROM and firmware are all built from this release.</span>
+            <span class="hint">The emulator, ROM and firmware are all built from this release. Switching reloads the page.</span>
           </div>
           <div class="field">
             <label for="emu-mode">Mode</label>

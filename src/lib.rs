@@ -27,6 +27,45 @@ use zerocopy::{FromBytes, IntoBytes};
 mod fuse_config;
 use fuse_config::FuseConfig;
 
+#[cfg(all(feature = "caliptra-2-0", feature = "caliptra-2-1"))]
+compile_error!("enable exactly one of the caliptra-2-0 and caliptra-2-1 features");
+#[cfg(not(any(feature = "caliptra-2-0", feature = "caliptra-2-1")))]
+compile_error!("enable one of the caliptra-2-0 or caliptra-2-1 features");
+
+/// The Caliptra release this module emulates (selected by the
+/// `caliptra-2-*` feature of the versions/<release> build).
+#[cfg(feature = "caliptra-2-0")]
+pub const CALIPTRA_RELEASE: &str = "2.0";
+#[cfg(feature = "caliptra-2-1")]
+pub const CALIPTRA_RELEASE: &str = "2.1";
+
+/// The Caliptra release this module emulates, e.g. "2.1".
+#[wasm_bindgen]
+pub fn caliptra_release() -> String {
+    CALIPTRA_RELEASE.to_string()
+}
+
+/// Write the SoC interface's debug service request register. 2.0 names it
+/// `ss_dbg_manuf_service_reg_req`; 2.1 renamed it `ss_dbg_service_reg_req`
+/// (same bits).
+macro_rules! write_ss_dbg_service_reg_req {
+    ($soc_ifc:expr, $f:expr) => {{
+        #[cfg(feature = "caliptra-2-0")]
+        $soc_ifc.ss_dbg_manuf_service_reg_req().write($f);
+        #[cfg(feature = "caliptra-2-1")]
+        $soc_ifc.ss_dbg_service_reg_req().write($f);
+    }};
+}
+
+/// Path to one of this release's default assets in www/v<release>/, for tests.
+#[cfg(test)]
+fn test_asset(name: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../www")
+        .join(format!("v{CALIPTRA_RELEASE}"))
+        .join(name)
+}
+
 /// A shared buffer that captures log/UART output via the `Write` trait.
 #[derive(Clone)]
 struct SharedBuffer(Rc<RefCell<Vec<u8>>>);
@@ -185,6 +224,10 @@ impl CaliptraEmulator {
 
         let fuse_config = FuseConfig::from_json(fuses_json).map_err(|e| JsValue::from_str(&e))?;
 
+        // OCP LOCK was added in Caliptra 2.1.
+        #[cfg(feature = "caliptra-2-0")]
+        let _ = ocp_lock;
+
         let log_buffer = SharedBuffer(Rc::new(RefCell::new(Vec::new())));
 
         let device_lifecycle = match lifecycle.to_lowercase().as_str() {
@@ -222,6 +265,7 @@ impl CaliptraEmulator {
             log_writer: Box::new(log_buffer.clone()),
             security_state,
             subsystem_mode,
+            #[cfg(feature = "caliptra-2-1")]
             ocp_lock_en: ocp_lock,
             cptra_obf_key: DEFAULT_CPTRA_OBF_KEY,
             csr_hmac_key: DEFAULT_CSR_HMAC_KEY,
@@ -333,19 +377,13 @@ impl CaliptraEmulator {
     /// Set the production debug unlock request bit in ss_dbg_service_reg_req.
     /// Must be called before sending PRODUCTION_AUTH_DEBUG_UNLOCK_REQ.
     pub fn set_prod_dbg_unlock_req(&mut self, val: bool) {
-        self.model
-            .soc_ifc()
-            .ss_dbg_service_reg_req()
-            .write(|w| w.prod_dbg_unlock_req(val));
+        write_ss_dbg_service_reg_req!(self.model.soc_ifc(), |w| w.prod_dbg_unlock_req(val));
     }
 
     /// Set the manufacturing debug unlock request bit in ss_dbg_service_reg_req.
     /// Must be called before sending MANUF_DEBUG_UNLOCK_REQ_TOKEN.
     pub fn set_manuf_dbg_unlock_req(&mut self, val: bool) {
-        self.model
-            .soc_ifc()
-            .ss_dbg_service_reg_req()
-            .write(|w| w.manuf_dbg_unlock_req(val));
+        write_ss_dbg_service_reg_req!(self.model.soc_ifc(), |w| w.manuf_dbg_unlock_req(val));
     }
 
     /// Get all Caliptra fuse register values as a JSON object.
@@ -475,8 +513,10 @@ impl McuEmulator {
             Box::new(RandomEtrngResponses(StdRng::seed_from_u64(trng_seed)));
 
         // Build OTP memory ourselves so it is the single source of truth.
-        // OTP partitions occupy bytes 0..LIFE_CYCLE end (0xe88).
-        let otp_size = 0xe30 + 0x58;
+        // OTP partitions run from 0 to the end of the LIFE_CYCLE partition
+        // (0xe88 in 2.1, 0xcd8 in 2.0).
+        let otp_size = mcu_registers_generated::fuses::LIFE_CYCLE_BYTE_OFFSET
+            + mcu_registers_generated::fuses::LIFE_CYCLE_BYTE_SIZE;
         let mut otp = vec![0u8; otp_size];
 
         // Apply user-supplied fuse overrides. (Note: a few bytes — pqc_key_type
@@ -512,6 +552,7 @@ impl McuEmulator {
             etrng_responses,
             random_sram_puf: false,
             check_booted_to_runtime: false,
+            #[cfg(feature = "caliptra-2-1")]
             ocp_lock_en: true,
             // Record the MCU's exit request (e.g. on a ROM fatal error) and
             // halt the MCU instead of terminating the host process.
@@ -637,21 +678,15 @@ impl McuEmulator {
     /// Set the production debug unlock request bit in ss_dbg_service_reg_req.
     pub fn set_prod_dbg_unlock_req(&mut self, val: bool) {
         use mcu_hw_model::McuHwModel;
-        self.model
-            .caliptra_soc_manager()
-            .soc_ifc()
-            .ss_dbg_service_reg_req()
-            .write(|w| w.prod_dbg_unlock_req(val));
+        write_ss_dbg_service_reg_req!(self.model.caliptra_soc_manager().soc_ifc(), |w| w
+            .prod_dbg_unlock_req(val));
     }
 
     /// Set the manufacturing debug unlock request bit in ss_dbg_service_reg_req.
     pub fn set_manuf_dbg_unlock_req(&mut self, val: bool) {
         use mcu_hw_model::McuHwModel;
-        self.model
-            .caliptra_soc_manager()
-            .soc_ifc()
-            .ss_dbg_service_reg_req()
-            .write(|w| w.manuf_dbg_unlock_req(val));
+        write_ss_dbg_service_reg_req!(self.model.caliptra_soc_manager().soc_ifc(), |w| w
+            .manuf_dbg_unlock_req(val));
     }
 
     /// Get all Caliptra fuse register values as a JSON object.
@@ -768,10 +803,11 @@ mod tests {
     #[test]
     fn test_caliptra_emulator_boots() {
         let _guard = EMULATOR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let rom = std::fs::read("www/default-rom.bin").expect("default-rom.bin");
-        let fw = std::fs::read("www/default-fw.bin").expect("default-fw.bin");
-        let soc_manifest = std::fs::read("www/default-soc-manifest.bin").expect("soc-manifest");
-        let mcu_fw = std::fs::read("www/default-mcu-fw.bin").expect("mcu-fw");
+        let rom = std::fs::read(test_asset("default-rom.bin")).expect("default-rom.bin");
+        let fw = std::fs::read(test_asset("default-fw.bin")).expect("default-fw.bin");
+        let soc_manifest =
+            std::fs::read(test_asset("default-soc-manifest.bin")).expect("soc-manifest");
+        let mcu_fw = std::fs::read(test_asset("default-mcu-fw.bin")).expect("mcu-fw");
 
         let mut emu = CaliptraEmulator::new(
             &rom,
@@ -807,13 +843,16 @@ mod tests {
     #[test]
     fn test_mcu_emulator_boots_and_steps() {
         let _guard = EMULATOR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let caliptra_rom = std::fs::read("www/default-rom.bin").expect("default-rom.bin");
-        let caliptra_fw = std::fs::read("www/default-fw.bin").expect("default-fw.bin");
-        let soc_manifest = std::fs::read("www/default-soc-manifest.bin").expect("soc-manifest.bin");
-        let mcu_rom = std::fs::read("www/default-mcu-rom.bin").expect("default-mcu-rom.bin");
+        let caliptra_rom = std::fs::read(test_asset("default-rom.bin")).expect("default-rom.bin");
+        let caliptra_fw = std::fs::read(test_asset("default-fw.bin")).expect("default-fw.bin");
+        let soc_manifest =
+            std::fs::read(test_asset("default-soc-manifest.bin")).expect("soc-manifest.bin");
+        let mcu_rom =
+            std::fs::read(test_asset("default-mcu-rom.bin")).expect("default-mcu-rom.bin");
         // The default SoC manifest authorizes the real MCU runtime (see
         // build-wasm.sh), so boot with that rather than the placeholder.
-        let mcu_fw = std::fs::read("www/default-mcu-runtime.bin").expect("default-mcu-runtime.bin");
+        let mcu_fw =
+            std::fs::read(test_asset("default-mcu-runtime.bin")).expect("default-mcu-runtime.bin");
 
         let mut emu = McuEmulator::new(
             &caliptra_rom,
@@ -836,8 +875,13 @@ mod tests {
             "[mcu-rom] Jumping to firmware",
             "[mcu-runtime] Entering main loop.",
         ];
+        // Once the milestones appear, keep running for a while: the MCU
+        // runtime and Caliptra keep exchanging mailbox commands after the
+        // main loop starts, and a failure there halts the MCU.
+        const SETTLE_STEPS: u64 = 40_000_000;
+        let mut booted_at = None;
         let mut uart = String::new();
-        while emu.total_steps() < 150_000_000 {
+        while emu.total_steps() < 150_000_000 + SETTLE_STEPS {
             emu.step(1_000_000);
             uart.push_str(&emu.get_uart_output());
             let errs = emu.get_error_registers();
@@ -853,7 +897,10 @@ mod tests {
                     &uart[uart.len().saturating_sub(4000)..]
                 );
             }
-            if MILESTONES.iter().all(|m| uart_seen(&uart, m)) {
+            if booted_at.is_none() && MILESTONES.iter().all(|m| uart_seen(&uart, m)) {
+                booted_at = Some(emu.total_steps());
+            }
+            if booted_at.is_some_and(|at| emu.total_steps() >= at + SETTLE_STEPS) {
                 return;
             }
         }
@@ -872,7 +919,7 @@ mod hash_test {
 
     #[test]
     fn test_vendor_pk_hash_matches_defaults() {
-        let fw = std::fs::read("www/default-fw.bin").expect("fw");
+        let fw = std::fs::read(test_asset("default-fw.bin")).expect("fw");
         let hash = vendor_pk_hash_from_fw(&fw).expect("hash");
 
         // Print as hex bytes
@@ -880,7 +927,7 @@ mod hash_test {
         eprintln!("computed hash (bytes): {}", hex);
 
         // Read defaults.json
-        let defaults: String = std::fs::read_to_string("www/defaults.json").unwrap();
+        let defaults: String = std::fs::read_to_string(test_asset("defaults.json")).unwrap();
         eprintln!("defaults.json: {}", defaults.trim());
 
         // The defaults.json vendor_pk_hash is big-endian u32 words
@@ -905,7 +952,7 @@ mod otp_debug {
 
     #[test]
     fn test_vendor_pk_hash_bytes() {
-        let fw = std::fs::read("www/default-fw.bin").expect("fw");
+        let fw = std::fs::read(test_asset("default-fw.bin")).expect("fw");
         let hash = vendor_pk_hash_from_fw(&fw).expect("hash");
         let hex: String = hash.iter().map(|b| format!("{:02x}", b)).collect();
         eprintln!("Raw SHA-384 bytes: {}", hex);
@@ -932,7 +979,7 @@ mod otp_offset_debug {
 
     #[test]
     fn debug_otp_contents() {
-        let fw = std::fs::read("www/default-fw.bin").expect("fw");
+        let fw = std::fs::read(test_asset("default-fw.bin")).expect("fw");
         let hash = vendor_pk_hash_from_fw(&fw).expect("hash");
         eprintln!("Expected hash (first 16 bytes): {:02x?}", &hash[..16]);
 

@@ -1,4 +1,9 @@
 # Licensed under the Apache-2.0 license
+#
+# caliptra-wasm built against Caliptra 2.1. The crate source is shared by all
+# releases (../../src); each release has its own manifest, lockfile and
+# toolchain under versions/<release>/. The `caliptra-2-1` feature selects the
+# 2.1-specific code paths.
 
 [package]
 name = "caliptra-wasm-demo"
@@ -6,7 +11,16 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
+path = "../../src/lib.rs"
 crate-type = ["cdylib"]
+
+[features]
+default = ["caliptra-2-1"]
+caliptra-2-1 = []
+
+[lints.rust]
+# The shared sources also contain code for the other releases' features.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("caliptra-2-0", "caliptra-2-1"))'] }
 
 [dependencies]
 wasm-bindgen = "0.2"
@@ -29,15 +43,17 @@ zerocopy = { version = "0.8", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# MCU emulator; keep rev in sync with MCU_SW_REV in .github/workflows/pages.yml
+# MCU emulator. build-wasm.sh builds the MCU ROM/runtime from this same rev.
 mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "163989a7e9e698576a45a31c603beab90f6bbbf0", package = "caliptra-mcu-hw-model", default-features = false }
+# OTP fuse map (partition and field offsets) for this release.
+mcu-registers-generated = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "163989a7e9e698576a45a31c603beab90f6bbbf0", package = "caliptra-mcu-registers-generated" }
 
 
 # Patch caliptra-cfi-lib with a no-asm shim for WASM (CFI uses inline asm
 # that doesn't compile for wasm32; CFI is a firmware security feature not
 # needed by the emulator).
 [patch."https://github.com/chipsalliance/caliptra-cfi.git"]
-caliptra-cfi-lib = { path = "cfi-shim" }
+caliptra-cfi-lib = { path = "../../cfi-shim" }
 
 [profile.release]
 opt-level = "s"

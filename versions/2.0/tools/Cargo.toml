@@ -1,0 +1,43 @@
+# Licensed under the Apache-2.0 license
+# Host tools for the Caliptra 2.0 build: default image/asset generation and
+# PK hash extraction. Sources are shared in ../../../tools/src.
+
+[package]
+name = "caliptra-wasm-hash-tool"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+
+[lib]
+path = "../../../tools/src/lib.rs"
+
+[[bin]]
+name = "build-default-assets"
+path = "../../../tools/src/build_default_assets.rs"
+
+[[bin]]
+name = "extract-pk-hashes"
+path = "../../../tools/src/main.rs"
+
+[features]
+default = ["caliptra-2-0"]
+caliptra-2-0 = []
+
+[lints.rust]
+# The shared sources also contain code for the other releases' features.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("caliptra-2-0", "caliptra-2-1"))'] }
+
+[dependencies]
+anyhow = "1.0"
+caliptra-auth-man-gen = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7", default-features = false }
+caliptra-auth-man-types = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7", default-features = false, features = ["std"] }
+caliptra-builder = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7", default-features = false, features = ["rustcrypto"] }
+caliptra-image-crypto = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7", default-features = false, features = ["rustcrypto"] }
+caliptra-image-fake-keys = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7" }
+caliptra-image-gen = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7" }
+caliptra-image-types = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7", default-features = false, package = "caliptra-image-types", features = ["std"] }
+sha2 = "0.10"
+zerocopy = { version = "0.8", features = ["derive"] }
+
+[patch.crates-io]
+openssl = { git = "https://github.com/clundin25/rust-openssl.git", rev = "4ada1c1d7c264e052e7bb71ecddbd196a5c2a0c7" }

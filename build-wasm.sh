@@ -1,113 +1,78 @@
 #!/bin/bash
-# Build the Caliptra WASM emulator and set up the www/ directory for serving.
+# Licensed under the Apache-2.0 license
+#
+# Build the Caliptra WASM emulator for each Caliptra release and set up www/.
+#
+# Each release has a build directory under versions/<release>/ (its own
+# Cargo.toml, lockfile and toolchain; the crate source in src/ is shared).
+# For every release this script:
+#   * builds the WASM module into www/v<release>/,
+#   * builds that release's MCU ROM and runtime from caliptra-mcu-sw at the
+#     rev pinned in versions/<release>/Cargo.toml,
+#   * generates the default Caliptra ROM/FW, a matching SoC manifest,
+#     defaults.json, build-info.json, error-codes.json and
+#     mailbox-commands.json in www/v<release>/,
+# and finally writes www/versions.json, which the page reads to offer the
+# releases that were built.
+#
+# Environment:
+#   CALIPTRA_VERSIONS   Space-separated releases to build (default: all of
+#                       versions/*). Releases already in www/ stay listed.
+#   MCU_SW_DIR_<rel>    Build that release's MCU firmware from an existing
+#                       caliptra-mcu-sw checkout instead of the build cache,
+#                       e.g. MCU_SW_DIR_2_1=~/src/caliptra-mcu-sw. It must be
+#                       at the pinned rev unless ALLOW_MCU_SW_MISMATCH=1.
+#                       MCU_SW_DIR is accepted when building one release.
+#   MCU_SW_CACHE_DIR    Parent directory for the build cache's checkouts
+#                       (default: ~/.cache/caliptra-wasm). Must be outside
+#                       this repository.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Check for wasm-pack
+sort_releases() { tr ' ' '\n' | grep -v '^$' | sort -t. -k1,1nr -k2,2nr; }
+
+ALL_RELEASES="$(ls -d versions/*/ | xargs -n1 basename | sort_releases | tr '\n' ' ')"
+RELEASES="$(echo "${CALIPTRA_VERSIONS:-$ALL_RELEASES}" | sort_releases | tr '\n' ' ')"
+for rel in $RELEASES; do
+    if [ ! -f "versions/$rel/Cargo.toml" ]; then
+        echo "ERROR: no build directory versions/$rel (have: $ALL_RELEASES)" >&2
+        exit 1
+    fi
+done
+NUM_RELEASES=$(echo $RELEASES | wc -w)
+if [ -n "${MCU_SW_DIR:-}" ] && [ "$NUM_RELEASES" -ne 1 ]; then
+    echo "ERROR: MCU_SW_DIR applies to one release; set CALIPTRA_VERSIONS or use MCU_SW_DIR_<release>" >&2
+    exit 1
+fi
+echo "Building Caliptra releases: $RELEASES"
+
 if ! command -v wasm-pack &>/dev/null; then
     echo "wasm-pack not found. Installing..."
     cargo install wasm-pack --locked
 fi
 
-# Check for wasm32 target
-if ! rustup target list --installed | grep -q wasm32-unknown-unknown; then
-    echo "Adding wasm32-unknown-unknown target..."
-    rustup target add wasm32-unknown-unknown
-fi
+CACHE_ROOT="${MCU_SW_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/caliptra-wasm}"
+case "$CACHE_ROOT/" in
+    "$SCRIPT_DIR"/*)
+        echo "ERROR: MCU_SW_CACHE_DIR must be outside $SCRIPT_DIR" >&2
+        exit 1
+        ;;
+esac
 
-# Check for riscv target used by caliptra-builder
-if ! rustup target list --installed | grep -q riscv32imc-unknown-none-elf; then
-    echo "Adding riscv32imc-unknown-none-elf target..."
-    rustup target add riscv32imc-unknown-none-elf
-fi
-
-echo "Building WASM (release)..."
-wasm-pack build --target web --release
-
-echo "Copying WASM output to www/..."
-cp pkg/caliptra_wasm_demo_bg.wasm www/
-cp pkg/caliptra_wasm_demo.js www/
-
-# Generate error code lookup table for the UI's fatal error decoder
-echo "Generating www/error-codes.json..."
-./tools/build-error-codes.py || echo "(warning: error-codes.json generation failed)"
-
-# Upstream revisions pinned in Cargo.toml. These are the single source of
-# truth: the MCU ROM/runtime must be built from exactly the caliptra-mcu-sw
-# rev the emulator is compiled from, or the MCU ROM may not run on the
-# emulated hardware (e.g. a newer ROM fails with ROM_OTP_INIT_NOT_IDLE).
+# Print the git rev / URL that a manifest pins for the given repository name.
 pinned_rev() {
-    grep -oE "github.com/[^\"]+/$1\", rev = \"[0-9a-f]+\"" Cargo.toml | head -1 | sed -E 's/.*rev = "([0-9a-f]+)"/\1/'
+    grep -oE "github.com/[^\"]+/$2\", rev = \"[0-9a-f]+\"" "$1" | head -1 | sed -E 's/.*rev = "([0-9a-f]+)"/\1/'
 }
 pinned_url() {
-    grep -oE "https://github.com/[^\"]+/$1\"" Cargo.toml | head -1 | tr -d '"'
+    grep -oE "https://github.com/[^\"]+/$2\"" "$1" | head -1 | tr -d '"'
 }
-export CALIPTRA_SW_REV="$(pinned_rev caliptra-sw)"
-export CALIPTRA_MCU_SW_REV="$(pinned_rev caliptra-mcu-sw)"
-MCU_SW_URL="$(pinned_url caliptra-mcu-sw)"
-if [ -z "$CALIPTRA_MCU_SW_REV" ] || [ -z "$MCU_SW_URL" ]; then
-    echo "ERROR: could not find the caliptra-mcu-sw git rev in Cargo.toml" >&2
-    exit 1
-fi
-
-# Locate the caliptra-mcu-sw checkout used to build the MCU ROM/runtime.
-#
-# By default build-wasm.sh keeps its own checkout in a cache directory and
-# moves it to the pinned rev on every build, so it never picks up whatever a
-# developer's own caliptra-mcu-sw clone happens to have checked out. The cache
-# must live outside this repository: caliptra-mcu-sw's build would otherwise
-# find caliptra-wasm's Cargo.toml above it.
-#
-# Set MCU_SW_DIR to build from an existing checkout instead (e.g. while
-# developing the fork). It must be at the pinned rev unless
-# ALLOW_MCU_SW_MISMATCH=1.
-if [ -n "${MCU_SW_DIR:-}" ]; then
-    MCU_SW_DIR="$(cd "$MCU_SW_DIR" && pwd)"
-    MCU_HEAD="$(git -C "$MCU_SW_DIR" rev-parse HEAD)"
-    if [ "$MCU_HEAD" != "$CALIPTRA_MCU_SW_REV" ]; then
-        if [ "${ALLOW_MCU_SW_MISMATCH:-0}" = "1" ]; then
-            echo "WARNING: building MCU ROM/runtime from $MCU_SW_DIR at $MCU_HEAD," >&2
-            echo "  but Cargo.toml pins caliptra-mcu-sw $CALIPTRA_MCU_SW_REV (ALLOW_MCU_SW_MISMATCH=1)." >&2
-            CALIPTRA_MCU_SW_REV="$MCU_HEAD"
-        else
-            echo "ERROR: MCU_SW_DIR=$MCU_SW_DIR is at $MCU_HEAD," >&2
-            echo "  but Cargo.toml pins caliptra-mcu-sw $CALIPTRA_MCU_SW_REV." >&2
-            echo "  Check out the pinned rev, unset MCU_SW_DIR to use the build cache," >&2
-            echo "  or set ALLOW_MCU_SW_MISMATCH=1 to build anyway." >&2
-            exit 1
-        fi
-    fi
-    if [ -n "$(git -C "$MCU_SW_DIR" status --porcelain --untracked-files=no)" ]; then
-        echo "WARNING: $MCU_SW_DIR has uncommitted changes; the MCU ROM/runtime may not match $CALIPTRA_MCU_SW_REV" >&2
-    fi
-else
-    MCU_SW_DIR="${MCU_SW_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/caliptra-wasm/caliptra-mcu-sw}"
-    case "$MCU_SW_DIR/" in
-        "$SCRIPT_DIR"/*)
-            echo "ERROR: MCU_SW_CACHE_DIR must be outside $SCRIPT_DIR" >&2
-            exit 1
-            ;;
-    esac
-    if [ ! -d "$MCU_SW_DIR/.git" ]; then
-        echo "Cloning $MCU_SW_URL into $MCU_SW_DIR..."
-        mkdir -p "$(dirname "$MCU_SW_DIR")"
-        git clone --filter=blob:none --no-checkout "$MCU_SW_URL" "$MCU_SW_DIR"
-    fi
-    if ! git -C "$MCU_SW_DIR" cat-file -e "$CALIPTRA_MCU_SW_REV^{commit}" 2>/dev/null; then
-        echo "Fetching caliptra-mcu-sw $CALIPTRA_MCU_SW_REV..."
-        git -C "$MCU_SW_DIR" fetch --filter=blob:none origin "$CALIPTRA_MCU_SW_REV"
-    fi
-    git -C "$MCU_SW_DIR" checkout --quiet --force --detach "$CALIPTRA_MCU_SW_REV"
-fi
-echo "Using caliptra-mcu-sw $CALIPTRA_MCU_SW_REV at $MCU_SW_DIR"
 
 # Print the most recently modified of the given files that exist. The MCU
-# build output names/profiles have changed across caliptra-mcu-sw releases
-# (e.g. release/mcu-rom-emulator.bin -> release/caliptra-mcu-rom-emulator.bin,
-# release/runtime-emulator.bin -> devel/runtime-emulator.bin), so try them all
-# and take the freshest so a stale artifact from an older build never wins.
+# build output names/profiles differ across caliptra-mcu-sw releases
+# (release/mcu-rom-emulator.bin vs release/caliptra-mcu-rom-emulator.bin,
+# release/ vs devel/ runtime), so try them all and take the freshest.
 newest_existing() {
     local f existing=()
     for f in "$@"; do
@@ -117,34 +82,168 @@ newest_existing() {
     return 0
 }
 
-MCU_TARGET="$MCU_SW_DIR/target/riscv32imc-unknown-none-elf"
+# Print the root of the cargo checkout that provides a package, as resolved
+# for the release in directory $1.
+package_root() {
+    (cd "$1" && cargo metadata --format-version 1 --quiet) | python3 -c '
+import json, os, sys
+name, up = sys.argv[1], int(sys.argv[2])
+for p in json.load(sys.stdin)["packages"]:
+    if p["name"] == name:
+        d = os.path.dirname(p["manifest_path"])
+        for _ in range(up):
+            d = os.path.dirname(d)
+        print(d)
+        break
+' "$2" "$3"
+}
 
-echo "Building MCU ROM from $MCU_SW_DIR..."
-(cd "$MCU_SW_DIR" && cargo xtask rom-build 2>&1 | tail -3)
-MCU_ROM="$(newest_existing "$MCU_TARGET/release/caliptra-mcu-rom-emulator.bin" "$MCU_TARGET/release/mcu-rom-emulator.bin")"
-if [ -z "$MCU_ROM" ]; then
-    echo "ERROR: MCU ROM not found under $MCU_TARGET/release" >&2
-    exit 1
-fi
-cp "$MCU_ROM" "$SCRIPT_DIR/www/default-mcu-rom.bin"
-echo "Copied MCU ROM ($(wc -c < "$MCU_ROM") bytes) to www/default-mcu-rom.bin"
+# Check out caliptra-mcu-sw at the pinned rev and print its directory.
+mcu_checkout() {
+    local rel="$1" url="$2" rev="$3" var dir head
+    var="MCU_SW_DIR_${rel//./_}"
+    dir="${!var:-${MCU_SW_DIR:-}}"
+    if [ -n "$dir" ]; then
+        dir="$(cd "$dir" && pwd)"
+        head="$(git -C "$dir" rev-parse HEAD)"
+        if [ "$head" != "$rev" ]; then
+            if [ "${ALLOW_MCU_SW_MISMATCH:-0}" = "1" ]; then
+                echo "WARNING: $dir is at $head, but versions/$rel pins $rev (ALLOW_MCU_SW_MISMATCH=1)" >&2
+            else
+                echo "ERROR: $dir is at $head, but versions/$rel/Cargo.toml pins caliptra-mcu-sw $rev." >&2
+                echo "  Check out the pinned rev, unset $var to use the build cache," >&2
+                echo "  or set ALLOW_MCU_SW_MISMATCH=1 to build anyway." >&2
+                return 1
+            fi
+        fi
+        if [ -n "$(git -C "$dir" status --porcelain --untracked-files=no)" ]; then
+            echo "WARNING: $dir has uncommitted changes; the MCU firmware may not match $rev" >&2
+        fi
+    else
+        dir="$CACHE_ROOT/caliptra-mcu-sw-$rel"
+        if [ ! -d "$dir/.git" ]; then
+            echo "Cloning $url into $dir..." >&2
+            mkdir -p "$CACHE_ROOT"
+            git clone --quiet --filter=blob:none --no-checkout "$url" "$dir" >&2
+        fi
+        if ! git -C "$dir" cat-file -e "$rev^{commit}" 2>/dev/null; then
+            echo "Fetching caliptra-mcu-sw $rev..." >&2
+            git -C "$dir" fetch --quiet --filter=blob:none origin "$rev" >&2
+        fi
+        git -C "$dir" checkout --quiet --force --detach "$rev" >&2
+    fi
+    echo "$dir"
+}
 
-echo "Building MCU runtime from $MCU_SW_DIR..."
-(cd "$MCU_SW_DIR" && cargo xtask runtime-build 2>&1 | tail -3)
-# `cargo xtask runtime-build` emits runtime-<platform>.bin (emulator by
-# default), not runtime.bin. The name must match exactly: build-default-assets
-# hashes this file into the SoC manifest, so a wrong/missing path silently
-# falls back to DEFAULT_MCU_FW and the served runtime fails to validate (b0016).
-MCU_RUNTIME="$(newest_existing "$MCU_TARGET/devel/runtime-emulator.bin" "$MCU_TARGET/release/runtime-emulator.bin")"
-if [ -z "$MCU_RUNTIME" ]; then
-    echo "ERROR: MCU runtime not found under $MCU_TARGET (devel/ or release/runtime-emulator.bin)" >&2
-    exit 1
-fi
-cp "$MCU_RUNTIME" "$SCRIPT_DIR/www/default-mcu-runtime.bin"
-echo "Copied MCU runtime ($(wc -c < "$MCU_RUNTIME") bytes) to www/default-mcu-runtime.bin"
+build_release() {
+    local rel="$1"
+    local dir="versions/$rel" out="www/v$rel"
+    local manifest="$dir/Cargo.toml"
+    echo ""
+    echo "=== Caliptra $rel ==="
+    mkdir -p "$out"
 
-echo "Building default Caliptra ROM/FW assets..."
-cargo run --quiet --manifest-path "$SCRIPT_DIR/tools/Cargo.toml" --bin build-default-assets -- "$SCRIPT_DIR/www" "$MCU_RUNTIME"
+    # Toolchains (and their wasm32/riscv32 targets) come from the
+    # rust-toolchain.toml files in the release directory.
+    (cd "$dir" && rustup toolchain install >/dev/null)
+    if [ -f "$dir/tools/rust-toolchain.toml" ]; then
+        (cd "$dir/tools" && rustup toolchain install >/dev/null)
+    fi
+
+    echo "Building WASM..."
+    (cd "$dir" && wasm-pack build --target web --release)
+    cp "$dir/pkg/caliptra_wasm_demo_bg.wasm" "$dir/pkg/caliptra_wasm_demo.js" "$out/"
+
+    local caliptra_sw_rev mcu_rev mcu_url
+    caliptra_sw_rev="$(pinned_rev "$manifest" caliptra-sw)"
+    mcu_rev="$(pinned_rev "$manifest" caliptra-mcu-sw)"
+    mcu_url="$(pinned_url "$manifest" caliptra-mcu-sw)"
+    if [ -z "$caliptra_sw_rev" ] || [ -z "$mcu_rev" ] || [ -z "$mcu_url" ]; then
+        echo "ERROR: could not find the caliptra-sw / caliptra-mcu-sw revs in $manifest" >&2
+        return 1
+    fi
+
+    # Tables the UI reads: firmware error codes and supported mailbox commands,
+    # from the exact caliptra-sw / caliptra-mcu-sw sources this release uses.
+    local caliptra_sw_src mcu_sw_src
+    caliptra_sw_src="$(package_root "$dir" caliptra-api 1)"
+    mcu_sw_src="$(package_root "$dir" caliptra-mcu-hw-model 2)"
+    ./tools/build-error-codes.py --manifest "$manifest" \
+        --caliptra-sw "$caliptra_sw_src/error/src/lib.rs" \
+        --mcu-sw "$mcu_sw_src/error/src/lib.rs" \
+        -o "$out/error-codes.json"
+    ./tools/build-mailbox-commands.py --caliptra-sw "$caliptra_sw_src" -o "$out/mailbox-commands.json"
+
+    # MCU ROM and runtime. They must come from the same caliptra-mcu-sw rev as
+    # the emulator: an MCU ROM from another rev may not run on it (e.g. one
+    # from upstream main stops with ROM_OTP_INIT_NOT_IDLE). The checkout must
+    # be outside this repository, or its build finds our versions/ manifests.
+    local mcu_dir mcu_target mcu_rom mcu_runtime
+    mcu_dir="$(mcu_checkout "$rel" "$mcu_url" "$mcu_rev")"
+    echo "Using caliptra-mcu-sw $mcu_rev at $mcu_dir"
+    mcu_target="$mcu_dir/target/riscv32imc-unknown-none-elf"
+
+    echo "Building MCU ROM..."
+    (cd "$mcu_dir" && cargo xtask rom-build 2>&1 | tail -3)
+    mcu_rom="$(newest_existing "$mcu_target/release/caliptra-mcu-rom-emulator.bin" "$mcu_target/release/mcu-rom-emulator.bin")"
+    if [ -z "$mcu_rom" ]; then
+        echo "ERROR: MCU ROM not found under $mcu_target/release" >&2
+        return 1
+    fi
+    cp "$mcu_rom" "$out/default-mcu-rom.bin"
+    echo "Copied MCU ROM ($(wc -c < "$mcu_rom") bytes)"
+
+    # The runtime's user app reads its SoC image load list from
+    # target/generated/. 2.1's runtime build writes it; 2.0's expects it to
+    # exist already, and without it falls back to two test SoC images (fw_id
+    # 4096 and 4097) that the default SoC manifest does not authorize, so the
+    # app exits at boot. Write the config upstream's builder generates when
+    # there are no SoC images, as `cargo xtask runtime` does.
+    local generated="$mcu_dir/target/generated"
+    if [ ! -f "$generated/soc_image_descriptors.toml" ]; then
+        mkdir -p "$generated"
+        printf '%s\n' "# Licensed under the Apache-2.0 license" "# AUTO-GENERATED FILE. DO NOT EDIT." \
+            "# Generated by caliptra-wasm build-wasm.sh (no SoC images)" \
+            'vendor = "ChipsAlliance"' 'model = "Caliptra-SS"' 'components = []' \
+            > "$generated/attestation_manifest.toml"
+        printf '%s\n' "# Licensed under the Apache-2.0 license" "# AUTO-GENERATED FILE. DO NOT EDIT." \
+            "# Generated by caliptra-wasm build-wasm.sh (no SoC images)" 'images = []' \
+            > "$generated/soc_image_descriptors.toml"
+    fi
+
+    echo "Building MCU runtime..."
+    (cd "$mcu_dir" && cargo xtask runtime-build 2>&1 | tail -3)
+    # The asset tool hashes this exact file into the SoC manifest, so the
+    # served runtime must be the one found here.
+    mcu_runtime="$(newest_existing "$mcu_target/devel/runtime-emulator.bin" "$mcu_target/release/runtime-emulator.bin")"
+    if [ -z "$mcu_runtime" ]; then
+        echo "ERROR: MCU runtime not found under $mcu_target (devel/ or release/runtime-emulator.bin)" >&2
+        return 1
+    fi
+    cp "$mcu_runtime" "$out/default-mcu-runtime.bin"
+    echo "Copied MCU runtime ($(wc -c < "$mcu_runtime") bytes)"
+
+    echo "Building default Caliptra ROM/FW assets..."
+    (cd "$dir/tools" && CALIPTRA_SW_REV="$caliptra_sw_rev" CALIPTRA_MCU_SW_REV="$mcu_rev" \
+        cargo run --quiet --bin build-default-assets -- "$SCRIPT_DIR/$out" "$mcu_runtime")
+}
+
+for rel in $RELEASES; do
+    build_release "$rel"
+done
+
+# List every release present in www/ (newest first; the newest is the default).
+python3 - <<'EOF'
+import json, os
+releases = sorted(
+    (d[1:] for d in os.listdir("www")
+     if d.startswith("v") and os.path.exists(os.path.join("www", d, "build-info.json"))),
+    key=lambda v: [int(x) for x in v.split(".")], reverse=True)
+with open("www/versions.json", "w") as f:
+    json.dump({"default": releases[0], "releases": releases}, f, indent=1)
+    f.write("\n")
+print(f"Wrote www/versions.json: {', '.join(releases)} (default {releases[0]})")
+EOF
 
 echo ""
 echo "Build complete! To run:"

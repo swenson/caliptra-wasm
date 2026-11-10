@@ -11,11 +11,14 @@
 // without a fatal error in the page's error decoder.
 //
 // Usage:
-//   node tests/browser/boot-test.mjs [--mode caliptra|mcu]... [--timeout SECS] [--out DIR]
+//   node tests/browser/boot-test.mjs [--release 2.1]... [--mode caliptra|mcu]...
+//       [--timeout SECS] [--settle SECS] [--out DIR]
 //
-// With --out, each mode's full UART output, final page state and a full-page
-// screenshot are written to DIR/<mode>-uart.txt, DIR/<mode>-state.json and
-// DIR/<mode>.png.
+// By default every release listed in www/versions.json is tested in both
+// modes. After the boot milestones appear, each run keeps going for
+// --settle seconds (default 20) and fails if anything halts in that time. With --out, each run's full UART output, final page state and a
+// full-page screenshot are written to DIR/<release>-<mode>-uart.txt,
+// DIR/<release>-<mode>-state.json and DIR/<release>-<mode>.png.
 //
 // Environment:
 //   FIREFOX                 Firefox binary (default: "firefox")
@@ -27,7 +30,7 @@
 // Requires Node 22+ (global WebSocket).
 
 import { spawn } from "node:child_process";
-import { createReadStream, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
@@ -72,13 +75,15 @@ function seen(uart, needle) {
 const FATAL_UART = [/MCU fatal error/i, /panicked at/i, /RuntimeError: unreachable/];
 
 function parseArgs(argv) {
-  const out = { modes: [], timeout: 600, outDir: null };
+  const out = { releases: [], modes: [], timeout: 600, settle: 20, outDir: null };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--mode") out.modes.push(argv[++i]);
+    else if (argv[i] === "--release") out.releases.push(argv[++i]);
     else if (argv[i] === "--timeout") out.timeout = Number(argv[++i]);
     else if (argv[i] === "--out") out.outDir = argv[++i];
+    else if (argv[i] === "--settle") out.settle = Number(argv[++i]);
     else if (argv[i] === "-h" || argv[i] === "--help") {
-      console.log("usage: boot-test.mjs [--mode caliptra|mcu]... [--timeout SECS] [--out DIR]");
+      console.log("usage: boot-test.mjs [--release R]... [--mode caliptra|mcu]... [--timeout SECS] [--settle SECS] [--out DIR]");
       process.exit(0);
     } else throw new Error(`unknown argument: ${argv[i]}`);
   }
@@ -246,11 +251,52 @@ class Bidi {
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 const tail = (s, n = 3000) => (s.length > n ? "…" + s.slice(-n) : s);
 
-async function runMode(bidi, context, baseUrl, mode, timeoutSecs, outDir, pageErrors) {
+// Release-specific UI: the version menu shows the loaded release, OCP LOCK
+// is offered only where the release supports it, and mailbox commands the
+// release lacks are disabled and tagged with the releases that have them.
+async function checkReleaseUi(bidi, context, release) {
+  const all = JSON.parse(readFileSync(join(WWW, "versions.json"), "utf8")).releases;
+  const info = JSON.parse(readFileSync(join(WWW, `v${release}`, "build-info.json"), "utf8"));
+  const newest = [...all].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0];
+  let ui;
+  for (let i = 0; i < 40; i++) {
+    ui = await bidi.eval(context, `(() => {
+      const opts = [...document.querySelectorAll("#mbox-cmd option")];
+      return {
+        selected: document.getElementById("caliptra-version").value,
+        ocpHidden: document.getElementById("ocp-lock").closest(".check").hidden,
+        tagged: opts.filter((o) => /\\(\\d+\\.\\d+(\\+| only)\\)$/.test(o.textContent)).length,
+        disabled: opts.filter((o) => o.disabled).map((o) => o.textContent),
+      };
+    })()`);
+    if (all.length < 2 || ui.tagged > 0) break;
+    await sleep(250);
+  }
+  const problems = [];
+  if (ui.selected !== release) problems.push(`version menu shows ${ui.selected}`);
+  const ocp = info.features?.ocp_lock !== false;
+  if (ui.ocpHidden === ocp) problems.push(`OCP LOCK option ${ui.ocpHidden ? "hidden" : "shown"} but ocp_lock=${ocp}`);
+  if (all.length > 1 && ui.tagged === 0) problems.push("no mailbox commands are tagged with a release");
+  const untagged = ui.disabled.filter((t) => !/\((\d+\.\d+\+|[\d., ]+ only)\)$/.test(t));
+  if (untagged.length) problems.push(`disabled without a release tag: ${untagged.join(", ")}`);
+  if (release === newest && ui.disabled.length) problems.push(`newest release disables: ${ui.disabled.join(", ")}`);
+  if (problems.length) throw new Error(`${release} UI: ${problems.join("; ")}`);
+  console.log(
+    `UI ok: ${ui.tagged} mailbox commands tagged, ${ui.disabled.length} disabled, ` +
+      `OCP LOCK ${ui.ocpHidden ? "hidden" : "shown"}`,
+  );
+}
+
+async function runMode(bidi, context, baseUrl, release, mode, timeoutSecs, settleSecs, outDir, pageErrors) {
   const spec = MODES[mode];
-  console.log(`\n=== ${spec.label} (${mode}) ===`);
+  const name = `${release}-${mode}`;
+  console.log(`\n=== Caliptra ${release}: ${spec.label} (${mode}) ===`);
   pageErrors.length = 0;
-  await bidi.send("browsingContext.navigate", { context, url: baseUrl, wait: "complete" });
+  await bidi.send("browsingContext.navigate", {
+    context,
+    url: `${baseUrl}?version=${encodeURIComponent(release)}`,
+    wait: "complete",
+  });
 
   // Wait for WASM init + default assets.
   const readyBy = Date.now() + 60_000;
@@ -261,14 +307,18 @@ async function runMode(bidi, context, baseUrl, mode, timeoutSecs, outDir, pageEr
       badge: document.getElementById("caliptra-release-badge")?.textContent,
       buildInfo: document.getElementById("build-info")?.textContent,
     })`);
-    if (st.status === "Ready" && !st.runDisabled) {
+    if (st.status === "Ready" && !st.runDisabled && st.badge === `Caliptra ${release}`) {
       console.log(`page ready: ${st.badge} — ${st.buildInfo}`);
       break;
     }
     if (/failed|error/i.test(st.status)) throw new Error(`page failed to initialize: ${st.status}`);
-    if (Date.now() > readyBy) throw new Error(`page not ready after 60s (status: ${st.status})`);
+    if (Date.now() > readyBy) {
+      throw new Error(`page not ready after 60s (status: ${st.status}, badge: ${st.badge})`);
+    }
     await sleep(250);
   }
+
+  if (mode === "caliptra") await checkReleaseUi(bidi, context, release);
 
   // Select the mode and press Run, as a user would.
   await bidi.eval(context, `(() => {
@@ -282,6 +332,7 @@ async function runMode(bidi, context, baseUrl, mode, timeoutSecs, outDir, pageEr
 
   const t0 = Date.now();
   let lastReport = 0;
+  let bootedAt = null; // elapsed seconds when every milestone had appeared
   for (;;) {
     await sleep(1000);
     const st = await bidi.eval(context, `(() => {
@@ -300,12 +351,12 @@ async function runMode(bidi, context, baseUrl, mode, timeoutSecs, outDir, pageEr
     const save = async () => {
       if (!outDir) return;
       mkdirSync(outDir, { recursive: true });
-      writeFileSync(join(outDir, `${mode}-uart.txt`), st.uart);
+      writeFileSync(join(outDir, `${name}-uart.txt`), st.uart);
       const { uart, ...rest } = st;
-      writeFileSync(join(outDir, `${mode}-state.json`), JSON.stringify({ ...rest, missing, pageErrors }, null, 2));
+      writeFileSync(join(outDir, `${name}-state.json`), JSON.stringify({ ...rest, missing, pageErrors }, null, 2));
       try {
         const shot = await bidi.send("browsingContext.captureScreenshot", { context, origin: "document" });
-        writeFileSync(join(outDir, `${mode}.png`), Buffer.from(shot.data, "base64"));
+        writeFileSync(join(outDir, `${name}.png`), Buffer.from(shot.data, "base64"));
       } catch (e) {
         console.warn(`screenshot failed: ${e.message}`);
       }
@@ -314,7 +365,7 @@ async function runMode(bidi, context, baseUrl, mode, timeoutSecs, outDir, pageEr
     const fail = async (why) => {
       await save();
       throw new Error(
-        `${mode}: ${why}\nstatus: ${st.status}\nstats: ${st.stats}\n` +
+        `${name}: ${why}\nstatus: ${st.status}\nstats: ${st.stats}\n` +
           (st.decoder ? `error decoder:\n${st.decoder}\n` : "") +
           (pageErrors.length ? `page errors:\n${pageErrors.join("\n")}\n` : "") +
           `UART (tail):\n${tail(st.uart)}`,
@@ -325,15 +376,24 @@ async function runMode(bidi, context, baseUrl, mode, timeoutSecs, outDir, pageEr
     if (fatalDecoder) await fail("error decoder reports a fatal error");
     if (pageErrors.length) await fail("JavaScript errors on the page");
     if (/^Error|^Failed|Exited: failed|MCU halted/.test(st.status)) await fail(`emulator stopped: ${st.status}`);
-    if (missing.length === 0) {
+    if (missing.length === 0 && bootedAt === null) {
+      bootedAt = elapsed;
+      console.log(`  booted in ${elapsed.toFixed(0)}s; running ${settleSecs}s more to check it stays up`);
+    }
+    // Keep running after boot: the MCU runtime and Caliptra keep exchanging
+    // mailbox commands after the main loop starts, and a failure there halts
+    // the MCU (caught above via the status and UART checks).
+    if (bootedAt !== null && elapsed - bootedAt >= settleSecs) {
       await save();
-      console.log(`PASS ${mode} in ${elapsed.toFixed(0)}s — ${st.stats}`);
+      console.log(`PASS ${name}: booted in ${bootedAt.toFixed(0)}s, stayed up ${settleSecs}s — ${st.stats}`);
       if (st.decoder) console.log(`(non-fatal) error decoder:\n${st.decoder}`);
       // Stop the run loop before moving on.
       await bidi.eval(context, `(document.getElementById("btn-stop").click(), true)`);
       return;
     }
-    if (elapsed > timeoutSecs) await fail(`timed out after ${timeoutSecs}s; missing: ${JSON.stringify(missing)}`);
+    if (bootedAt === null && elapsed > timeoutSecs) {
+      await fail(`timed out after ${timeoutSecs}s; missing: ${JSON.stringify(missing)}`);
+    }
     if (elapsed - lastReport >= 15) {
       lastReport = elapsed;
       console.log(`  ${elapsed.toFixed(0)}s: ${st.stats || st.status}; waiting for ${JSON.stringify(missing)}`);
@@ -344,8 +404,8 @@ async function runMode(bidi, context, baseUrl, mode, timeoutSecs, outDir, pageEr
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (typeof WebSocket === "undefined") throw new Error("Node 22+ is required (global WebSocket)");
-  for (const f of ["caliptra_wasm_demo.js", "caliptra_wasm_demo_bg.wasm", "default-rom.bin"]) {
-    if (!existsSync(join(WWW, f))) throw new Error(`www/${f} is missing; run ./build-wasm.sh first`);
+  if (!existsSync(join(WWW, "versions.json"))) {
+    throw new Error("www/versions.json is missing; run ./build-wasm.sh first");
   }
 
   const server = await serveWww();
@@ -364,9 +424,12 @@ async function main() {
     });
     const tree = await bidi.send("browsingContext.getTree", {});
     const context = tree.contexts[0].context;
-    for (const mode of args.modes) {
+    const releases = args.releases.length
+      ? args.releases
+      : JSON.parse(readFileSync(join(WWW, "versions.json"), "utf8")).releases;
+    for (const release of releases) for (const mode of args.modes) {
       try {
-        await runMode(bidi, context, baseUrl, mode, args.timeout, args.outDir, pageErrors);
+        await runMode(bidi, context, baseUrl, release, mode, args.timeout, args.settle, args.outDir, pageErrors);
       } catch (e) {
         failed = true;
         console.error(`FAIL ${e.message}`);

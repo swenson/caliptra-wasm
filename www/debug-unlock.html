@@ -44,6 +44,7 @@
       <p class="note">
         Send a 32-byte token with <code>MANUF_DEBUG_UNLOCK_REQ_TOKEN</code> (0x4D445554).
         The ROM hashes the token with SHA-512 and compares the result with the fuse value.
+        The default tokens below are the same for Caliptra 2.0 and 2.1.
       </p>
 
       <h3>Caliptra-only mode</h3>
@@ -69,7 +70,7 @@
       <hr class="divider">
 
       <h3>Caliptra + MCU mode</h3>
-      <p class="help">The token that matches the emulator's default OTP contents (<code>DEFAULT_MANUF_DEBUG_UNLOCK_RAW_TOKEN</code> in caliptra-mcu-sw's hardware model).</p>
+      <p class="help">The token that matches the emulator's default OTP contents (<code>DEFAULT_MANUF_DEBUG_UNLOCK_RAW_TOKEN</code> in caliptra-sw's hardware model).</p>
       <div class="field" style="margin-top: 10px">
         <label for="manuf-token-otp">Token (32 bytes, hex)</label>
         <input type="text" id="manuf-token-otp" value="ebefcdab0000000000000000000000000000000000000000000000008a8888f8" spellcheck="false" autocomplete="off">

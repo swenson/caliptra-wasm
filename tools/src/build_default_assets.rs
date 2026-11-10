@@ -4,7 +4,6 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use caliptra_auth_man_gen::default_test_manifest::DEFAULT_MCU_FW;
 use caliptra_auth_man_gen::{
     AuthManifestGenerator, AuthManifestGeneratorConfig, AuthManifestGeneratorKeyConfig,
 };
@@ -20,6 +19,21 @@ use caliptra_image_fake_keys::*;
 use caliptra_image_gen::{from_hw_format, ImageGeneratorCrypto};
 use caliptra_image_types::FwVerificationPqcKeyType;
 use zerocopy::IntoBytes;
+
+/// Placeholder MCU firmware: `jal zero, 0` (an infinite loop) padded to 256
+/// bytes. Matches caliptra-sw 2.1's `default_test_manifest::DEFAULT_MCU_FW`,
+/// which 2.0 does not have.
+static DEFAULT_MCU_FW: [u8; 256] = {
+    let mut fw = [0u8; 256];
+    fw[0] = 0x6f;
+    fw
+};
+
+/// The runtime firmware to build: 2.1 adds OCP LOCK, which 2.0 lacks.
+#[cfg(feature = "caliptra-2-0")]
+const APP_FW: &caliptra_builder::FwId = &firmware::APP_WITH_UART;
+#[cfg(feature = "caliptra-2-1")]
+const APP_FW: &caliptra_builder::FwId = &firmware::APP_WITH_UART_OCP_LOCK;
 
 fn main() -> Result<()> {
     let output_dir = env::args_os()
@@ -53,7 +67,7 @@ fn build_assets(output_dir: &Path, mcu_runtime_path: Option<&Path>) -> Result<()
 
     let fw_image = caliptra_builder::build_and_sign_image(
         &firmware::FMC_WITH_UART,
-        &firmware::APP_WITH_UART_OCP_LOCK,
+        APP_FW,
         ImageOptions {
             fmc_version: version::get_fmc_version(),
             app_version: version::get_runtime_version(),
@@ -200,6 +214,9 @@ fn build_assets(output_dir: &Path, mcu_runtime_path: Option<&Path>) -> Result<()
     Ok(())
 }
 
+/// Whether this release's firmware supports OCP LOCK (added in 2.1).
+const OCP_LOCK: bool = cfg!(feature = "caliptra-2-1");
+
 /// Write `build-info.json` describing which Caliptra release the default
 /// images come from, so the UI can display it. The upstream revisions are
 /// passed in by build-wasm.sh via `CALIPTRA_SW_REV` / `CALIPTRA_MCU_SW_REV`.
@@ -213,7 +230,8 @@ fn write_build_info(output_dir: &Path) -> Result<()> {
             "  \"fmc_version\": \"{}.{}.{}\",\n",
             "  \"runtime_version\": \"{}.{}.{}\",\n",
             "  \"caliptra_sw_rev\": \"{}\",\n",
-            "  \"caliptra_mcu_sw_rev\": \"{}\"\n",
+            "  \"caliptra_mcu_sw_rev\": \"{}\",\n",
+            "  \"features\": {{ \"ocp_lock\": {} }}\n",
             "}}\n"
         ),
         version::ROM_VERSION_MAJOR,
@@ -229,6 +247,7 @@ fn write_build_info(output_dir: &Path) -> Result<()> {
         version::RUNTIME_VERSION_PATCH,
         rev("CALIPTRA_SW_REV"),
         rev("CALIPTRA_MCU_SW_REV"),
+        OCP_LOCK,
     );
     let path = output_dir.join("build-info.json");
     std::fs::write(&path, info).with_context(|| format!("Failed to write {}", path.display()))?;

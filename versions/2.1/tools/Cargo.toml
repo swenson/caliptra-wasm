@@ -1,18 +1,30 @@
 # Licensed under the Apache-2.0 license
-# Helper tool to extract PK hashes from a Caliptra FW image bundle.
+# Host tools for the Caliptra 2.1 build: default image/asset generation and
+# PK hash extraction. Sources are shared in ../../../tools/src.
 
 [package]
 name = "caliptra-wasm-hash-tool"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+path = "../../../tools/src/lib.rs"
+
 [[bin]]
 name = "build-default-assets"
-path = "src/build_default_assets.rs"
+path = "../../../tools/src/build_default_assets.rs"
 
 [[bin]]
 name = "extract-pk-hashes"
-path = "src/main.rs"
+path = "../../../tools/src/main.rs"
+
+[features]
+default = ["caliptra-2-1"]
+caliptra-2-1 = []
+
+[lints.rust]
+# The shared sources also contain code for the other releases' features.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("caliptra-2-0", "caliptra-2-1"))'] }
 
 [dependencies]
 anyhow = "1.0"

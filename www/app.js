@@ -1,5 +1,38 @@
 // Caliptra WASM Emulator - JavaScript glue
-import init, { CaliptraEmulator, McuEmulator } from "./caliptra_wasm_demo.js";
+//
+// Each Caliptra release has its own WASM module and default images in
+// v<release>/ (built by build-wasm.sh); versions.json lists the releases that
+// were built. The page loads one release at a time, chosen by the
+// ?version=<release> URL parameter, then the last release picked, then the
+// default.
+let init, CaliptraEmulator, McuEmulator;
+let RELEASES = { default: "2.1", releases: ["2.1"] };
+let RELEASE = null;
+let ASSETS = ""; // "v<release>/"
+const RELEASE_STORAGE_KEY = "caliptra-wasm.release";
+
+function compareReleases(a, b) {
+  const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+  return pa[0] - pb[0] || pa[1] - pb[1];
+}
+
+function storedRelease() {
+  try { return localStorage.getItem(RELEASE_STORAGE_KEY); } catch (e) { return null; }
+}
+
+async function loadRelease() {
+  try {
+    const r = await fetch("versions.json", { cache: "no-cache" });
+    if (r.ok) RELEASES = await r.json();
+  } catch (e) {
+    console.warn("Failed to load versions.json:", e);
+  }
+  const requested = new URLSearchParams(location.search).get("version") || storedRelease();
+  RELEASE = RELEASES.releases.includes(requested) ? requested : RELEASES.default;
+  ASSETS = `v${RELEASE}/`;
+  const mod = await import(`./${ASSETS}caliptra_wasm_demo.js`);
+  ({ default: init, CaliptraEmulator, McuEmulator } = mod);
+}
 
 // DOM elements
 const emuModeSelect = document.getElementById("emu-mode");
@@ -46,9 +79,30 @@ const otpLogOutput = document.getElementById("otp-log-output");
 const errorDecoder = document.getElementById("error-decoder");
 const keyvaultDisplay = document.getElementById("keyvault-display");
 
+await loadRelease();
+
+// Release selector: enable the releases that were built, select the loaded
+// one, and reload the page to switch.
+const releaseSelect = document.getElementById("caliptra-version");
+for (const opt of releaseSelect.options) {
+  const built = RELEASES.releases.includes(opt.value);
+  opt.disabled = !built;
+  opt.textContent = built ? opt.value : `${opt.value} (coming soon)`;
+  opt.selected = opt.value === RELEASE;
+}
+releaseSelect.addEventListener("change", () => {
+  try { localStorage.setItem(RELEASE_STORAGE_KEY, releaseSelect.value); } catch (e) {}
+  const url = new URL(location.href);
+  url.searchParams.set("version", releaseSelect.value);
+  location.assign(url);
+});
+
+// Features the loaded release supports (from its build-info.json).
+let releaseFeatures = { ocp_lock: true };
+
 // Load error code lookup table (Caliptra + MCU)
 let ERROR_CODES = {};
-fetch("error-codes.json").then(r => r.json()).then(j => { ERROR_CODES = j; }).catch(e => {
+fetch(`${ASSETS}error-codes.json`).then(r => r.json()).then(j => { ERROR_CODES = j; }).catch(e => {
   console.warn("Failed to load error-codes.json:", e);
 });
 
@@ -58,7 +112,11 @@ const UPSTREAM_REPOS = {
   caliptra_sw_rev: ["caliptra-sw", "https://github.com/swenson/caliptra-sw/commit/"],
   caliptra_mcu_sw_rev: ["caliptra-mcu-sw", "https://github.com/swenson/caliptra-mcu-sw/commit/"],
 };
-fetch("build-info.json").then(r => r.json()).then(info => {
+fetch(`${ASSETS}build-info.json`).then(r => r.json()).then(info => {
+  if (info.features) {
+    releaseFeatures = { ...releaseFeatures, ...info.features };
+    updateModeVisibility();
+  }
   if (info.caliptra_release) {
     document.getElementById("caliptra-release-badge").textContent = `Caliptra ${info.caliptra_release}`;
     document.title = `Caliptra ${info.caliptra_release} Emulator`;
@@ -430,7 +488,7 @@ function updateModeVisibility() {
   // Caliptra-only options hidden in MCU mode (MCU handles these internally)
   document.getElementById("caliptra-only-options").hidden = isMcu;
   subsystemModeInput.closest(".check").hidden = isMcu;
-  ocpLockInput.closest(".check").hidden = isMcu;
+  ocpLockInput.closest(".check").hidden = isMcu || !releaseFeatures.ocp_lock;
   // OTP panels only visible in MCU mode
   otpPanel.hidden = !isMcu;
   otpLogPanel.hidden = !isMcu;
@@ -488,13 +546,13 @@ async function startup() {
 
     // Load default ROM, FW, and hash defaults in parallel
     const [romResp, fwResp, defaultsResp, socManifestResp, mcuFwResp, mcuRomResp, mcuRuntimeResp] = await Promise.allSettled([
-      fetch("default-rom.bin"),
-      fetch("default-fw.bin"),
-      fetch("defaults.json"),
-      fetch("default-soc-manifest.bin"),
-      fetch("default-mcu-fw.bin"),
-      fetch("default-mcu-rom.bin"),
-      fetch("default-mcu-runtime.bin"),
+      fetch(`${ASSETS}default-rom.bin`),
+      fetch(`${ASSETS}default-fw.bin`),
+      fetch(`${ASSETS}defaults.json`),
+      fetch(`${ASSETS}default-soc-manifest.bin`),
+      fetch(`${ASSETS}default-mcu-fw.bin`),
+      fetch(`${ASSETS}default-mcu-rom.bin`),
+      fetch(`${ASSETS}default-mcu-runtime.bin`),
     ]);
 
     if (romResp.status === "fulfilled" && romResp.value.ok) {
@@ -679,7 +737,7 @@ function createEmulator() {
       const mcuFw = getMcuFw();
       const lifecycle = lifecycleSelect.value;
       const subsystemMode = subsystemModeInput.checked;
-      const ocpLock = ocpLockInput.checked;
+      const ocpLock = releaseFeatures.ocp_lock && ocpLockInput.checked;
 
       const fusesJson = buildFuseConfigJson();
 
@@ -2276,7 +2334,48 @@ btnMboxSend.addEventListener("click", () => {
 });
 
 // Start
+// Mark mailbox commands that only some releases support, e.g. "(2.1+)", and
+// disable the ones the loaded release lacks. Each release's
+// mailbox-commands.json lists the command IDs its caliptra-sw defines.
+async function annotateMailboxCommands() {
+  const lists = {};
+  await Promise.all(RELEASES.releases.map(async (rel) => {
+    try {
+      const r = await fetch(`v${rel}/mailbox-commands.json`);
+      if (r.ok) lists[rel] = new Set(Object.keys(await r.json()));
+    } catch (e) {
+      console.warn(`Failed to load v${rel}/mailbox-commands.json:`, e);
+    }
+  }));
+  const known = Object.keys(lists).sort(compareReleases);
+  if (!lists[RELEASE] || known.length < 2) return;
+  for (const opt of mboxCmdSelect.querySelectorAll("option")) {
+    const info = COMMAND_INFO[opt.value];
+    if (!info) continue;
+    const hex = "0x" + (info.id >>> 0).toString(16).padStart(8, "0");
+    const supported = known.filter((rel) => lists[rel].has(hex));
+    if (supported.length === 0 || supported.length === known.length) continue;
+    const fromFirst = known.slice(known.indexOf(supported[0]));
+    const tag = supported.length === fromFirst.length
+      ? `${supported[0]}+`
+      : `${supported.join(", ")} only`;
+    opt.textContent += ` (${tag})`;
+    if (!lists[RELEASE].has(hex)) {
+      opt.disabled = true;
+      opt.title = `Not in Caliptra ${RELEASE}`;
+    }
+  }
+  if (mboxCmdSelect.selectedOptions[0]?.disabled) {
+    const first = [...mboxCmdSelect.options].find((o) => !o.disabled);
+    if (first) {
+      mboxCmdSelect.value = first.value;
+      mboxCmdSelect.dispatchEvent(new Event("change"));
+    }
+  }
+}
+
 startup();
+annotateMailboxCommands();
 
 // Render initial form fields for the default selected command
 updateInputSection(mboxCmdSelect.value, getInputMode());

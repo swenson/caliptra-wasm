@@ -1,0 +1,10 @@
+# Licensed under the Apache-2.0 license
+#
+# Matches the toolchain pinned by caliptra-sw and caliptra-mcu-sw for the WASM crate.
+# The 2.0 firmware itself is built by the asset tools with 2.0's own toolchain
+# (see tools/rust-toolchain.toml).
+[toolchain]
+channel = "1.96.1"
+targets = ["wasm32-unknown-unknown", "riscv32imc-unknown-none-elf"]
+profile = "minimal"
+components = ["rustfmt", "clippy"]
