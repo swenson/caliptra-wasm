@@ -1,0 +1,10 @@
+# Licensed under the Apache-2.0 license
+#
+# Matches the toolchain pinned by caliptra-sw and caliptra-mcu-sw for the WASM crate.
+# The Caliptra ROM/FW images are compiled by caliptra-builder with whatever
+# toolchain runs the asset tools, so keep this in sync with upstream.
+[toolchain]
+channel = "1.96.1"
+targets = ["wasm32-unknown-unknown", "riscv32imc-unknown-none-elf"]
+profile = "minimal"
+components = ["rustfmt", "clippy"]

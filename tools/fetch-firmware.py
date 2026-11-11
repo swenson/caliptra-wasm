@@ -143,6 +143,8 @@ def main():
                 "id": entry["id"], "version": entry["version"], "file": out_name,
                 "tag": entry["tag"], "url": f"https://github.com/chipsalliance/caliptra-sw/releases/tag/{entry['tag']}",
             }
+            if "rtl" in entry:
+                item["rtl"] = entry["rtl"]
             if "commit" in entry:
                 item["mailbox_commands"] = mailbox_commands(entry["commit"], args.cache)
             index[kind].append(item)

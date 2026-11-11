@@ -4,7 +4,8 @@
   "Hashes are from the release history in caliptra-sw's README: ROM sha384 is over the whole",
   "with-log ROM binary; fmc/runtime sha384 are the digests in the bundle's manifest TOC.",
   "Each line uses its newest release with downloadable artifacts (rom-1.0.3 has none).",
-  "Firmware commits (from the README) are used to fetch each runtime's mailbox command list."
+  "Firmware commits (from the README) are used to fetch each runtime's mailbox command list.",
+  "\"rtl\" is the README's RTL column: the hardware releases each binary is known to work with."
  ],
  "default_rom": "1.2",
  "default_firmware": "1.3",
@@ -15,7 +16,10 @@
    "tag": "release_v20240522_1",
    "asset": "caliptra_release_v20240522_1.zip",
    "file": "caliptra-rom-with-log.bin",
-   "sha384": "f51fdcf0fc460f005f37e908229851fd1fd3dfc21d54ad6fdab132844974a4264a4524b75bb82ab039e0b52b55768630"
+   "sha384": "f51fdcf0fc460f005f37e908229851fd1fd3dfc21d54ad6fdab132844974a4264a4524b75bb82ab039e0b52b55768630",
+   "rtl": [
+    "1.0"
+   ]
   },
   {
    "id": "1.1",
@@ -23,7 +27,10 @@
    "tag": "release_v20250107_0",
    "asset": "caliptra_release_v20250107_0.zip",
    "file": "caliptra-rom-with-log.bin",
-   "sha384": "71f54d7806a0a4c5055cf50a78f4286c484fd1bd548443e291722ea6b52ec17e7c10a90380da24a6a6167db88b13fc77"
+   "sha384": "71f54d7806a0a4c5055cf50a78f4286c484fd1bd548443e291722ea6b52ec17e7c10a90380da24a6a6167db88b13fc77",
+   "rtl": [
+    "1.1"
+   ]
   },
   {
    "id": "1.2",
@@ -31,7 +38,10 @@
    "tag": "release_v20241202_0",
    "asset": "caliptra_release_v20241202_0.zip",
    "file": "caliptra-rom-with-log.bin",
-   "sha384": "64da5237e2412bcbd203db756136e474e2d8d078d8752b68bddd5b9717563abeecd27874ac0eead1bc777a4f01f5fc24"
+   "sha384": "64da5237e2412bcbd203db756136e474e2d8d078d8752b68bddd5b9717563abeecd27874ac0eead1bc777a4f01f5fc24",
+   "rtl": [
+    "1.1"
+   ]
   }
  ],
  "firmware": [
@@ -43,7 +53,10 @@
    "file": "image-bundle.bin",
    "fmc_sha384": "d725fab9c02ef81d6fc3327443c569c3707608de36183d5236cb784bd5d70afb253613be59fdf72c5d0ddeb134fd4907",
    "runtime_sha384": "92f057c0f4cf1dd026433fe49a216520916eed4f7522162d903f225904371e14413e138c8239bca647c0e2d7814efe93",
-   "commit": "30887b76d9e315022448eb9fd734779d63901d6b"
+   "commit": "30887b76d9e315022448eb9fd734779d63901d6b",
+   "rtl": [
+    "1.0"
+   ]
   },
   {
    "id": "1.1",
@@ -53,7 +66,11 @@
    "file": "image-bundle.bin",
    "fmc_sha384": "493f979282a01779783b7edaa6f0e114b7b12f963e514e5f6e7dcfb02b627546d5d0b1fcfcfeebe6da09deae5d200ff6",
    "runtime_sha384": "adfc57dfead8a290bb71a92bab1317d6cca0f8c1e2b74d0a181e0136865783c0f6158ccabf2cc6a26c4071a250d21f3f",
-   "commit": "51ff0a89f169bbf8e06acb49b31db555e99fefb6"
+   "commit": "51ff0a89f169bbf8e06acb49b31db555e99fefb6",
+   "rtl": [
+    "1.0",
+    "1.1"
+   ]
   },
   {
    "id": "1.2",
@@ -63,7 +80,11 @@
    "file": "image-bundle.bin",
    "fmc_sha384": "2ecc7de8e0de934e6c331fc8e8bc7a7bc4247a23f6cb5d17d5883c6ad91a632b4eb7070b90ad5114fec9f2e5070fe8a9",
    "runtime_sha384": "67406db51e0a2315361e14bd1c7263f1b106a3bda4b5774e43d573243ea3ffa8538ea0534e2b5c38e340112b9156b8c2",
-   "commit": "b8d1f5916a778e2f34976ea021459fc6575032a2"
+   "commit": "b8d1f5916a778e2f34976ea021459fc6575032a2",
+   "rtl": [
+    "1.0",
+    "1.1"
+   ]
   },
   {
    "id": "1.3",
@@ -73,7 +94,11 @@
    "file": "image-bundle.bin",
    "fmc_sha384": "22beef5ccdb61c3c231ec5c8fe016051c1500970182524a962a7618458c7bf0edd9d1e8f63bd3e3513ef750fdd59cb1a",
    "runtime_sha384": "d7ceff7105dbdd50e45312c72fe0444272d2cf749b689f674006919eb7e26fcfe0fbb871798715da3f4ff5a8b63aac9b",
-   "commit": "54565c255b9e4c4bf434b36e009dd427755b9b06"
+   "commit": "54565c255b9e4c4bf434b36e009dd427755b9b06",
+   "rtl": [
+    "1.0",
+    "1.1"
+   ]
   }
  ]
 }

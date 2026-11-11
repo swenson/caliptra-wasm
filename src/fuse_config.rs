@@ -14,7 +14,7 @@
 //!   * `debug_locked` (debug-intent checkbox)
 
 use caliptra_api_types::{Fuses, U4};
-#[cfg(not(feature = "caliptra-1-1"))]
+#[cfg(not(feature = "caliptra-1x"))]
 use mcu_registers_generated::fuses as otp_map;
 use serde::Deserialize;
 
@@ -77,7 +77,7 @@ impl FuseConfig {
     }
 
     /// Apply this configuration to a Caliptra `Fuses` struct (core mode).
-    #[cfg(feature = "caliptra-1-1")]
+    #[cfg(feature = "caliptra-1x")]
     pub fn apply_to_fuses(&self, fuses: &mut Fuses) -> Result<(), String> {
         // Caliptra 1.x has no ML-DSA or SoC manifest fuses.
         let unsupported = [
@@ -111,7 +111,7 @@ impl FuseConfig {
         self.apply_idevid_fuses(&mut fuses.idevid_cert_attr, &mut fuses.idevid_manuf_hsm_id)
     }
 
-    #[cfg(not(feature = "caliptra-1-1"))]
+    #[cfg(not(feature = "caliptra-1x"))]
     pub fn apply_to_fuses(&self, fuses: &mut Fuses) -> Result<(), String> {
         if let Some(v) = self.fuse_pqc_key_type {
             fuses.fuse_pqc_key_type = v;
@@ -182,7 +182,7 @@ impl FuseConfig {
     /// Note: `fuse_pqc_key_type` uses the Caliptra convention (0=LMS, 1=MLDSA),
     /// but the MCU OTP byte uses the inverse encoding (0=MLDSA, 1=LMS). This
     /// helper translates automatically.
-    #[cfg(not(feature = "caliptra-1-1"))]
+    #[cfg(not(feature = "caliptra-1x"))]
     pub fn apply_to_otp(&self, otp: &mut [u8]) -> Result<(), String> {
         // Byte offsets come from the release's generated OTP map; the
         // partitions moved between releases (2.0's start 0x28 bytes earlier
@@ -328,7 +328,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "caliptra-1-1"))]
+    #[cfg(not(feature = "caliptra-1x"))]
     fn test_apply_to_fuses() {
         let cfg = FuseConfig::from_json(
             r#"{"fuse_pqc_key_type":1,"fuse_lms_revocation":7,"soc_manifest_max_svn":64}"#,
@@ -342,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "caliptra-1-1")]
+    #[cfg(feature = "caliptra-1x")]
     fn test_apply_to_fuses_1x() {
         let cfg = FuseConfig::from_json(
             r#"{"fuse_ecc_revocation":5,"fuse_lms_revocation":7,"fw_svn":[3,0,0,0]}"#,
@@ -374,7 +374,7 @@ mod tests {
     const VENDOR_REVOCATIONS_PARTITION: usize = 0x7c0;
 
     #[test]
-    #[cfg(not(feature = "caliptra-1-1"))]
+    #[cfg(not(feature = "caliptra-1x"))]
     fn test_apply_to_otp_svn() {
         let cfg =
             FuseConfig::from_json(r#"{"soc_manifest_max_svn":64,"fw_svn":[1,0,0,0]}"#).unwrap();
@@ -385,7 +385,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "caliptra-1-1"))]
+    #[cfg(not(feature = "caliptra-1x"))]
     fn test_apply_to_otp_vendor_revocations() {
         let cfg =
             FuseConfig::from_json(r#"{"fuse_lms_revocation":15,"fuse_mldsa_revocation":255}"#)

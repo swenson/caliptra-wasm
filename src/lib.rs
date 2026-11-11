@@ -18,32 +18,32 @@ use wasm_bindgen::prelude::*;
 
 mod fuse_config;
 
-#[cfg(not(feature = "caliptra-1-1"))]
+#[cfg(not(feature = "caliptra-1x"))]
 mod emu_2x;
-#[cfg(not(feature = "caliptra-1-1"))]
+#[cfg(not(feature = "caliptra-1x"))]
 pub use emu_2x::{CaliptraEmulator, McuEmulator};
 
-#[cfg(feature = "caliptra-1-1")]
+#[cfg(feature = "caliptra-1x")]
 mod emu_1x;
-#[cfg(feature = "caliptra-1-1")]
+#[cfg(feature = "caliptra-1x")]
 pub use emu_1x::CaliptraEmulator;
 
-#[cfg(any(
-    all(feature = "caliptra-1-1", feature = "caliptra-2-0"),
-    all(feature = "caliptra-1-1", feature = "caliptra-2-1"),
-    all(feature = "caliptra-2-0", feature = "caliptra-2-1"),
-))]
-compile_error!("enable exactly one of the caliptra-1-1, caliptra-2-0 and caliptra-2-1 features");
 #[cfg(not(any(
+    feature = "caliptra-1-0",
     feature = "caliptra-1-1",
     feature = "caliptra-2-0",
     feature = "caliptra-2-1"
 )))]
-compile_error!("enable one of the caliptra-1-1, caliptra-2-0 or caliptra-2-1 features");
+compile_error!(
+    "enable one of the caliptra-1-0, caliptra-1-1, caliptra-2-0 or caliptra-2-1 features"
+);
 
 /// The Caliptra release this module emulates (selected by the
 /// `caliptra-*` feature of the versions/<release> build). For 1.x this is
 /// the hardware release; the ROM and firmware releases are chosen at runtime.
+/// (Cargo features are additive, so only one release feature may be enabled.)
+#[cfg(feature = "caliptra-1-0")]
+pub const CALIPTRA_RELEASE: &str = "1.0";
 #[cfg(feature = "caliptra-1-1")]
 pub const CALIPTRA_RELEASE: &str = "1.1";
 #[cfg(feature = "caliptra-2-0")]

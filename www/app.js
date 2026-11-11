@@ -598,7 +598,10 @@ async function pickRelease(kind, id) {
   info.replaceChildren(
     document.createTextNode(`${kind === "roms" ? "ROM" : "Runtime"} ${entry.version} from `),
     releaseLink(entry),
-    document.createTextNode(` (${(bytes.length / 1024).toFixed(0)} KB). Hash verified at build time.`),
+    document.createTextNode(` (${(bytes.length / 1024).toFixed(0)} KB). Hash verified at build time.` +
+      (entry.rtl && !entry.rtl.includes(RELEASE)
+        ? ` caliptra-sw lists it for ${entry.rtl.join("/")} hardware, not ${RELEASE}.`
+        : "")),
   );
   if (kind === "roms") {
     defaultRom = bytes;
@@ -629,7 +632,10 @@ async function setupReleasePickers() {
     select.replaceChildren(...releaseFirmware[kind].slice().reverse().map((e) => {
       const o = document.createElement("option");
       o.value = e.id;
-      o.textContent = `${e.id} (${label} ${e.version})`;
+      // caliptra-sw's README lists the hardware (RTL) releases each binary
+      // is known to work with; note when that is not the loaded hardware.
+      const rtlNote = e.rtl && !e.rtl.includes(RELEASE) ? `, for ${e.rtl.join("/")} hardware` : "";
+      o.textContent = `${e.id} (${label} ${e.version}${rtlNote})`;
       o.selected = e.id === def;
       return o;
     }));
