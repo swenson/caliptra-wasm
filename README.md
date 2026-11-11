@@ -87,6 +87,9 @@ directory with its own pins:
   subsystem) and the core-only 1.x emulator, behind the same JS API.
 - `www/`: the shared pages, plus `www/v<release>/` with each release's WASM
   module and default images, and `www/versions.json` listing what was built.
+  The site icon's source is `www/favicon.svg`; after editing it, run
+  `tools/make-favicons.py` (needs cairosvg and Pillow) to regenerate
+  `favicon.ico` and `apple-touch-icon.png`.
 
 The MCU ROM and runtime for a release are built from the caliptra-mcu-sw rev
 pinned in `versions/<release>/Cargo.toml`. An MCU ROM from any other rev may
