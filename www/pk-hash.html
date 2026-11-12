@@ -17,6 +17,7 @@
     <a class="brand" href="index.html">Caliptra <span class="brand-long">Emulator</span></a>
     <nav class="site-nav" aria-label="Pages">
       <a href="index.html">Emulator</a>
+      <a href="ca.html">Test CA</a>
       <a href="pk-hash.html" aria-current="page">PK hash calculator</a>
       <a href="debug-unlock.html">Debug unlock</a>
     </nav>
@@ -267,12 +268,12 @@ async function computeOwner() {
 }
 
 // defaults.json of the release chosen on the emulator page (?version=, then
-// the last release picked there, then the newest build).
+// the release picked there in this browser tab, then the newest build).
 let defaultsRelease = null;
 async function defaultsUrl() {
   if (!defaultsRelease) {
     let rel = new URLSearchParams(location.search).get("version");
-    try { rel = rel || localStorage.getItem("caliptra-wasm.release"); } catch (e) {}
+    try { rel = rel || sessionStorage.getItem("caliptra-wasm.release"); } catch (e) {}
     try {
       const v = await (await fetch("versions.json", { cache: "no-cache" })).json();
       // These are 2.x hashes (1.x hashes its ECC + LMS keys instead), so only

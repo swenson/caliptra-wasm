@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caliptra Test CA</title>
+<meta name="description" content="A post-quantum test certificate authority in the browser: ML-DSA-87 and ECC P-384 roots that certify Caliptra device identities.">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container narrow">
+    <a class="brand" href="index.html">Caliptra <span class="brand-long">Emulator</span></a>
+    <nav class="site-nav" aria-label="Pages">
+      <a href="index.html">Emulator</a>
+      <a href="ca.html" aria-current="page">Test CA</a>
+      <a href="pk-hash.html">PK hash calculator</a>
+      <a href="debug-unlock.html">Debug unlock</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container narrow">
+  <div class="page-head">
+    <h1>Test CA <span class="badge">ML-DSA-87 and ECC P-384</span></h1>
+    <p class="lede">
+      A certificate authority that runs in this page, for provisioning
+      Caliptra device identities. It checks certificate requests, issues
+      certificates, signs TBS certificates for Caliptra to assemble, and
+      verifies certificate chains, with a post-quantum ML-DSA-87 root and an
+      ECC P-384 root.
+    </p>
+    <span class="build-info" id="ca-status">Loading the CA…</span>
+  </div>
+
+  <main class="tool">
+    <section class="card" aria-labelledby="roots-title">
+      <h2 id="roots-title">Certificate authorities</h2>
+      <p class="note">
+        Both roots are generated from the fixed values shown here, so they are
+        the same in every browser, and issuing the same certificate twice gives the same bytes.
+        <strong>The private keys are public, so anyone can issue these certificates.</strong>
+        Use them to exercise provisioning flows, and do not rely on them to trust a device.
+      </p>
+      <div id="roots"></div>
+    </section>
+
+    <section class="card" aria-labelledby="issue-title">
+      <div class="card-head">
+        <h2 id="issue-title">Issue a certificate</h2>
+        <span class="status" id="issue-status" role="status"></span>
+      </div>
+
+      <div class="field">
+        <span class="label" id="issue-mode-label">Certify</span>
+        <div class="inline-options" role="radiogroup" aria-labelledby="issue-mode-label">
+          <label><input type="radio" name="issue-mode" value="csr" checked> A certificate request (CSR)</label>
+          <label><input type="radio" name="issue-mode" value="key"> A public key</label>
+          <label><input type="radio" name="issue-mode" value="tbs"> A TBS certificate</label>
+        </div>
+      </div>
+
+      <div id="mode-csr">
+        <div class="field">
+          <label for="csr-input">Certificate request</label>
+          <textarea id="csr-input" rows="6" spellcheck="false" placeholder="PKCS#10 request as PEM, hex or base64. Provisioning on the emulator page can send one here."></textarea>
+          <input type="file" id="csr-file" accept=".csr,.pem,.der,.req,.bin" aria-label="Certificate request file">
+          <span class="hint">The CA checks the request's signature, which proves the requester holds the private key, before it issues anything.</span>
+        </div>
+      </div>
+
+      <div id="mode-key" hidden>
+        <div class="field-grid">
+          <div class="field">
+            <label for="key-alg">Key type</label>
+            <select id="key-alg">
+              <option value="mldsa87">ML-DSA-87 (2592 bytes)</option>
+              <option value="ecc384">ECC P-384 (X then Y, 96 bytes)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="key-subject">Subject common name</label>
+            <input type="text" id="key-subject" value="Test Device" spellcheck="false" autocomplete="off">
+          </div>
+        </div>
+        <div class="field">
+          <label for="key-input">Public key</label>
+          <textarea id="key-input" rows="4" spellcheck="false" placeholder="Raw public key as hex or base64, e.g. from GET_IDEV_MLDSA87_INFO or GET_PQ_INFO"></textarea>
+          <span class="hint">A bare public key carries no proof of possession, so the CA takes your word that the device holds the private key.</span>
+        </div>
+      </div>
+
+      <div id="mode-tbs" hidden>
+        <div class="field">
+          <label for="tbs-input">TBS certificate</label>
+          <textarea id="tbs-input" rows="6" spellcheck="false" placeholder="DER TBSCertificate as hex or base64"></textarea>
+          <span class="hint">
+            The to-be-signed part of a certificate, built elsewhere. It must
+            name the signing CA as issuer and declare its signature algorithm.
+            The CA signs it as it stands; the signature and TBS are what
+            Caliptra's <code>GET_IDEV_ECC384_CERT</code>,
+            <code>GET_IDEV_MLDSA87_CERT</code> and <code>GET_PQ_CERT</code>
+            commands take.
+          </span>
+        </div>
+      </div>
+
+      <div id="issue-parsed" class="console response parsed" data-empty="Details of the input appear here."></div>
+
+      <h3>Certificate</h3>
+      <div class="field-grid">
+        <div class="field">
+          <label for="issue-ca">Issuing CA</label>
+          <select id="issue-ca"></select>
+          <span class="hint" id="issue-ca-hint"></span>
+        </div>
+        <div class="field" data-not-tbs>
+          <label for="issue-profile">Extensions</label>
+          <select id="issue-profile">
+            <option value="requested">As the request asks</option>
+            <option value="ca">CA (CA:TRUE, keyCertSign)</option>
+            <option value="leaf">End entity (CA:FALSE, digitalSignature)</option>
+            <option value="none">None (version 1 certificate)</option>
+          </select>
+          <span class="hint">The CA adds the subject and authority key identifiers itself.</span>
+        </div>
+        <div class="field" data-not-tbs>
+          <label for="issue-pathlen">Path length</label>
+          <input type="text" id="issue-pathlen" placeholder="No limit" spellcheck="false" autocomplete="off">
+          <span class="hint">Applies to the CA extensions only. Caliptra's IDevID requests ask for 7 on 2.1 and 5 on the other releases.</span>
+        </div>
+        <div class="field" data-not-tbs>
+          <label for="issue-serial">Serial number (hex)</label>
+          <input type="text" id="issue-serial" spellcheck="false" autocomplete="off">
+          <span class="hint">Empty takes the CA's next serial number.</span>
+        </div>
+        <div class="field" data-not-tbs>
+          <label for="issue-not-before">Not before (UTC)</label>
+          <input type="text" id="issue-not-before" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field" data-not-tbs>
+          <label for="issue-not-after">Not after (UTC)</label>
+          <input type="text" id="issue-not-after" spellcheck="false" autocomplete="off">
+          <span class="hint">9999-12-31 23:59:59 means no expiry, as device identity certificates use.</span>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button type="button" id="btn-issue" class="primary" disabled>Issue certificate</button>
+        <button type="button" id="btn-send-emulator" disabled title="Offer this certificate to Provisioning on the emulator page, in whichever tab it is open">Send to the emulator tab</button>
+      </div>
+      <div id="issue-output" class="console response" style="margin-top: 14px" data-empty="The certificate appears here."></div>
+      <div id="issue-downloads" class="downloads"></div>
+    </section>
+
+    <section class="card" aria-labelledby="log-title">
+      <div class="card-head">
+        <h2 id="log-title">Issued certificates</h2>
+        <div class="toolbar">
+          <button type="button" class="small" id="btn-crl-mldsa87">Download ML-DSA CRL</button>
+          <button type="button" class="small" id="btn-crl-ecc384">Download ECC CRL</button>
+          <button type="button" class="small" id="btn-reset-ca" title="Forget every issued certificate and restart the serial numbers">Reset the CA</button>
+        </div>
+      </div>
+      <p class="note">
+        Certificates issued here and by
+        <a href="index.html#provisioning">Provisioning</a> on the emulator
+        page, kept in this browser. Revoked certificates appear in the
+        issuing CA's revocation list (CRL).
+      </p>
+      <div class="table-wrap">
+        <table class="table" id="issued-table">
+          <thead>
+            <tr><th>Serial</th><th>CA</th><th>Subject</th><th>Requested by</th><th>Issued</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="hint" id="issued-empty">Nothing issued yet.</p>
+      <div id="log-detail" class="console response" style="margin-top: 14px" hidden></div>
+      <div id="log-downloads" class="downloads"></div>
+    </section>
+
+    <section class="card" aria-labelledby="verify-title">
+      <div class="card-head">
+        <h2 id="verify-title">Verify a certificate chain</h2>
+        <span class="status" id="verify-status" role="status"></span>
+      </div>
+      <div class="field">
+        <label for="verify-input">Certificates</label>
+        <textarea id="verify-input" rows="6" spellcheck="false" placeholder="One or more PEM certificates, in any order, e.g. the chain downloaded from the emulator page: IDevID, LDevID, FMC alias, runtime alias"></textarea>
+        <input type="file" id="verify-file" accept=".pem,.crt,.cer,.der" aria-label="Certificate chain file">
+        <span class="hint">
+          The chain must end at one of the test CAs or at a self-signed
+          certificate. Each signature, issuer name and key identifier is
+          checked. Revocation is not checked, and validity dates are shown
+          but not compared with today's date, because Caliptra's own
+          certificates carry fixed dates.
+        </span>
+      </div>
+      <div class="toolbar">
+        <button type="button" id="btn-verify" class="primary" disabled>Verify chain</button>
+      </div>
+      <div id="verify-output" class="console response" style="margin-top: 14px" data-empty="The result appears here."></div>
+    </section>
+  </main>
+</div>
+
+<script type="module" src="ca-page.js"></script>
+</body>
+</html>

@@ -8,6 +8,10 @@
 /versions/*/target/
 /versions/*/tools/target/
 /versions/*/pkg/
+# The test CA (ca/), built into www/ca/
+/ca/target/
+/ca/pkg/
+/www/ca/
 /www/versions.json
 Cargo.lock
 primary_flash

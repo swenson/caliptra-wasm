@@ -2,10 +2,13 @@
 //
 // Each Caliptra release has its own WASM module and default images in
 // v<release>/ (built by build-wasm.sh); versions.json lists the releases that
-// were built. The page loads one release at a time, chosen by the
-// ?version=<release> URL parameter, then the last release picked, then the
-// default.
-let init, CaliptraEmulator, McuEmulator, fwPkHashes;
+// were built. The page loads one release at a time: the one in the
+// ?version=<release> URL parameter, else the one picked earlier in this
+// browser tab, else the default, which is the newest release built. The pick
+// is kept per tab (sessionStorage) so that a new visit starts at the newest.
+import { initProvisioning } from "./provision.js";
+
+let init, CaliptraEmulator, McuEmulator, fwPkHashes, csrHmacKey;
 let RELEASES = { default: "2.1", releases: ["2.1"] };
 let RELEASE = null;
 let ASSETS = ""; // "v<release>/"
@@ -17,7 +20,7 @@ function compareReleases(a, b) {
 }
 
 function storedRelease() {
-  try { return localStorage.getItem(RELEASE_STORAGE_KEY); } catch (e) { return null; }
+  try { return sessionStorage.getItem(RELEASE_STORAGE_KEY); } catch (e) { return null; }
 }
 
 async function loadRelease() {
@@ -33,6 +36,7 @@ async function loadRelease() {
   const mod = await import(`./${ASSETS}caliptra_wasm_demo.js`);
   ({ default: init, CaliptraEmulator, McuEmulator } = mod);
   fwPkHashes = mod.fw_pk_hashes; // vendor/owner PK hashes of a FW bundle
+  csrHmacKey = mod.csr_hmac_key; // key of the IDevID CSR envelope's tag (2.x)
 }
 
 // DOM elements
@@ -54,6 +58,7 @@ const lifecycleSelect = document.getElementById("lifecycle");
 const subsystemModeInput = document.getElementById("subsystem-mode");
 const ocpLockInput = document.getElementById("ocp-lock");
 const debugIntentInput = document.getElementById("debug-intent");
+const provisioningInput = document.getElementById("provisioning-mode");
 const btnRun = document.getElementById("btn-run");
 const btnStop = document.getElementById("btn-stop");
 const btnReset = document.getElementById("btn-reset");
@@ -92,7 +97,7 @@ for (const opt of releaseSelect.options) {
   opt.selected = opt.value === RELEASE;
 }
 releaseSelect.addEventListener("change", () => {
-  try { localStorage.setItem(RELEASE_STORAGE_KEY, releaseSelect.value); } catch (e) {}
+  try { sessionStorage.setItem(RELEASE_STORAGE_KEY, releaseSelect.value); } catch (e) {}
   const url = new URL(location.href);
   url.searchParams.set("version", releaseSelect.value);
   location.assign(url);
@@ -526,12 +531,22 @@ function updateModeVisibility() {
   document.getElementById("soc-manifest-row").hidden = !releaseFeatures.subsystem;
   document.getElementById("mcu-fw-row").hidden = !releaseFeatures.subsystem;
   ocpLockInput.closest(".check").hidden = isMcu || !releaseFeatures.ocp_lock;
+  // The MCU emulator cannot hand over the IDevID CSR at boot.
+  provisioningInput.closest(".check").hidden = isMcu;
   // OTP panels only visible in MCU mode
   otpPanel.hidden = !isMcu;
   otpLogPanel.hidden = !isMcu;
 }
 emuModeSelect.addEventListener("change", updateModeVisibility);
 updateModeVisibility();
+
+// The IDevID CSR is requested in manufacturing, so select that lifecycle
+// along with it (it can be changed back; the flag works in any lifecycle).
+provisioningInput.addEventListener("change", () => {
+  if (provisioningInput.checked && lifecycleSelect.value === "production") {
+    lifecycleSelect.value = "manufacturing";
+  }
+});
 
 // Show/hide fields based on selected command and input mode
 mboxCmdSelect.addEventListener("change", () => {
@@ -556,6 +571,7 @@ document.querySelectorAll('input[name="mbox-input-mode"]').forEach(radio => {
 
 // State
 let emulator = null;
+let provisioning = null; // the Provisioning section's controller (provision.js)
 let running = false;
 let animFrameId = null;
 let defaultRom = null;
@@ -888,23 +904,20 @@ function createEmulator() {
         ocpLock,
         mcuFw,
         debugIntentInput.checked,
-        fusesJson
+        fusesJson,
+        provisioningInput.checked
       );
 
-      // Check for boot error — show logs even if boot failed
-      const bootErr = emulator.boot_error();
-      if (bootErr) {
-        uartOutput.textContent = bootErr;
-        const log = emulator.get_log();
-        if (log) logOutput.textContent = log;
-      } else {
-        uartOutput.textContent = "";
-        logOutput.textContent = "";
-      }
-      // Drain any output produced during boot() so the first step() call
-      // doesn't dump millions of buffered cycles into the UART panel.
-      emulator.get_uart_output();
-      emulator.get_log();
+      // Caliptra boots while the emulator is created: the ROM runs, and with
+      // firmware the boot carries on until the runtime is loaded. Show what
+      // that printed now, so the ROM's output (the IDevID CSR hand-over
+      // included) can be read, and so the first step afterwards does not
+      // appear to have produced it. A failed boot's output is shown too.
+      uartOutput.textContent = "";
+      logOutput.textContent = "";
+      appendConsole(uartOutput, emulator.get_uart_output());
+      appendConsole(uartOutput, emulator.boot_error());
+      appendConsole(logOutput, emulator.get_log());
     }
 
     statsEl.textContent = "";
@@ -918,6 +931,7 @@ function createEmulator() {
     updateErrorDecoder();
     updateKeyvaultDisplay();
     setStepButtonsDisabled(false);
+    provisioning?.emulatorCreated();
     return true;
   } catch (err) {
     setStatus(`Failed to start the emulator: ${err}`, "exited");
@@ -941,17 +955,8 @@ function runLoop() {
   }
 
   // Collect output
-  const uart = emulator.get_uart_output();
-  if (uart) {
-    uartOutput.textContent += uart;
-    uartOutput.scrollTop = uartOutput.scrollHeight;
-  }
-
-  const log = emulator.get_log();
-  if (log) {
-    logOutput.textContent += log;
-    logOutput.scrollTop = logOutput.scrollHeight;
-  }
+  appendConsole(uartOutput, emulator.get_uart_output());
+  appendConsole(logOutput, emulator.get_log());
 
   // Update fuse registers periodically (every ~30 frames)
   fuseUpdateCounter++;
@@ -1041,6 +1046,7 @@ btnRun.addEventListener("click", () => {
     subsystemModeInput.disabled = true;
     ocpLockInput.disabled = true;
     debugIntentInput.disabled = true;
+    provisioningInput.disabled = true;
     setStatus("Paused after boot", "stopped");
     btnRun.disabled = false;
     btnStop.disabled = true;
@@ -1068,6 +1074,7 @@ btnRun.addEventListener("click", () => {
   subsystemModeInput.disabled = true;
   ocpLockInput.disabled = true;
   debugIntentInput.disabled = true;
+  provisioningInput.disabled = true;
 
   animFrameId = requestAnimationFrame(runLoop);
 });
@@ -1112,16 +1119,8 @@ function manualStep(n) {
     remaining -= take;
   }
   // Drain output and refresh displays
-  const uart = emulator.get_uart_output();
-  if (uart) {
-    uartOutput.textContent += uart;
-    uartOutput.scrollTop = uartOutput.scrollHeight;
-  }
-  const log = emulator.get_log();
-  if (log) {
-    logOutput.textContent += log;
-    logOutput.scrollTop = logOutput.scrollHeight;
-  }
+  appendConsole(uartOutput, emulator.get_uart_output());
+  appendConsole(logOutput, emulator.get_log());
   if (isMcu) updateOtpLog();
   updateFuseDisplay();
   updateErrorDecoder();
@@ -1186,7 +1185,19 @@ btnReset.addEventListener("click", () => {
   subsystemModeInput.disabled = false;
   ocpLockInput.disabled = false;
   debugIntentInput.disabled = false;
+  provisioningInput.disabled = false;
+  provisioning?.emulatorReset();
 });
+
+// Appends text to a console panel. The panel follows new output only while
+// it is scrolled to the end, so scrolling back to read something holds it
+// there instead of being pulled down by the next line.
+function appendConsole(el, text) {
+  if (!text) return;
+  const following = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+  el.append(text);
+  if (following) el.scrollTop = el.scrollHeight;
+}
 
 function setStatus(text, className) {
   statusEl.textContent = text;
@@ -1375,8 +1386,7 @@ function updateOtpLog() {
   try {
     const log = emulator.get_otp_log();
     if (log) {
-      otpLogOutput.textContent += log + "\n";
-      otpLogOutput.scrollTop = otpLogOutput.scrollHeight;
+      appendConsole(otpLogOutput, log + "\n");
     }
   } catch (e) { /* ignore */ }
 }
@@ -2516,16 +2526,8 @@ async function sendMailbox(cmdId, reqData, onProgress) {
 }
 
 function drainOutput() {
-  const uart = emulator.get_uart_output();
-  if (uart) {
-    uartOutput.textContent += uart;
-    uartOutput.scrollTop = uartOutput.scrollHeight;
-  }
-  const log = emulator.get_log();
-  if (log) {
-    logOutput.textContent += log;
-    logOutput.scrollTop = logOutput.scrollHeight;
-  }
+  appendConsole(uartOutput, emulator.get_uart_output());
+  appendConsole(logOutput, emulator.get_log());
 }
 
 // Pause the run loop for the duration of fn() (which steps the emulator
@@ -2542,11 +2544,13 @@ async function withRunLoopPaused(fn) {
   mailboxBusy = true;
   btnMboxSend.disabled = true;
   setStepButtonsDisabled(true);
+  provisioning?.updateButtons();
   try {
     return await fn();
   } finally {
     mailboxBusy = false;
     btnMboxSend.disabled = !emulator;
+    provisioning?.updateButtons();
     updateFuseDisplay();
     updateErrorDecoder();
     updateKeyvaultDisplay();
@@ -2706,6 +2710,7 @@ function annotateMailboxCommands() {
     }
   }
   updatePqCard();
+  provisioning?.refresh();
 }
 
 async function loadMailboxCommandLists() {
@@ -2804,6 +2809,28 @@ document.getElementById("pq-attested").addEventListener("click", () => {
   payload[0] = 1;
   crypto.getRandomValues(payload.subarray(4));
   runPqStep("Attested CSR", "GET_ATTESTED_PQ_CSR", payload);
+});
+
+// The Provisioning section (provision.js): certificate flows with the test CA.
+initProvisioning({
+  emulator: () => emulator,
+  busy: () => mailboxBusy,
+  sendMailbox,
+  withRunLoopPaused,
+  drainOutput,
+  commandId,
+  // Whether the loaded release (and, on 1.x, the picked runtime) has the command.
+  commandAvailable: (cmdKey) =>
+    resolveIn(runtimeCommandList ?? releaseCommandLists[RELEASE], cmdKey) !== undefined,
+  makeChecksummedRequest,
+  lookupError,
+  isMcu: () => emuModeSelect.value === "mcu",
+  // The key of the tag on the ROM's IDevID CSR envelope (2.x), or null.
+  csrHmacKey: () => (csrHmacKey ? csrHmacKey() : null),
+  release: RELEASE,
+}).then((p) => {
+  provisioning = p;
+  if (emulator) provisioning.updateButtons();
 });
 
 startup().then(loadMailboxCommandLists);

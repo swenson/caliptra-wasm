@@ -17,6 +17,7 @@
     <a class="brand" href="index.html">Caliptra <span class="brand-long">Emulator</span></a>
     <nav class="site-nav" aria-label="Pages">
       <a href="index.html" aria-current="page">Emulator</a>
+      <a href="ca.html">Test CA</a>
       <a href="pk-hash.html">PK hash calculator</a>
       <a href="debug-unlock.html">Debug unlock</a>
     </nav>
@@ -145,6 +146,11 @@
             <input type="checkbox" id="ocp-lock" checked>
             <label for="ocp-lock">OCP LOCK</label>
             <span class="hint">Enable OCP LOCK, the Open Compute Project's key management for storage encryption keys.</span>
+          </div>
+          <div class="check">
+            <input type="checkbox" id="provisioning-mode">
+            <label for="provisioning-mode">Provisioning: request the IDevID CSR</label>
+            <span class="hint">Set the <code>GENERATE_IDEVID_CSR</code> manufacturing flag before boot, as a manufacturing tester does over JTAG. The ROM then builds the IDevID certificate request, hands it to the SoC through the mailbox and waits for the flag to clear before it boots on. <a href="#provisioning">Provisioning</a>, further down this page, takes it from there. Ticking this also selects the Manufacturing lifecycle, the state a device is in at that point on a production line.</span>
           </div>
           <div class="check">
             <input type="checkbox" id="debug-intent">
@@ -487,6 +493,55 @@
         <div class="label" style="margin: 16px 0 6px">Response</div>
         <div id="mbox-response" class="console response" data-empty="Send a command to see its response."></div>
         <div id="mbox-downloads" class="downloads"></div>
+      </section>
+
+      <section class="card" id="provisioning" aria-labelledby="provision-title">
+        <div class="card-head">
+          <h2 id="provision-title">Provisioning</h2>
+          <span class="status" id="prov-status" role="status"></span>
+        </div>
+        <p class="note">
+          Give a device identity its certificate, start to finish, with the
+          <a href="ca.html" target="caliptra-ca">Test CA</a> (an ML-DSA-87 root
+          and an ECC P-384 root with fixed, public keys). Caliptra makes the
+          key and the request; the CA checks the request and issues the
+          certificate; the certificate goes back through the mailbox; and the
+          chain from the CA down to the runtime's alias key is verified.
+          Run the emulator first. Each step runs the ones before it if needed.
+        </p>
+        <div class="field-grid">
+          <div class="field">
+            <label for="prov-identity">Identity</label>
+            <select id="prov-identity"></select>
+            <span class="hint" id="prov-identity-hint"></span>
+          </div>
+          <div class="field">
+            <label for="prov-method">Method</label>
+            <select id="prov-method">
+              <option value="csr">Certificate request (CSR)</option>
+              <option value="tbs">Public key and TBS signing</option>
+            </select>
+            <span class="hint" id="prov-method-hint"></span>
+          </div>
+          <div class="field">
+            <label for="prov-ca">Issuing CA</label>
+            <select id="prov-ca"></select>
+            <span class="hint" id="prov-ca-hint"></span>
+          </div>
+        </div>
+        <ol class="steps" id="prov-steps">
+          <li><button type="button" data-step="0" disabled>1. Get the request</button><span class="hint"></span></li>
+          <li><button type="button" data-step="1" disabled>2. Issue the certificate</button><span class="hint"></span></li>
+          <li><button type="button" data-step="2" disabled>3. Give it to Caliptra</button><span class="hint"></span></li>
+          <li><button type="button" data-step="3" disabled>4. Verify the chain</button><span class="hint"></span></li>
+        </ol>
+        <div class="toolbar">
+          <button type="button" id="prov-run-all" class="primary" disabled>Run all four steps</button>
+          <button type="button" id="prov-open-ca" disabled title="Show this request in the Test CA tab, to issue the certificate there by hand">Open the request in the Test CA tab</button>
+          <button type="button" id="prov-use-sent" hidden></button>
+        </div>
+        <div id="prov-output" class="console response" style="margin-top: 14px" data-empty="Each step's details appear here."></div>
+        <div id="prov-downloads" class="downloads"></div>
       </section>
 
       <section class="card" id="pq-card" hidden aria-labelledby="pq-title">

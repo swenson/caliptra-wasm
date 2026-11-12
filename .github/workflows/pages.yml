@@ -32,7 +32,7 @@ jobs:
         # toolchains in rust-toolchain.toml files (2.0's asset tools use 2.0's
         # older one). Install them, with the targets they list, up front.
         run: |
-          for f in versions/*/rust-toolchain.toml versions/*/tools/rust-toolchain.toml; do
+          for f in versions/*/rust-toolchain.toml versions/*/tools/rust-toolchain.toml ca/rust-toolchain.toml; do
             [ -f "$f" ] && (cd "$(dirname "$f")" && rustup toolchain install)
           done
 
@@ -49,7 +49,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-${{ runner.os }}-${{ hashFiles('versions/*/Cargo.toml', 'versions/*/tools/Cargo.toml') }}
+          key: cargo-${{ runner.os }}-${{ hashFiles('versions/*/Cargo.toml', 'versions/*/tools/Cargo.toml', 'ca/Cargo.toml') }}
           restore-keys: |
             cargo-${{ runner.os }}-
 
@@ -82,6 +82,18 @@ jobs:
         # runner) and boot both emulator modes of every release to their
         # runtime milestones. Blocks the deploy if any run fails.
         run: node tests/browser/boot-test.mjs
+
+      - name: Test CA unit tests
+        # The CA's own tests. Its OpenSSL interoperability test runs where
+        # the openssl command has ML-DSA (3.5 or later) and is skipped
+        # elsewhere.
+        run: cd ca && cargo test
+
+      - name: Browser provisioning test
+        # Exercise the Test CA page, then provision every identity of every
+        # release from the emulator page's Provisioning section and verify the
+        # certificate chains. Blocks the deploy if any flow fails.
+        run: node tests/browser/provisioning-test.mjs
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'

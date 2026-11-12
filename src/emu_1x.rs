@@ -25,7 +25,10 @@ use wasm_bindgen::prelude::*;
 use zerocopy::{FromBytes, IntoBytes};
 
 use crate::fuse_config::FuseConfig;
-use crate::{format_keyvault_json, parse_pk_hash, SharedBuffer};
+use crate::{
+    download_idevid_csr, format_keyvault_json, parse_pk_hash, wait_ready_for_fw, SharedBuffer,
+    MFG_FLAG_GENERATE_IDEVID_CSR,
+};
 
 /// The vendor and owner PK hashes of a 1.x firmware bundle: SHA-384 of the
 /// manifest preamble's `vendor_pub_keys` (4 ECC + 32 LMS keys) and
@@ -97,6 +100,7 @@ pub struct CaliptraEmulator {
     log_buffer: SharedBuffer,
     total_steps: u64,
     boot_error: Option<String>,
+    idevid_csr: Option<Vec<u8>>,
 }
 
 #[wasm_bindgen]
@@ -118,6 +122,7 @@ impl CaliptraEmulator {
         mcu_fw: Option<Vec<u8>>,
         debug_intent: bool,
         fuses_json: &str,
+        gen_idevid_csr: bool,
     ) -> Result<CaliptraEmulator, JsValue> {
         console_error_panic_hook::set_once();
         let _ = (soc_manifest, subsystem_mode, ocp_lock, mcu_fw);
@@ -170,28 +175,58 @@ impl CaliptraEmulator {
             ..Default::default()
         };
 
-        let boot_params = BootParams {
-            fuses,
-            fw_image: fw_image.as_deref(),
-            ..Default::default()
-        };
-
         // Use new_unbooted + boot separately so we keep the model even if
         // boot fails (e.g., PK hash mismatch). This lets the user see UART
         // output and logs from the failed boot attempt.
         let mut model = ModelEmulated::new_unbooted(init_params)
             .map_err(|e| JsValue::from_str(&format!("Failed to create emulator: {e}")))?;
-        let boot_error = model
-            .boot(boot_params)
-            .err()
-            .map(|e| format!("[WASM] Boot error: {e}\n"));
+
+        let mut idevid_csr = None;
+        let boot_result: Result<(), String> = if gen_idevid_csr {
+            // HwModel::boot would clear the manufacturing flag without
+            // reading the CSR from the mailbox. Boot without firmware, take
+            // the CSR as a manufacturing tester does, then load the firmware
+            // the way boot does.
+            (|| {
+                model
+                    .boot(BootParams {
+                        fuses,
+                        initial_dbg_manuf_service_reg: MFG_FLAG_GENERATE_IDEVID_CSR,
+                        ..Default::default()
+                    })
+                    .map_err(|e| e.to_string())?;
+                idevid_csr = Some(download_idevid_csr(&mut model)?);
+                let Some(fw) = fw_image.as_deref() else {
+                    return Ok(());
+                };
+                wait_ready_for_fw(&mut model)?;
+                model.upload_firmware(fw).map_err(|e| e.to_string())
+            })()
+        } else {
+            model
+                .boot(BootParams {
+                    fuses,
+                    fw_image: fw_image.as_deref(),
+                    ..Default::default()
+                })
+                .map_err(|e| e.to_string())
+        };
 
         Ok(CaliptraEmulator {
             model,
             log_buffer,
             total_steps: 0,
-            boot_error,
+            boot_error: boot_result
+                .err()
+                .map(|e| format!("[WASM] Boot error: {e}\n")),
+            idevid_csr,
         })
+    }
+
+    /// What the ROM sent the SoC when the emulator was created with
+    /// `gen_idevid_csr`: the IDevID ECC CSR. `undefined` otherwise.
+    pub fn idevid_csr_envelope(&self) -> Option<Vec<u8>> {
+        self.idevid_csr.clone()
     }
 
     /// Step the emulator by `n` clock cycles. Returns true if the emulator
@@ -224,6 +259,16 @@ impl CaliptraEmulator {
     /// Get the total number of steps executed so far.
     pub fn total_steps(&self) -> u64 {
         self.total_steps
+    }
+
+    /// Whether the runtime has started and takes mailbox commands
+    /// (CPTRA_FLOW_STATUS.ready_for_runtime).
+    pub fn ready_for_runtime(&mut self) -> bool {
+        self.model
+            .soc_ifc()
+            .cptra_flow_status()
+            .read()
+            .ready_for_runtime()
     }
 
     /// Check if the emulator has signaled an exit (pass or fail).
@@ -321,6 +366,17 @@ mod tests {
     /// Boots `rom` + `fw` and returns the emulator once the runtime has been
     /// ready for 40M more cycles, or an error describing how it failed.
     fn boot_to_runtime(rom: &[u8], fw: Vec<u8>) -> Result<CaliptraEmulator, String> {
+        boot_to_runtime_with(rom, fw, "production", false)
+    }
+
+    /// `boot_to_runtime` in the given lifecycle, optionally with the IDevID
+    /// CSR requested at boot.
+    fn boot_to_runtime_with(
+        rom: &[u8],
+        fw: Vec<u8>,
+        lifecycle: &str,
+        gen_idevid_csr: bool,
+    ) -> Result<CaliptraEmulator, String> {
         let hashes = fw_pk_hashes(&fw).ok_or("cannot parse the firmware manifest")?;
         let vendor = hashes.split('"').nth(3).unwrap().to_string();
         let owner = hashes.split('"').nth(7).unwrap().to_string();
@@ -330,12 +386,13 @@ mod tests {
             &owner,
             Some(fw),
             None,
-            "production",
+            lifecycle,
             false,
             false,
             None,
             false,
             "",
+            gen_idevid_csr,
         )
         .map_err(|e| format!("{e:?}"))?;
         if let Some(e) = emu.boot_error() {
@@ -410,23 +467,32 @@ mod tests {
         boot_to_runtime(&rom, fw).unwrap();
     }
 
-    /// Sends a mailbox command through the non-blocking API the page uses
-    /// (start, step until not busy, finish) and returns the response.
+    /// Sends a mailbox command and returns the response.
     fn mailbox(emu: &mut CaliptraEmulator, cmd: u32, payload: &[u8]) -> Vec<u8> {
-        let mut req = caliptra_api::calc_checksum(cmd, payload)
-            .to_le_bytes()
-            .to_vec();
-        req.extend_from_slice(payload);
-        emu.mailbox_start(cmd, &req).unwrap();
-        let start = emu.total_steps();
-        while emu.mailbox_busy() {
-            assert!(
-                emu.total_steps() - start < 200_000_000,
-                "command 0x{cmd:08x} timed out"
-            );
-            emu.step(100_000);
-        }
-        emu.mailbox_finish().unwrap().expect("response")
+        crate::provisioning_tests::mailbox(emu, cmd, payload).unwrap()
+    }
+
+    /// The IDevID provisioning flow with the newest ROM and runtime: the CSR
+    /// from the ROM at boot, a certificate from the test CA, and the chain
+    /// down to the runtime alias.
+    #[test]
+    fn test_idevid_provisioning() {
+        use crate::provisioning_tests::{run_idevid_flow, ECC384};
+        let rom = std::fs::read(test_asset("rom-1.2.0.bin")).expect("rom-1.2.0.bin");
+        let fw = std::fs::read(test_asset("fw-1.3.1.bin")).expect("fw-1.3.1.bin");
+        let mut emu = boot_to_runtime_with(&rom, fw, "manufacturing", true).unwrap();
+        run_idevid_flow(&mut emu, &ECC384, true);
+    }
+
+    /// The same with the oldest ROM and runtime, whose runtime cannot return
+    /// the CSR itself (GET_IDEV_CSR came with 1.2).
+    #[test]
+    fn test_idevid_provisioning_oldest_release() {
+        use crate::provisioning_tests::{run_idevid_flow, ECC384};
+        let rom = std::fs::read(test_asset("rom-1.0.2.bin")).expect("rom-1.0.2.bin");
+        let fw = std::fs::read(test_asset("fw-1.0.2.bin")).expect("fw-1.0.2.bin");
+        let mut emu = boot_to_runtime_with(&rom, fw, "manufacturing", true).unwrap();
+        run_idevid_flow(&mut emu, &ECC384, false);
     }
 
     /// Runtime 1.3's PQ.DevID identity: provision the ML-DSA-87 seed, then
@@ -452,5 +518,68 @@ mod tests {
         let size = u32::from_le_bytes(resp[8..12].try_into().unwrap()) as usize;
         assert!(size > 2592 && 12 + size <= resp.len(), "CSR size {size}");
         assert_eq!(&resp[12..14], &[0x30, 0x82], "CSR is a DER SEQUENCE");
+    }
+
+    /// PQ.DevID provisioning against the test CA: the runtime's ML-DSA-87
+    /// CSR is certified by the ML-DSA CA and the certificate populated; then
+    /// the CA signs a TBS for the public key and the runtime assembles the
+    /// certificate (GET_PQ_CERT).
+    #[test]
+    fn test_pq_devid_provisioning() {
+        use crate::provisioning_tests::{sized, sized_request};
+        use caliptra_api::mailbox::CommandId;
+        use caliptra_test_ca::{api, der};
+        use serde_json::{json, Value};
+        let parse =
+            |r: Result<String, String>| -> Value { serde_json::from_str(&r.unwrap()).unwrap() };
+        let unhex = |v: &Value| der::unhex(v.as_str().unwrap()).unwrap();
+
+        let rom = std::fs::read(test_asset("rom-1.2.0.bin")).expect("rom-1.2.0.bin");
+        let fw = std::fs::read(test_asset("fw-1.3.1.bin")).expect("fw-1.3.1.bin");
+        let mut emu = boot_to_runtime(&rom, fw).unwrap();
+        mailbox(&mut emu, CommandId::SET_PQ_SEED.into(), &[0x5a; 32]);
+
+        // CSR flow.
+        let csr = sized(&mailbox(&mut emu, CommandId::GET_PQ_CSR.into(), &[]));
+        let info = parse(api::csr_info(&csr));
+        assert_eq!(info["key_algorithm"], "mldsa87", "{info}");
+        assert_eq!(info["signature_valid"], true, "{info}");
+        eprintln!("PQ.DevID CSR: {} bytes, {info:#}", csr.len());
+        let issued = parse(api::issue(
+            &json!({
+                "ca": "mldsa87", "serial": "01", "csr": der::hex(&csr),
+                "not_before": "2023-01-01 00:00:00", "not_after": "9999-12-31 23:59:59",
+            })
+            .to_string(),
+        ));
+        let cert = unhex(&issued["cert"]);
+        eprintln!("PQ.DevID certificate: {} bytes", cert.len());
+        let resp = mailbox(
+            &mut emu,
+            CommandId::POPULATE_PQ_CERT.into(),
+            &sized_request(&cert),
+        );
+        assert_eq!(resp.len(), 8);
+        let chain = parse(api::verify_chain(&json!([der::hex(&cert)]).to_string()));
+        assert_eq!(chain["ok"], true, "{chain:#}");
+
+        // TBS flow.
+        let key = mailbox(&mut emu, CommandId::GET_PQ_INFO.into(), &[])[8..].to_vec();
+        assert_eq!(der::hex(&key), info["public_key"].as_str().unwrap());
+        let issued = parse(api::issue(
+            &json!({
+                "ca": "mldsa87", "serial": "02",
+                "public_key": der::hex(&key), "key_algorithm": "mldsa87",
+                "subject": info["subject_der"], "profile": "ca",
+                "not_before": "2023-01-01 00:00:00", "not_after": "9999-12-31 23:59:59",
+            })
+            .to_string(),
+        ));
+        let tbs = unhex(&issued["tbs"]);
+        let mut req = (tbs.len() as u32).to_le_bytes().to_vec();
+        req.extend_from_slice(&unhex(&issued["signature"]));
+        req.extend_from_slice(&tbs);
+        let assembled = sized(&mailbox(&mut emu, CommandId::GET_PQ_CERT.into(), &req));
+        assert_eq!(der::hex(&assembled), issued["cert"].as_str().unwrap());
     }
 }

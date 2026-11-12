@@ -15,7 +15,8 @@
 #     1.x is core-only and its firmware does not need building;
 #   * writes build-info.json, error-codes.json and mailbox-commands.json into
 #     www/v<release>/,
-# and finally writes www/versions.json, which the page reads to offer the
+# then builds the test CA (ca/, the same for every release) into www/ca/, and
+# finally writes www/versions.json, which the page reads to offer the
 # releases that were built.
 #
 # Environment:
@@ -268,6 +269,15 @@ PYEOF
 for rel in $RELEASES; do
     build_release "$rel"
 done
+
+# The test CA behind the Test CA page and the Provisioning section. It does not
+# depend on the Caliptra release, so there is one build for the whole site.
+echo ""
+echo "=== Test CA ==="
+(cd ca && rustup toolchain install >/dev/null)
+(cd ca && wasm-pack build --target web --release)
+mkdir -p www/ca
+cp ca/pkg/caliptra_test_ca_bg.wasm ca/pkg/caliptra_test_ca.js www/ca/
 
 # List every release present in www/ (newest first; the newest is the default).
 python3 - <<'EOF'

@@ -1,9 +1,9 @@
 #!/bin/bash
 # Licensed under the Apache-2.0 license
 #
-# fmt + clippy for every Caliptra release build in versions/. The sources in
-# src/ and tools/src/ are shared, so each release's build checks the code
-# paths its `caliptra-2-*` feature selects.
+# fmt + clippy for every Caliptra release build in versions/ and for the test
+# CA in ca/. The sources in src/ and tools/src/ are shared, so each release's
+# build checks the code paths its `caliptra-2-*` feature selects.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,5 +30,13 @@ for dir in versions/*/; do
         (cd "$dir/tools" && cargo clippy --all-targets -- -D warnings)
     fi
 done
+
+echo "=== Test CA ==="
+echo "Running cargo fmt --check..."
+(cd ca && cargo fmt --all --check)
+echo "Running cargo clippy (host, all targets)..."
+(cd ca && cargo clippy --all-targets -- -D warnings)
+echo "Running cargo clippy (wasm32)..."
+(cd ca && cargo clippy --target wasm32-unknown-unknown -- -D warnings)
 
 echo "Precheckin passed."

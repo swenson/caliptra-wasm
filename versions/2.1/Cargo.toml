@@ -49,6 +49,10 @@ mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "1639
 mcu-registers-generated = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "163989a7e9e698576a45a31c603beab90f6bbbf0", package = "caliptra-mcu-registers-generated" }
 
 
+[dev-dependencies]
+# The test CA behind the CA page, for the provisioning flow tests.
+caliptra-test-ca = { path = "../../ca" }
+
 # Patch caliptra-cfi-lib with a no-asm shim for WASM (CFI uses inline asm
 # that doesn't compile for wasm32; CFI is a firmware security feature not
 # needed by the emulator).

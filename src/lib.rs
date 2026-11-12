@@ -17,6 +17,8 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
 mod fuse_config;
+#[cfg(test)]
+mod provisioning_tests;
 
 #[cfg(not(feature = "caliptra-1x"))]
 mod emu_2x;
@@ -108,6 +110,73 @@ pub(crate) fn parse_pk_hash(hex: &str) -> Result<[u32; 12], String> {
             u32::from_str_radix(s, 16).map_err(|e| format!("Invalid hex at word {i}: {e}"))?;
     }
     Ok(result)
+}
+
+/// The CPTRA_DBG_MANUF_SERVICE_REG flag that asks the ROM for the IDevID
+/// certificate signing request. On hardware a manufacturing tester sets it
+/// (over JTAG, or from the SoC) before releasing Caliptra from reset.
+pub(crate) const MFG_FLAG_GENERATE_IDEVID_CSR: u32 = 0x01;
+
+/// Plays the manufacturing tester's part of the IDevID CSR flow. With
+/// GENERATE_IDEVID_CSR set, the ROM builds the CSR (1.x: the ECC CSR; 2.x: an
+/// envelope with the ECC and ML-DSA CSRs and their HMAC), puts it in the
+/// mailbox, raises `idevid_csr_ready` and waits for the flag to clear. This
+/// steps `model` until the CSR is ready, reads it from the mailbox, clears
+/// the flag, and returns what the ROM sent.
+pub(crate) fn download_idevid_csr<M: caliptra_hw_model::HwModel>(
+    model: &mut M,
+) -> Result<Vec<u8>, String> {
+    const MAX_WAIT_CYCLES: u32 = 40_000_000;
+    let mut cycles = 0u32;
+    let mut wait = |model: &mut M, what: &str, done: &dyn Fn(&mut M) -> bool| {
+        while !done(model) {
+            let fatal = model.soc_ifc().cptra_fw_error_fatal().read();
+            if fatal != 0 {
+                return Err(format!(
+                    "fatal error 0x{fatal:08x} while waiting for {what}"
+                ));
+            }
+            cycles += 1;
+            if cycles > MAX_WAIT_CYCLES {
+                return Err(format!("timed out waiting for {what}"));
+            }
+            model.step();
+        }
+        Ok(())
+    };
+    wait(model, "the ROM to produce the IDevID CSR", &|m| {
+        m.soc_ifc().cptra_flow_status().read().idevid_csr_ready()
+    })?;
+    wait(model, "the IDevID CSR in the mailbox", &|m| {
+        m.soc_mbox()
+            .status()
+            .read()
+            .mbox_fsm_ps()
+            .mbox_execute_soc()
+    })?;
+    let mut txn = model
+        .try_mailbox_receive()
+        .map_err(|e| format!("reading the IDevID CSR from the mailbox: {e}"))?
+        .ok_or("the IDevID CSR was not in the mailbox")?;
+    let csr = std::mem::take(&mut txn.req.data);
+    txn.respond_success();
+    model.soc_ifc().cptra_dbg_manuf_service_reg().write(|_| 0);
+    Ok(csr)
+}
+
+/// Steps `model` until the ROM is ready for the firmware image.
+pub(crate) fn wait_ready_for_fw<M: caliptra_hw_model::HwModel>(
+    model: &mut M,
+) -> Result<(), String> {
+    // Same bound as HwModel::boot.
+    const MAX_WAIT_CYCLES: u32 = 20_000_000;
+    for _ in 0..MAX_WAIT_CYCLES {
+        if model.ready_for_fw() {
+            return Ok(());
+        }
+        model.step();
+    }
+    Err("timed out waiting for the ROM to be ready for firmware".into())
 }
 
 /// Format a `KeyVaultSnapshot` as a JSON string for the WASM/JS UI.

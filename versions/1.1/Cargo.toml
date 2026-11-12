@@ -49,6 +49,10 @@ zerocopy = { version = "0.8", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+[dev-dependencies]
+# The test CA behind the CA page, for the provisioning flow tests.
+caliptra-test-ca = { path = "../../ca" }
+
 [profile.release]
 opt-level = "s"
 lto = true

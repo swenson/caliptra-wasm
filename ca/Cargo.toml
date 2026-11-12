@@ -1,0 +1,28 @@
+# Licensed under the Apache-2.0 license
+#
+# The test certificate authority behind the CA page and the emulator page's
+# provisioning flows: an ML-DSA-87 root and an ECC P-384 root with fixed,
+# public keys. It is independent of the Caliptra release, so it is built once
+# (into www/ca/) rather than per release.
+
+[package]
+name = "caliptra-test-ca"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1"
+fips204 = { version = "0.4", default-features = false, features = ["ml-dsa-87"] }
+p384 = { version = "0.13", default-features = false, features = ["ecdsa", "sha384"] }
+hmac = "0.12"
+sha1 = "0.10"
+sha2 = "0.10"
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true

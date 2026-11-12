@@ -22,7 +22,10 @@ use zerocopy::{FromBytes, IntoBytes};
 use crate::fuse_config::FuseConfig;
 #[cfg(test)]
 use crate::test_asset;
-use crate::{format_keyvault_json, parse_pk_hash, SharedBuffer};
+use crate::{
+    download_idevid_csr, format_keyvault_json, parse_pk_hash, wait_ready_for_fw, SharedBuffer,
+    MFG_FLAG_GENERATE_IDEVID_CSR,
+};
 
 /// Write the SoC interface's debug service request register. 2.0 names it
 /// `ss_dbg_manuf_service_reg_req`; 2.1 renamed it `ss_dbg_service_reg_req`
@@ -57,6 +60,18 @@ pub fn fw_pk_hashes(fw: &[u8]) -> Option<String> {
         hex(&vendor),
         hex(&owner)
     ))
+}
+
+/// The key of the HMAC-SHA-512 tag on the IDevID CSR envelope, as bytes. The
+/// emulator uses caliptra-sw's default; on hardware it is a secret built into
+/// the silicon and shared with the manufacturer's signing service, which
+/// checks the tag before certifying the CSRs.
+#[wasm_bindgen]
+pub fn csr_hmac_key() -> Vec<u8> {
+    DEFAULT_CSR_HMAC_KEY
+        .iter()
+        .flat_map(|word| word.to_be_bytes())
+        .collect()
 }
 
 /// Read all Caliptra fuse registers from a SocManager and return as JSON.
@@ -126,6 +141,7 @@ pub struct CaliptraEmulator {
     log_buffer: SharedBuffer,
     total_steps: u64,
     boot_error: Option<String>,
+    idevid_csr: Option<Vec<u8>>,
 }
 
 #[wasm_bindgen]
@@ -142,6 +158,11 @@ impl CaliptraEmulator {
     /// * `subsystem_mode` - Whether to boot the emulator in subsystem mode
     /// * `ocp_lock` - Whether to enable OCP lock
     /// * `mcu_fw` - Optional MCU firmware image for subsystem mode
+    /// * `debug_intent` - Whether to set the debug intent strap
+    /// * `fuses_json` - Fuse overrides (see `FuseConfig`), or empty
+    /// * `gen_idevid_csr` - Set the GENERATE_IDEVID_CSR manufacturing flag
+    ///   before boot, and collect the IDevID CSR envelope the ROM then hands
+    ///   over (see `idevid_csr_envelope`)
     #[wasm_bindgen(constructor)]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -156,6 +177,7 @@ impl CaliptraEmulator {
         mcu_fw: Option<Vec<u8>>,
         debug_intent: bool,
         fuses_json: &str,
+        gen_idevid_csr: bool,
     ) -> Result<CaliptraEmulator, JsValue> {
         console_error_panic_hook::set_once();
 
@@ -221,34 +243,64 @@ impl CaliptraEmulator {
             ..Default::default()
         };
 
-        let boot_params = BootParams {
-            fw_image: fw_image.as_deref(),
-            soc_manifest: soc_manifest.as_deref(),
-            mcu_fw_image: mcu_fw.as_deref(),
-            ..Default::default()
-        };
-
         // Use new_unbooted + boot separately so we keep the model even if
         // boot fails (e.g., PK hash mismatch). This lets the user see UART
         // output and logs from the failed boot attempt.
         let mut model = caliptra_hw_model::ModelEmulated::new_unbooted(init_params)
             .map_err(|e| JsValue::from_str(&format!("Failed to create emulator: {e}")))?;
 
-        let boot_error = model.boot(boot_params).err();
+        let mut idevid_csr = None;
+        let boot_result: Result<(), String> = if gen_idevid_csr {
+            // HwModel::boot would clear the manufacturing flag without
+            // reading the CSR from the mailbox. Boot without firmware, take
+            // the CSR as a manufacturing tester does, then load the firmware
+            // the way boot does.
+            (|| {
+                model
+                    .boot(BootParams {
+                        initial_dbg_manuf_service_reg: MFG_FLAG_GENERATE_IDEVID_CSR,
+                        ..Default::default()
+                    })
+                    .map_err(|e| e.to_string())?;
+                idevid_csr = Some(download_idevid_csr(&mut model)?);
+                let Some(fw) = fw_image.as_deref() else {
+                    return Ok(());
+                };
+                wait_ready_for_fw(&mut model)?;
+                if subsystem_mode {
+                    model.upload_firmware_rri(fw, soc_manifest.as_deref(), mcu_fw.as_deref())
+                } else {
+                    model.upload_firmware(fw)
+                }
+                .map_err(|e| e.to_string())
+            })()
+        } else {
+            model
+                .boot(BootParams {
+                    fw_image: fw_image.as_deref(),
+                    soc_manifest: soc_manifest.as_deref(),
+                    mcu_fw_image: mcu_fw.as_deref(),
+                    ..Default::default()
+                })
+                .map_err(|e| e.to_string())
+        };
 
-        let mut emu = CaliptraEmulator {
+        Ok(CaliptraEmulator {
             model,
             log_buffer,
             total_steps: 0,
-            boot_error: None,
-        };
+            boot_error: boot_result
+                .err()
+                .map(|e| format!("[WASM] Boot error: {e}\n")),
+            idevid_csr,
+        })
+    }
 
-        if let Some(e) = boot_error {
-            let msg = format!("[WASM] Boot error: {e}\n");
-            emu.boot_error = Some(msg);
-        }
-
-        Ok(emu)
+    /// What the ROM sent the SoC when the emulator was created with
+    /// `gen_idevid_csr`: the IDevID CSR envelope (the ECC and ML-DSA CSRs and
+    /// their HMAC). `undefined` otherwise.
+    pub fn idevid_csr_envelope(&self) -> Option<Vec<u8>> {
+        self.idevid_csr.clone()
     }
 
     /// Step the emulator by `n` clock cycles. Returns true if the emulator
@@ -281,6 +333,16 @@ impl CaliptraEmulator {
     /// Get the total number of steps executed so far.
     pub fn total_steps(&self) -> u64 {
         self.total_steps
+    }
+
+    /// Whether the runtime has started and takes mailbox commands
+    /// (CPTRA_FLOW_STATUS.ready_for_runtime).
+    pub fn ready_for_runtime(&mut self) -> bool {
+        self.model
+            .soc_ifc()
+            .cptra_flow_status()
+            .read()
+            .ready_for_runtime()
     }
 
     /// Check if the emulator has signaled an exit (pass or fail).
@@ -398,6 +460,9 @@ pub struct McuEmulator {
     total_steps: u64,
     otp_log: Vec<String>,
     otp_logging_enabled: bool,
+    /// For how many cycles in a row `step_watching_mailbox` has seen
+    /// Caliptra's mailbox idle.
+    mailbox_idle_cycles: u32,
 }
 
 #[wasm_bindgen]
@@ -508,6 +573,7 @@ impl McuEmulator {
             total_steps: 0,
             otp_log: Vec::new(),
             otp_logging_enabled: true,
+            mailbox_idle_cycles: 0,
         })
     }
 
@@ -560,6 +626,59 @@ impl McuEmulator {
     pub fn mcu_exit_status(&self) -> Option<i32> {
         use mcu_hw_model::McuHwModel;
         self.model.mcu_exit_status()
+    }
+
+    /// Whether the MCU ROM has finished its boot flow (the
+    /// FIRMWARE_BOOT_FLOW_COMPLETE boot milestone), after which it jumps to
+    /// the MCU runtime. Until then the ROM is using Caliptra's mailbox, and
+    /// stops with a fatal error if it finds the mailbox taken.
+    pub fn mcu_rom_boot_complete(&mut self) -> bool {
+        use mcu_hw_model::McuHwModel;
+        const FIRMWARE_BOOT_FLOW_COMPLETE: u16 = 1 << 7;
+        u16::from(self.model.mci_boot_milestones()) & FIRMWARE_BOOT_FLOW_COMPLETE != 0
+    }
+
+    /// Steps `n` cycles like `step`, watching Caliptra's mailbox, and
+    /// returns for how many cycles in a row (over this and earlier calls) it
+    /// has been idle. The MCU shares the mailbox with the page; this is how
+    /// the page waits for the MCU to be done with it.
+    pub fn step_watching_mailbox(&mut self, n: u32) -> u32 {
+        use mcu_hw_model::McuHwModel;
+        // Mailbox commands last thousands of cycles, so sampling this often
+        // sees every one.
+        const SAMPLE_CYCLES: u32 = 64;
+        let mut left = n;
+        while left > 0 {
+            let chunk = left.min(SAMPLE_CYCLES);
+            self.step(chunk);
+            left -= chunk;
+            let idle = self
+                .model
+                .caliptra_soc_manager()
+                .soc_mbox()
+                .status()
+                .read()
+                .mbox_fsm_ps()
+                .mbox_idle();
+            self.mailbox_idle_cycles = if idle {
+                self.mailbox_idle_cycles.saturating_add(chunk)
+            } else {
+                0
+            };
+        }
+        self.mailbox_idle_cycles
+    }
+
+    /// Whether Caliptra's runtime has started and takes mailbox commands
+    /// (CPTRA_FLOW_STATUS.ready_for_runtime).
+    pub fn ready_for_runtime(&mut self) -> bool {
+        use mcu_hw_model::McuHwModel;
+        self.model
+            .caliptra_soc_manager()
+            .soc_ifc()
+            .cptra_flow_status()
+            .read()
+            .ready_for_runtime()
     }
 
     /// Execute a Caliptra mailbox command from the SoC side.
@@ -741,6 +860,7 @@ mod tests {
             Some(mcu_fw),
             false,
             "",
+            false,
         )
         .expect("Failed to create Caliptra emulator");
 
@@ -801,6 +921,7 @@ mod tests {
         const SETTLE_STEPS: u64 = 40_000_000;
         let mut booted_at = None;
         let mut uart = String::new();
+        assert!(!emu.mcu_rom_boot_complete());
         while emu.total_steps() < 150_000_000 + SETTLE_STEPS {
             emu.step(1_000_000);
             uart.push_str(&emu.get_uart_output());
@@ -819,6 +940,10 @@ mod tests {
             }
             if booted_at.is_none() && MILESTONES.iter().all(|m| uart_seen(&uart, m)) {
                 booted_at = Some(emu.total_steps());
+                assert!(
+                    emu.mcu_rom_boot_complete(),
+                    "the MCU runtime is up but the ROM's boot-complete milestone is not set"
+                );
             }
             if booted_at.is_some_and(|at| emu.total_steps() >= at + SETTLE_STEPS) {
                 return;
@@ -830,6 +955,98 @@ mod tests {
             emu.total_steps(),
             &uart[uart.len().saturating_sub(4000)..]
         );
+    }
+}
+
+#[cfg(test)]
+mod provisioning {
+    use super::*;
+    use crate::provisioning_tests::{run_idevid_flow, ECC384, MLDSA87};
+
+    /// Boots the default ROM and firmware in the manufacturing lifecycle with
+    /// the IDevID CSR requested, and runs until the runtime takes commands.
+    fn boot_requesting_csr(subsystem_mode: bool) -> CaliptraEmulator {
+        let rom = std::fs::read(test_asset("default-rom.bin")).expect("default-rom.bin");
+        let fw = std::fs::read(test_asset("default-fw.bin")).expect("default-fw.bin");
+        let soc_manifest =
+            std::fs::read(test_asset("default-soc-manifest.bin")).expect("soc-manifest");
+        // The default SoC manifest authorizes the real MCU runtime (see
+        // build-wasm.sh), so the subsystem boot flow needs that image.
+        let mcu_fw =
+            std::fs::read(test_asset("default-mcu-runtime.bin")).expect("default-mcu-runtime.bin");
+        let hashes: serde_json::Value =
+            serde_json::from_str(&fw_pk_hashes(&fw).expect("firmware manifest")).unwrap();
+        let mut emu = CaliptraEmulator::new(
+            &rom,
+            hashes["vendor_pk_hash"].as_str().unwrap(),
+            hashes["owner_pk_hash"].as_str().unwrap(),
+            Some(fw),
+            Some(soc_manifest),
+            "manufacturing",
+            subsystem_mode,
+            false,
+            Some(mcu_fw),
+            false,
+            "",
+            true,
+        )
+        .expect("Failed to create Caliptra emulator");
+        assert_eq!(emu.boot_error(), None);
+        while !emu
+            .model
+            .soc_ifc()
+            .cptra_flow_status()
+            .read()
+            .ready_for_runtime()
+        {
+            assert!(emu.total_steps() < 200_000_000, "runtime not ready");
+            emu.step(1_000_000);
+            let errs = emu.get_error_registers();
+            assert!(
+                errs.contains("\"cptra_fw_error_fatal\":\"0x00000000\""),
+                "fatal error: {errs}"
+            );
+        }
+        emu
+    }
+
+    /// The IDevID provisioning flows, ECC and ML-DSA, on the core alone.
+    #[test]
+    fn test_idevid_provisioning() {
+        let mut emu = boot_requesting_csr(false);
+        run_idevid_flow(&mut emu, &ECC384, true);
+        run_idevid_flow(&mut emu, &MLDSA87, true);
+    }
+
+    /// The same with the subsystem boot flow.
+    #[test]
+    fn test_idevid_provisioning_subsystem_boot() {
+        let mut emu = boot_requesting_csr(true);
+        run_idevid_flow(&mut emu, &ECC384, true);
+        run_idevid_flow(&mut emu, &MLDSA87, true);
+    }
+
+    /// Without the manufacturing flag the ROM sends no CSR.
+    #[test]
+    fn test_no_csr_unless_requested() {
+        let rom = std::fs::read(test_asset("default-rom.bin")).expect("default-rom.bin");
+        let fw = std::fs::read(test_asset("default-fw.bin")).expect("default-fw.bin");
+        let emu = CaliptraEmulator::new(
+            &rom,
+            "",
+            "",
+            Some(fw),
+            None,
+            "unprovisioned",
+            false,
+            false,
+            None,
+            false,
+            "",
+            false,
+        )
+        .expect("Failed to create Caliptra emulator");
+        assert!(emu.idevid_csr_envelope().is_none());
     }
 }
 
