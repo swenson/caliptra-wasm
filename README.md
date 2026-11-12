@@ -190,7 +190,9 @@ directory with its own pins:
   `www/ca-core.js` wraps it and keeps the CA's state (serial numbers and the
   issued certificates) in the browser's localStorage, shared by
   `www/ca-page.js` (the Test CA page) and `www/provision.js` (the emulator
-  page's Provisioning section).
+  page's Provisioning section). The PK hash calculator and the Debug unlock
+  page use the same module for SHA-2 and P-384, because the browser's own
+  WebCrypto exists only on `localhost` and HTTPS origins.
 - `www/`: the shared pages, plus `www/v<release>/` with each release's WASM
   module and default images, and `www/versions.json` listing what was built.
   The site icon's source is `www/favicon.svg`; after editing it, run
@@ -268,10 +270,17 @@ node tests/browser/boot-test.mjs   # or --release 2.0, --mode mcu, --out DIR
 # Provisioning section, a request sent to the CA page and its certificate sent
 # back, and the public key and TBS method in Caliptra + MCU mode.
 node tests/browser/provisioning-test.mjs   # or --release 2.1, --out DIR
+
+# Browser: the PK hash calculator and the Debug unlock page, with WebCrypto
+# and the clipboard API removed, as on a plain-HTTP origin other than
+# localhost. The hashes, P-384 keys and signatures are checked against
+# Node's crypto. The production token is built only if the ML-DSA library
+# loads from esm.sh.
+node tests/browser/calculators-test.mjs   # or --out DIR
 ```
 
-CI runs the test CA's tests and both browser tests on every pull request and
-before each deploy.
+CI runs the test CA's tests and the three browser tests on every pull request
+and before each deploy.
 
 ## TODO
 
@@ -288,10 +297,10 @@ before each deploy.
 - [ ] **More to certify**: the FMC alias CSRs (`GET_FMC_ALIAS_*_CSR`) and the
   attested CSRs (`GET_ATTESTED_*_CSR`), whose EAT envelope the CA would need
   to verify.
-- [ ] **PK hash calculator and Debug unlock without WebCrypto**: both pages
-  use the browser's `crypto.subtle`, which exists only on `localhost` and
-  HTTPS origins, so they fail when the site is served from another host name
-  over plain HTTP. The emulator and Test CA pages do not need it.
+- [x] **PK hash calculator and Debug unlock without WebCrypto**: both pages
+  hash, sign and copy without `crypto.subtle` and `navigator.clipboard`, which
+  exist only on `localhost` and HTTPS origins, so the site also works when it
+  is served from another host name over plain HTTP.
 - [ ] **1.x mailbox request forms for older runtimes**: the forms follow
   runtime 1.3's request layouts; a few commands may have had different
   layouts in earlier 1.x runtimes.

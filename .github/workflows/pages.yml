@@ -95,6 +95,11 @@ jobs:
         # certificate chains. Blocks the deploy if any flow fails.
         run: node tests/browser/provisioning-test.mjs
 
+      - name: Browser calculators test
+        # The PK hash calculator and the Debug unlock page, without WebCrypto
+        # and the clipboard API, checked against Node's crypto.
+        run: node tests/browser/calculators-test.mjs
+
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3

@@ -27,6 +27,7 @@
 <div class="container narrow">
   <div class="page-head">
     <h1>PK hash calculator</h1>
+    <span class="status status-err" id="load-error" role="alert"></span>
     <p class="lede">
       Caliptra validates firmware signatures against SHA-384 hashes of the
       vendor and owner public keys, which are programmed into fuses or OTP
@@ -124,7 +125,12 @@
   </main>
 </div>
 
-<script>
+<script type="module">
+// SHA-384 comes from the test CA's WebAssembly module and not from the
+// browser's WebCrypto, which is missing unless the page is on localhost or
+// HTTPS. The same goes for copying (navigator.clipboard).
+import { loadCa, sha384, copyText } from "./ca-core.js";
+
 const DEFAULTS = {
   "o_ecc": "2b2ef8c657e1f3dcf3e762a1c435ca3ea908ea55791781136d64f2b6cd17c8921abd9440625f21db17f036cfeb5a2d01934567a479a3b56c6482b0991c2c2b86c6127f51941f3e571a294271d74b62f9dddc33275eec24cee3001c9617ba7243",
   "o_lms": "0000000c00000007e56d3e53a5c25beaf33a90155b273ae347b2156ca3641cc402c0fd957972ba56086f8f8cfa05b5bb",
@@ -157,7 +163,6 @@ function getHex(id, size) {
   if (!v) return new Uint8Array(size);
   try { return pad(hexToBytes(v), size); } catch(e) { return new Uint8Array(size); }
 }
-async function sha384(d) { return new Uint8Array(await crypto.subtle.digest("SHA-384", d)); }
 
 // Convert SHA-384 output to ImageDigest384 layout:
 // each 4-byte group is reversed (SHA output is big-endian u32, stored as LE u32 in memory)
@@ -210,20 +215,20 @@ const VENDOR_ECC_MAX = 4;
 const VENDOR_PQC_MAX = 32; // ImagePqcKeyHashes has 32 slots
 const PQC_TYPE_MLDSA = 1;
 
-async function computeVendor() {
+function computeVendor() {
   // Step 1: SHA-384 hash each individual key
   const eccHashes = [];
   for (let i = 0; i < 4; i++) {
     const key = new Uint8Array(96);
     key.set(getHex("ve"+i+"x", 48), 0);
     key.set(getHex("ve"+i+"y", 48), 48);
-    eccHashes.push(sha384ToImageDigest(await sha384(key)));
+    eccHashes.push(sha384ToImageDigest(sha384(key)));
   }
 
   const mldsaHashes = [];
   for (let i = 0; i < 4; i++) {
     const key = getHex("vm"+i, 2592);
-    mldsaHashes.push(sha384ToImageDigest(await sha384(key)));
+    mldsaHashes.push(sha384ToImageDigest(sha384(key)));
   }
 
   // Display per-key hashes
@@ -255,16 +260,16 @@ async function computeVendor() {
   // Remaining 28 slots stay zero
 
   // Step 3: Hash the descriptor
-  return await sha384(vpki);
+  return sha384(vpki);
 }
 
-async function computeOwner() {
+function computeOwner() {
   // ImageOwnerPubKeys = ecc_pub_key(96) + pqc_pub_key(2592) = 2688 bytes
   const buf = new Uint8Array(2688);
   buf.set(getHex("oex", 48), 0);
   buf.set(getHex("oey", 48), 48);
   buf.set(getHex("om", 2592), 96);
-  return await sha384(buf);
+  return sha384(buf);
 }
 
 // defaults.json of the release chosen on the emulator page (?version=, then
@@ -289,7 +294,7 @@ async function defaultsUrl() {
 
 let timer = null;
 async function update() {
-  const vh = await computeVendor(), oh = await computeOwner();
+  const vh = computeVendor(), oh = computeOwner();
   const vhex = fmtHash(vh), ohex = fmtHash(oh);
   document.getElementById("v-hash").textContent = vhex;
   document.getElementById("o-hash").textContent = ohex;
@@ -327,17 +332,26 @@ function loadDefaults() {
 
 // --- Init ---
 buildUI();
-document.getElementById("btn-reset").onclick = loadDefaults;
-document.getElementById("btn-copy-v").onclick = () =>
-  navigator.clipboard.writeText(document.getElementById("v-hash").textContent);
-document.getElementById("btn-copy-vw").onclick = () =>
-  navigator.clipboard.writeText(document.getElementById("v-words").textContent);
-document.getElementById("btn-copy-o").onclick = () =>
-  navigator.clipboard.writeText(document.getElementById("o-hash").textContent);
-document.getElementById("btn-copy-ow").onclick = () =>
-  navigator.clipboard.writeText(document.getElementById("o-words").textContent);
-document.querySelectorAll(".vf").forEach(el => el.addEventListener("input", scheduleUpdate));
-document.querySelectorAll(".of").forEach(el => el.addEventListener("input", scheduleUpdate));
-loadDefaults();
+const copies = (button, source) => {
+  document.getElementById(button).onclick = () =>
+    copyText(document.getElementById(source).textContent);
+};
+copies("btn-copy-v", "v-hash");
+copies("btn-copy-vw", "v-words");
+copies("btn-copy-o", "o-hash");
+copies("btn-copy-ow", "o-words");
+try {
+  await loadCa();
+  document.getElementById("btn-reset").onclick = loadDefaults;
+  document.querySelectorAll(".vf").forEach(el => el.addEventListener("input", scheduleUpdate));
+  document.querySelectorAll(".of").forEach(el => el.addEventListener("input", scheduleUpdate));
+  loadDefaults();
+} catch (e) {
+  document.getElementById("load-error").textContent =
+    `Failed to load the hashing module: ${e.message || e}`;
+  document.getElementById("v-hash").textContent = "";
+  document.getElementById("o-hash").textContent = "";
+  console.error(e);
+}
 </script>
 </body></html>

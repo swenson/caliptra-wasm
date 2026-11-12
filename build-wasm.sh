@@ -270,7 +270,8 @@ for rel in $RELEASES; do
     build_release "$rel"
 done
 
-# The test CA behind the Test CA page and the Provisioning section. It does not
+# The test CA behind the Test CA page and the Provisioning section, which also
+# does the hashing and P-384 signing for the two calculator pages. It does not
 # depend on the Caliptra release, so there is one build for the whole site.
 echo ""
 echo "=== Test CA ==="

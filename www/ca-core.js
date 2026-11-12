@@ -1,7 +1,9 @@
 // Licensed under the Apache-2.0 license
 //
 // The test CA, shared by the CA page (ca.html) and the emulator page's
-// Provisioning section. The CA itself is a WebAssembly module (the ca/ crate,
+// Provisioning section. The PK hash calculator and the Debug unlock page load
+// it too, for the hashes and P-384 operations at the end of this section.
+// The CA itself is a WebAssembly module (the ca/ crate,
 // built into ca/): an ML-DSA-87 root and an ECC P-384 root with fixed, public
 // keys. This module loads it, converts between bytes and the JSON it speaks,
 // and keeps the CA's state, which is the serial counters and the list of
@@ -139,8 +141,9 @@ export function verifyChain(certs) {
   return JSON.parse(call(wasm.verify_chain, JSON.stringify(certs.map(toHex))));
 }
 
-// The hashes below run in the CA module rather than the browser's WebCrypto,
-// which is missing unless the page is on localhost or HTTPS.
+// The hashes and P-384 operations below run in the CA module rather than the
+// browser's WebCrypto, which is missing unless the page is on localhost or
+// HTTPS.
 
 /// SHA-256 of some bytes, as hex (a certificate fingerprint).
 export function sha256Hex(bytes) {
@@ -150,6 +153,65 @@ export function sha256Hex(bytes) {
 /// Whether `tag` is the HMAC-SHA-512 of `data` under `key`.
 export function hmacSha512Matches(key, data, tag) {
   return toHex(call(wasm.hmac_sha512, key, data)) === toHex(tag);
+}
+
+export function sha384(bytes) {
+  return call(wasm.sha384, bytes);
+}
+
+export function sha512(bytes) {
+  return call(wasm.sha512, bytes);
+}
+
+/// The public key (96 bytes, X || Y) of a 48-byte P-384 private key. Throws
+/// if the bytes are not a valid private key.
+export function p384PublicKey(privateKey) {
+  return call(wasm.p384_public_key, privateKey);
+}
+
+/// A new P-384 key pair: {privateKey (48 bytes), publicKey (96 bytes, X || Y)}.
+export function p384GenerateKey() {
+  // Not every 48-byte string is a private key (it has to be nonzero and below
+  // the curve order), so draw again in the rare case that it is not.
+  for (let attempt = 0; ; attempt++) {
+    const privateKey = crypto.getRandomValues(new Uint8Array(48));
+    try {
+      return { privateKey, publicKey: p384PublicKey(privateKey) };
+    } catch (e) {
+      if (attempt >= 8) throw e;
+    }
+  }
+}
+
+/// An ECDSA P-384 signature over the SHA-384 of `message`: 96 bytes, R || S.
+export function p384Sign(privateKey, message) {
+  return call(wasm.p384_sign, privateKey, message);
+}
+
+/// Copies text to the clipboard and returns whether that worked. Like
+/// WebCrypto, navigator.clipboard is missing unless the page is on localhost
+/// or HTTPS, so without it this copies through a temporary text field.
+export async function copyText(text) {
+  if (navigator.clipboard) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {}
+  }
+  const field = document.createElement("textarea");
+  field.value = text;
+  field.readOnly = true;
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.append(field);
+  field.focus();
+  field.select();
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {}
+  field.remove();
+  return copied;
 }
 
 /// Splits what the ROM sends when the IDevID CSR is requested at boot into

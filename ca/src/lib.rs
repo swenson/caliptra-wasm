@@ -10,6 +10,10 @@
 //! `api` holds the functions (structured data in and out as JSON, binary
 //! fields as hex); the `#[wasm_bindgen]` wrappers at the bottom expose them
 //! to JavaScript.
+//!
+//! The module also hashes and does P-384 key operations for the site's other
+//! pages, which cannot count on the browser's WebCrypto: it exists only on
+//! `localhost` and HTTPS origins.
 
 use wasm_bindgen::prelude::*;
 
@@ -280,6 +284,50 @@ pub mod api {
         mac.update(data);
         mac.finalize().into_bytes().to_vec()
     }
+
+    /// SHA-384, for the PK hash calculator and the Debug unlock page.
+    pub fn sha384(data: &[u8]) -> Vec<u8> {
+        use sha2::Digest;
+        sha2::Sha384::digest(data).to_vec()
+    }
+
+    /// SHA-512, for the Debug unlock page.
+    pub fn sha512(data: &[u8]) -> Vec<u8> {
+        use sha2::Digest;
+        sha2::Sha512::digest(data).to_vec()
+    }
+
+    fn p384_signing_key(private: &[u8]) -> Result<p384::ecdsa::SigningKey, String> {
+        if private.len() != 48 {
+            return Err(format!(
+                "a P-384 private key is 48 bytes, not {}",
+                private.len()
+            ));
+        }
+        p384::ecdsa::SigningKey::from_slice(private).map_err(|_| {
+            "not a valid P-384 private key: it is zero or not below the curve order".into()
+        })
+    }
+
+    /// The public key of a P-384 private key (48 bytes, big-endian), as the
+    /// 96 bytes X || Y. The Debug unlock page makes a key pair from 48 random
+    /// bytes with this, and asks again in the rare case that they are not a
+    /// valid private key.
+    pub fn p384_public_key(private: &[u8]) -> Result<Vec<u8>, String> {
+        let point = p384_signing_key(private)?
+            .verifying_key()
+            .to_encoded_point(false);
+        // Uncompressed SEC1: 0x04 || X || Y.
+        Ok(point.as_bytes()[1..].to_vec())
+    }
+
+    /// An ECDSA P-384 signature over the SHA-384 of `message`, as the 96
+    /// bytes R || S. The nonce is deterministic (RFC 6979).
+    pub fn p384_sign(private: &[u8], message: &[u8]) -> Result<Vec<u8>, String> {
+        use p384::ecdsa::signature::Signer;
+        let signature: p384::ecdsa::Signature = p384_signing_key(private)?.sign(message);
+        Ok(signature.to_bytes().to_vec())
+    }
 }
 
 fn js<T>(result: Result<T, String>) -> Result<T, JsError> {
@@ -359,9 +407,93 @@ pub fn hmac_sha512(key: &[u8], data: &[u8]) -> Vec<u8> {
     api::hmac_sha512(key, data)
 }
 
+/// See [`api::sha384`].
+#[wasm_bindgen]
+pub fn sha384(data: &[u8]) -> Vec<u8> {
+    api::sha384(data)
+}
+
+/// See [`api::sha512`].
+#[wasm_bindgen]
+pub fn sha512(data: &[u8]) -> Vec<u8> {
+    api::sha512(data)
+}
+
+/// See [`api::p384_public_key`].
+#[wasm_bindgen]
+pub fn p384_public_key(private: &[u8]) -> Result<Vec<u8>, JsError> {
+    js(api::p384_public_key(private))
+}
+
+/// See [`api::p384_sign`].
+#[wasm_bindgen]
+pub fn p384_sign(private: &[u8], message: &[u8]) -> Result<Vec<u8>, JsError> {
+    js(api::p384_sign(private, message))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{api, der};
+
+    fn unhex(text: &str) -> Vec<u8> {
+        (0..text.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&text[i..i + 2], 16).unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn sha384_known_answer() {
+        assert_eq!(
+            der::hex(&api::sha384(b"abc")),
+            "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed\
+             8086072ba1e7cc2358baeca134c825a7"
+        );
+    }
+
+    #[test]
+    fn sha512_known_answer() {
+        assert_eq!(
+            der::hex(&api::sha512(b"abc")),
+            "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a\
+             2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"
+        );
+    }
+
+    /// RFC 6979 appendix A.2.6: the P-384 key, and its SHA-384 signature
+    /// over "sample".
+    const RFC6979_P384_PRIVATE: &str = "6b9d3dad2e1b8c1c05b19875b6659f4de23c3b667bf297ba\
+                                        9aa47740787137d896d5724e4c70a825f872c9ea60d2edf5";
+
+    #[test]
+    fn p384_public_key_known_answer() {
+        assert_eq!(
+            der::hex(&api::p384_public_key(&unhex(RFC6979_P384_PRIVATE)).unwrap()),
+            "ec3a4e415b4e19a4568618029f427fa5da9a8bc4ae92e02e06aae5286b300c64\
+             def8f0ea9055866064a254515480bc13\
+             8015d9b72d7d57244ea8ef9ac0c621896708a59367f9dfb9f54ca84b3f1c9db1\
+             288b231c3ae0d4fe7344fd2533264720"
+        );
+    }
+
+    #[test]
+    fn p384_sign_known_answer() {
+        assert_eq!(
+            der::hex(&api::p384_sign(&unhex(RFC6979_P384_PRIVATE), b"sample").unwrap()),
+            "94edbb92a5ecb8aad4736e56c691916b3f88140666ce9fa73d64c4ea95ad133c\
+             81a648152e44acf96e36dd1e80fabe46\
+             99ef4aeb15f178cea1fe40db2603138f130e740a19624526203b6351d0a3a94f\
+             a329c145786e679e7b82c71a38628ac8"
+        );
+    }
+
+    #[test]
+    fn p384_rejects_bad_private_keys() {
+        assert!(api::p384_public_key(&[0u8; 48]).is_err());
+        assert!(api::p384_public_key(&[0xffu8; 48]).is_err());
+        assert!(api::p384_public_key(&[1u8; 47]).is_err());
+        assert!(api::p384_sign(&[0u8; 48], b"sample").is_err());
+    }
 
     #[test]
     fn sha256_known_answer() {
