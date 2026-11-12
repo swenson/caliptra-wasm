@@ -218,8 +218,9 @@ fn build_assets(output_dir: &Path, mcu_runtime_path: Option<&Path>) -> Result<()
 const OCP_LOCK: bool = cfg!(feature = "caliptra-2-1");
 
 /// Write `build-info.json` describing which Caliptra release the default
-/// images come from, so the UI can display it. The upstream revisions are
-/// passed in by build-wasm.sh via `CALIPTRA_SW_REV` / `CALIPTRA_MCU_SW_REV`.
+/// images come from, so the UI can display it. build-wasm.sh passes the
+/// upstream revisions in `CALIPTRA_SW_REV` / `CALIPTRA_MCU_SW_REV` and the
+/// repositories they come from in `CALIPTRA_SW_REPO` / `CALIPTRA_MCU_SW_REPO`.
 fn write_build_info(output_dir: &Path) -> Result<()> {
     let rev = |var: &str| env::var(var).unwrap_or_default();
     let info = format!(
@@ -231,6 +232,8 @@ fn write_build_info(output_dir: &Path) -> Result<()> {
             "  \"runtime_version\": \"{}.{}.{}\",\n",
             "  \"caliptra_sw_rev\": \"{}\",\n",
             "  \"caliptra_mcu_sw_rev\": \"{}\",\n",
+            "  \"caliptra_sw_repo\": \"{}\",\n",
+            "  \"caliptra_mcu_sw_repo\": \"{}\",\n",
             "  \"features\": {{ \"ocp_lock\": {} }}\n",
             "}}\n"
         ),
@@ -247,6 +250,8 @@ fn write_build_info(output_dir: &Path) -> Result<()> {
         version::RUNTIME_VERSION_PATCH,
         rev("CALIPTRA_SW_REV"),
         rev("CALIPTRA_MCU_SW_REV"),
+        rev("CALIPTRA_SW_REPO"),
+        rev("CALIPTRA_MCU_SW_REPO"),
         OCP_LOCK,
     );
     let path = output_dir.join("build-info.json");

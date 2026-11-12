@@ -150,10 +150,10 @@ Limits the flows run into, which the page explains when they happen:
 
 ## Upstream sources
 
-The emulators are built from small forks that carry the patches needed for
-wasm32 (optional host-only dependencies, no filesystem or `process::exit`,
-in-memory flash, plus a few inspection hooks for the UI), one branch per
-release:
+The 1.x emulator is built from upstream caliptra-sw. The 2.x emulators are
+built from small forks that carry the patches needed for wasm32 (optional
+host-only dependencies, no filesystem or `process::exit`, in-memory flash, plus
+a few inspection hooks for the UI), one branch per release:
 
 | Release | Repo | Branch | Based on |
 | --- | --- | --- | --- |
@@ -161,7 +161,7 @@ release:
 | 2.1 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/wasm-2.1) | `wasm-2.1` | `chipsalliance/caliptra-mcu-sw` `main-2.1` |
 | 2.0 | [swenson/caliptra-sw](https://github.com/swenson/caliptra-sw/tree/wasm-2.0) | `wasm-2.0` | `chipsalliance/caliptra-sw` `fw-2.0.3` (the rev caliptra-mcu-sw `rt-sdk-2.0.0` pins) |
 | 2.0 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/wasm-2.0) | `wasm-2.0` | `chipsalliance/caliptra-mcu-sw` `rt-sdk-2.0.0` |
-| 1.1, 1.0 | [swenson/caliptra-sw](https://github.com/swenson/caliptra-sw/tree/wasm-1.x) | `wasm-1.x` | `chipsalliance/caliptra-sw` `caliptra-1.x` (the rt-1.3.1 release commit; default features emulate 1.1 hardware, `hw-1.0` emulates 1.0) |
+| 1.1, 1.0 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw/tree/caliptra-1.x) | `caliptra-1.x` | pinned at `3f399d9f`, the merge of chipsalliance/caliptra-sw#4403 (default features emulate 1.1 hardware, `hw-1.0` emulates 1.0) |
 
 Each caliptra-mcu-sw fork branch depends on the caliptra-sw fork branch of the
 same release.

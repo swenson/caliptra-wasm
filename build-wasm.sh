@@ -158,8 +158,9 @@ build_release() {
     (cd "$dir" && wasm-pack build --target web --release)
     cp "$dir/pkg/caliptra_wasm_demo_bg.wasm" "$dir/pkg/caliptra_wasm_demo.js" "$out/"
 
-    local caliptra_sw_rev caliptra_sw_src
+    local caliptra_sw_rev caliptra_sw_url caliptra_sw_src
     caliptra_sw_rev="$(pinned_rev "$manifest" caliptra-sw)"
+    caliptra_sw_url="$(pinned_url "$manifest" caliptra-sw)"
     if [ -z "$caliptra_sw_rev" ]; then
         echo "ERROR: could not find the caliptra-sw rev in $manifest" >&2
         return 1
@@ -174,15 +175,17 @@ build_release() {
             --caliptra-sw "$caliptra_sw_src/error/src/lib.rs" --mcu-sw none \
             -o "$out/error-codes.json"
         ./tools/fetch-firmware.py "$dir/firmware.json" "$out" --cache "$CACHE_ROOT/releases"
-        python3 - "$rel" "$caliptra_sw_rev" "$out" <<'PYEOF'
+        python3 - "$rel" "$caliptra_sw_rev" "$caliptra_sw_url" "$out" <<'PYEOF'
 import json, os, sys
-rel, rev, out = sys.argv[1:]
+rel, rev, repo, out = sys.argv[1:]
 fw = json.load(open(os.path.join(out, "firmware.json")))
 info = {
     "caliptra_release": rel,
     "hardware": rel,
     "caliptra_sw_rev": rev,
     "caliptra_mcu_sw_rev": "",
+    "caliptra_sw_repo": repo,
+    "caliptra_mcu_sw_repo": "",
     "default_rom": fw["default_rom"],
     "default_firmware": fw["default_firmware"],
     "features": {"ocp_lock": False, "subsystem": False, "release_firmware": True},
@@ -263,6 +266,7 @@ PYEOF
 
     echo "Building default Caliptra ROM/FW assets..."
     (cd "$dir/tools" && CALIPTRA_SW_REV="$caliptra_sw_rev" CALIPTRA_MCU_SW_REV="$mcu_rev" \
+        CALIPTRA_SW_REPO="$caliptra_sw_url" CALIPTRA_MCU_SW_REPO="$mcu_url" \
         cargo run --quiet --bin build-default-assets -- "$SCRIPT_DIR/$out" "$mcu_runtime")
 }
 

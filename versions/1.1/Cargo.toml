@@ -38,12 +38,12 @@ getrandom04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 uuid = { version = "1", features = ["js"] }
 
 # Caliptra dependencies; keep revs in sync
-caliptra-hw-model = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c", default-features = false }
-caliptra-api = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c" }
-caliptra-api-types = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c" }
-caliptra-hw-model-types = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c" }
-caliptra-emu-periph = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c" }
-caliptra-image-types = { git = "https://github.com/swenson/caliptra-sw", rev = "520010d29d2aee0ddae2c39636f33b52bc69dd3c", default-features = false, features = ["std"] }
+caliptra-hw-model = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "3f399d9f1b0d88083f027b2ba75877aacf52ab94", default-features = false }
+caliptra-api = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "3f399d9f1b0d88083f027b2ba75877aacf52ab94" }
+caliptra-api-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "3f399d9f1b0d88083f027b2ba75877aacf52ab94" }
+caliptra-hw-model-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "3f399d9f1b0d88083f027b2ba75877aacf52ab94" }
+caliptra-emu-periph = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "3f399d9f1b0d88083f027b2ba75877aacf52ab94" }
+caliptra-image-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "3f399d9f1b0d88083f027b2ba75877aacf52ab94", default-features = false, features = ["std"] }
 sha2 = "0.10"
 zerocopy = { version = "0.8", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
