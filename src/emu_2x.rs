@@ -542,6 +542,10 @@ impl McuEmulator {
             // Record the MCU's exit request (e.g. on a ROM fatal error) and
             // halt the MCU instead of terminating the host process.
             capture_mcu_exit: true,
+            // Route Caliptra's UART into the model's output alongside the MCU's.
+            caliptra_uart_to_output: true,
+            // Record OTP DAI commands for the OTP log panel.
+            log_otp_dai: true,
             // Everything else (OTP controller register offsets, prod debug
             // unlock straps, flash/network boot, ...) follows the upstream
             // caliptra-mcu-sw emulator defaults.
@@ -801,7 +805,10 @@ impl McuEmulator {
     /// `CaliptraEmulator::get_keyvault`.
     pub fn get_keyvault(&mut self) -> String {
         use mcu_hw_model::McuHwModel;
-        format_keyvault_json(self.model.key_vault_snapshot())
+        self.model
+            .key_vault_snapshot()
+            .map(format_keyvault_json)
+            .unwrap_or_else(|| "null".to_string())
     }
 }
 

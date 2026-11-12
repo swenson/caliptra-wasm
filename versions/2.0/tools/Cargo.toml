@@ -29,13 +29,13 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("caliptra-
 
 [dependencies]
 anyhow = "1.0"
-caliptra-auth-man-gen = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7", default-features = false }
-caliptra-auth-man-types = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7", default-features = false, features = ["std"] }
-caliptra-builder = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7", default-features = false, features = ["rustcrypto"] }
-caliptra-image-crypto = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7", default-features = false, features = ["rustcrypto"] }
-caliptra-image-fake-keys = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7" }
-caliptra-image-gen = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7" }
-caliptra-image-types = { git = "https://github.com/swenson/caliptra-sw", rev = "902d0cb629a080171b4be52285945b3cccbc70e7", default-features = false, package = "caliptra-image-types", features = ["std"] }
+caliptra-auth-man-gen = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "4a9c80c4d577ebf6a7d105796b13437aae08013f", default-features = false }
+caliptra-auth-man-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "4a9c80c4d577ebf6a7d105796b13437aae08013f", default-features = false, features = ["std"] }
+caliptra-builder = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "4a9c80c4d577ebf6a7d105796b13437aae08013f", default-features = false, features = ["rustcrypto"] }
+caliptra-image-crypto = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "4a9c80c4d577ebf6a7d105796b13437aae08013f", default-features = false, features = ["rustcrypto"] }
+caliptra-image-fake-keys = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "4a9c80c4d577ebf6a7d105796b13437aae08013f" }
+caliptra-image-gen = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "4a9c80c4d577ebf6a7d105796b13437aae08013f" }
+caliptra-image-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "4a9c80c4d577ebf6a7d105796b13437aae08013f", default-features = false, package = "caliptra-image-types", features = ["std"] }
 sha2 = "0.10"
 zerocopy = { version = "0.8", features = ["derive"] }
 

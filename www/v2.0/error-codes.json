@@ -54,6 +54,11 @@
   "name": "DRIVER_DMA_FIFO_INVALID_SIZE",
   "source": "CaliptraError"
  },
+ "0x0000f008": {
+  "desc": "DMA driver Error: AXI address range overflow",
+  "name": "DRIVER_DMA_AXI_ADDRESS_OVERFLOW",
+  "source": "CaliptraError"
+ },
  "0x00010000": {
   "desc": "Cold boot Caliptra fatal error before mailbox was ready",
   "name": "ROM_COLD_BOOT_CALIPTRA_FATAL_ERROR_BEFORE_MB_READY",
@@ -1144,6 +1149,36 @@
   "name": "IMAGE_VERIFIER_ERR_DOT_OWNER_PUB_KEY_DIGEST_MISMATCH",
   "source": "CaliptraError"
  },
+ "0x000b0063": {
+  "desc": "Image Verifier Error: Debug image not allowed",
+  "name": "IMAGE_VERIFIER_ERR_DEBUG_IMAGE_NOT_ALLOWED",
+  "source": "CaliptraError"
+ },
+ "0x000b0064": {
+  "desc": "Image Verifier Error: FMC offset invalid (gap between manifest and FMC)",
+  "name": "IMAGE_VERIFIER_ERR_FMC_OFFSET_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0065": {
+  "desc": "Image Verifier Error: Update reset FMC load address or size mismatch",
+  "name": "IMAGE_VERIFIER_ERR_UPDATE_RESET_FMC_LOAD_ADDR_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000b0066": {
+  "desc": "Image Verifier Error: Runtime offset invalid (gap between FMC and Runtime)",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_OFFSET_INVALID",
+  "source": "CaliptraError"
+ },
+ "0x000b0067": {
+  "desc": "Image Verifier Error: FMC entry point must equal load address",
+  "name": "IMAGE_VERIFIER_ERR_FMC_ENTRY_POINT_NOT_AT_LOAD_ADDR",
+  "source": "CaliptraError"
+ },
+ "0x000b0068": {
+  "desc": "Image Verifier Error: Runtime entry point must equal load address",
+  "name": "IMAGE_VERIFIER_ERR_RUNTIME_ENTRY_POINT_NOT_AT_LOAD_ADDR",
+  "source": "CaliptraError"
+ },
  "0x000c0001": {
   "desc": "Driver Error: LMS invalid LMS algorithm type",
   "name": "DRIVER_LMS_INVALID_LMS_ALGO_TYPE",
@@ -1959,6 +1994,26 @@
   "name": "RUNTIME_STASH_MEASUREMENT_RESERVED_FW_ID",
   "source": "CaliptraError"
  },
+ "0x000e00b2": {
+  "desc": "Runtime Error: Auth manifest debug image not allowed",
+  "name": "RUNTIME_AUTH_MANIFEST_DEBUG_IMAGE_NOT_ALLOWED",
+  "source": "CaliptraError"
+ },
+ "0x000e00b3": {
+  "desc": "Runtime Error: Auth manifest invalid flags",
+  "name": "RUNTIME_AUTH_MANIFEST_INVALID_FLAGS",
+  "source": "CaliptraError"
+ },
+ "0x000e00b4": {
+  "desc": "Runtime Error: Auth manifest UEID does not match device UEID",
+  "name": "RUNTIME_AUTH_MANIFEST_UEID_MISMATCH",
+  "source": "CaliptraError"
+ },
+ "0x000e00b6": {
+  "desc": "Runtime Error: Invalid or unsupported autonomous self-test configuration",
+  "name": "RUNTIME_INVALID_SELF_TEST_CONFIG",
+  "source": "CaliptraError"
+ },
  "0x000f0000": {
   "desc": "Machine level exception was encountered during ROM execution",
   "name": "GENERIC_EXCEPTION",
@@ -2097,6 +2152,11 @@
  "0x00f00016": {
   "desc": "FMC Error: Regenerate FMC MLDSA key pair failed",
   "name": "FMC_REGENERATE_FMC_MLDSA_KEY_PAIR_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x00f0001b": {
+  "desc": "FMC Error: Invalid firmware handoff table",
+  "name": "FMC_HANDOFF_INVALID_FHT",
   "source": "CaliptraError"
  },
  "0x01000001": {

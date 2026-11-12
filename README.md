@@ -11,8 +11,8 @@ build was made from.
 
 | Release | Caliptra ROM / FMC / RT | MCU firmware |
 | --- | --- | --- |
-| 2.1 | 2.1.3 / 2.1.4 / 2.1.4 (built) | caliptra-mcu-sw `main-2.1` |
-| 2.0 | 2.0.3 / 2.0.2 / 2.0.2 (built) | caliptra-mcu-sw `rt-sdk-2.0.0` |
+| 2.1 | 2.1.3 / 2.1.5 / 2.1.5 (built) | caliptra-mcu-sw `main-2.1` |
+| 2.0 | 2.0.5 / 2.0.4 / 2.0.4 (built) | caliptra-mcu-sw `main` |
 | 1.1 hardware | ROM 1.0.2, 1.1.1 or 1.2.0; runtime 1.0.2, 1.1.0, 1.2.5 or 1.3.1 (official releases, picked on the page) | none (core only) |
 | 1.0 hardware | the same releases; ROM 1.0.2 by default | none (core only) |
 
@@ -150,21 +150,23 @@ Limits the flows run into, which the page explains when they happen:
 
 ## Upstream sources
 
-The 1.x emulator is built from upstream caliptra-sw. The 2.x emulators are
-built from small forks that carry the patches needed for wasm32 (optional
-host-only dependencies, no filesystem or `process::exit`, in-memory flash, plus
-a few inspection hooks for the UI), one branch per release:
+Every release builds its Caliptra emulator from upstream caliptra-sw, which
+has the wasm32 changes (optional host-only dependencies, plus a few inspection
+hooks for the UI). The 2.x MCU emulators still come from caliptra-mcu-sw fork
+branches: upstream `main-2.1` or `main` plus the wasm32 changes (no filesystem
+or `process::exit`, in-memory flash, more inspection hooks), until those are
+merged.
 
-| Release | Repo | Branch | Based on |
+| Release | Repo | Branch | Pinned at |
 | --- | --- | --- | --- |
-| 2.1 | [swenson/caliptra-sw](https://github.com/swenson/caliptra-sw/tree/wasm-2.1) | `wasm-2.1` | `chipsalliance/caliptra-sw` `e5d1f27b` (the rev caliptra-mcu-sw `main-2.1` pins) |
-| 2.1 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/wasm-2.1) | `wasm-2.1` | `chipsalliance/caliptra-mcu-sw` `main-2.1` |
-| 2.0 | [swenson/caliptra-sw](https://github.com/swenson/caliptra-sw/tree/wasm-2.0) | `wasm-2.0` | `chipsalliance/caliptra-sw` `fw-2.0.3` (the rev caliptra-mcu-sw `rt-sdk-2.0.0` pins) |
-| 2.0 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/wasm-2.0) | `wasm-2.0` | `chipsalliance/caliptra-mcu-sw` `rt-sdk-2.0.0` |
-| 1.1, 1.0 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw/tree/caliptra-1.x) | `caliptra-1.x` | pinned at `3f399d9f`, the merge of chipsalliance/caliptra-sw#4403 (default features emulate 1.1 hardware, `hw-1.0` emulates 1.0) |
+| 2.1 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw) | `main` | `757b7445`, the merge of chipsalliance/caliptra-sw#4401 |
+| 2.1 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/wasm32-main-2.1) | `wasm32-main-2.1` | `c6c7ecd5`, on upstream `main-2.1` |
+| 2.0 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw/tree/caliptra-2.0) | `caliptra-2.0` | `4a9c80c4`, the merge of chipsalliance/caliptra-sw#4402 |
+| 2.0 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/wasm32-main) | `wasm32-main` | `a27f8c38`, on upstream `main` (caliptra-mcu-sw's 2.0 branch) |
+| 1.1, 1.0 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw/tree/caliptra-1.x) | `caliptra-1.x` | `3f399d9f`, the merge of chipsalliance/caliptra-sw#4403 (default features emulate 1.1 hardware, `hw-1.0` emulates 1.0) |
 
-Each caliptra-mcu-sw fork branch depends on the caliptra-sw fork branch of the
-same release.
+Each caliptra-mcu-sw branch depends on the same caliptra-sw revision as its
+release's Caliptra emulator.
 
 ## Layout
 
@@ -177,7 +179,7 @@ directory with its own pins:
   `caliptra-2-1`, and `caliptra-1x` for the code both 1.x builds share.
 - `versions/<release>/Cargo.toml` and `versions/<release>/tools/Cargo.toml`:
   that release's dependency revisions, selecting its feature, plus its
-  `rust-toolchain.toml` files. 2.0's tools use Rust 1.85, as caliptra-sw 2.0
+  `rust-toolchain.toml` files. 2.0's tools use Rust 1.96, as caliptra-sw 2.0
   does, because they compile the 2.0 firmware. `versions/1.0/` and
   `versions/1.1/` have no tools; their `firmware.json` lists the official ROM
   and firmware releases to download instead. They differ only in the
@@ -205,7 +207,7 @@ not run on that emulator (one from upstream `main`, for example, stops with
 `ROM_OTP_INIT_NOT_IDLE`).
 
 To add a release, add a `versions/<release>/` directory with a new feature,
-cfg adapters where its APIs differ, and fork branches; `build-wasm.sh`, the
+cfg adapters where its APIs differ, and its upstream pins; `build-wasm.sh`, the
 version menu and the tests pick it up from there.
 
 ## Building
@@ -227,11 +229,11 @@ the WASM module, downloads and verifies the releases in `firmware.json` (kept in
 `~/.cache/caliptra-wasm/releases`) and writes the same tables. It then builds
 the test CA into `www/ca/` and finishes by writing `www/versions.json`.
 
-To build MCU firmware, `build-wasm.sh` keeps a clone of the caliptra-mcu-sw
-fork per release in `~/.cache/caliptra-wasm/caliptra-mcu-sw-<release>`
+To build MCU firmware, `build-wasm.sh` keeps a clone of the pinned
+caliptra-mcu-sw repository per release in `~/.cache/caliptra-wasm/caliptra-mcu-sw-<release>`
 (override the parent with `MCU_SW_CACHE_DIR`), checked out at the pinned rev
-on every build. To use your own checkout instead (e.g. while working on a
-fork branch), set `MCU_SW_DIR_2_1=/path/to/caliptra-mcu-sw` (or `MCU_SW_DIR`
+on every build. To use your own checkout instead (e.g. while working on
+caliptra-mcu-sw), set `MCU_SW_DIR_2_1=/path/to/caliptra-mcu-sw` (or `MCU_SW_DIR`
 when building one release). The build fails if that checkout is not at the
 pinned rev, unless you also set `ALLOW_MCU_SW_MISMATCH=1`.
 

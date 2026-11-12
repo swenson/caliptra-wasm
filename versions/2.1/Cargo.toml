@@ -32,21 +32,21 @@ getrandom04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 uuid = { version = "1", features = ["js"] }
 
 # Caliptra dependencies; keep revs in sync
-caliptra-hw-model = { git = "https://github.com/swenson/caliptra-sw", rev = "3d6db82e1baa0ec5781f391d788c573e79ac4568", default-features = false }
-caliptra-api = { git = "https://github.com/swenson/caliptra-sw", rev = "3d6db82e1baa0ec5781f391d788c573e79ac4568" }
-caliptra-api-types = { git = "https://github.com/swenson/caliptra-sw", rev = "3d6db82e1baa0ec5781f391d788c573e79ac4568" }
-caliptra-hw-model-types = { git = "https://github.com/swenson/caliptra-sw", rev = "3d6db82e1baa0ec5781f391d788c573e79ac4568" }
-caliptra-emu-periph = { git = "https://github.com/swenson/caliptra-sw", rev = "3d6db82e1baa0ec5781f391d788c573e79ac4568" }
-caliptra-image-types = { git = "https://github.com/swenson/caliptra-sw", rev = "3d6db82e1baa0ec5781f391d788c573e79ac4568", default-features = false, features = ["std"] }
+caliptra-hw-model = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963", default-features = false }
+caliptra-api = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-api-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-hw-model-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-emu-periph = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-image-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963", default-features = false, features = ["std"] }
 sha2 = "0.10"
 zerocopy = { version = "0.8", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # MCU emulator. build-wasm.sh builds the MCU ROM/runtime from this same rev.
-mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "163989a7e9e698576a45a31c603beab90f6bbbf0", package = "caliptra-mcu-hw-model", default-features = false }
+mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "c6c7ecd59e5648feed78e52e6da480fdb7f21654", package = "caliptra-mcu-hw-model", default-features = false }
 # OTP fuse map (partition and field offsets) for this release.
-mcu-registers-generated = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "163989a7e9e698576a45a31c603beab90f6bbbf0", package = "caliptra-mcu-registers-generated" }
+mcu-registers-generated = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "c6c7ecd59e5648feed78e52e6da480fdb7f21654", package = "caliptra-mcu-registers-generated" }
 
 
 [dev-dependencies]

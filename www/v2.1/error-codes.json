@@ -2664,6 +2664,21 @@
   "name": "RUNTIME_AUTH_MANIFEST_UEID_MISMATCH",
   "source": "CaliptraError"
  },
+ "0x000e00b5": {
+  "desc": "Runtime Error: UDS/FE zeroization requires subsystem mode",
+  "name": "RUNTIME_ZEROIZE_UDS_FE_NOT_SUBSYSTEM_MODE",
+  "source": "CaliptraError"
+ },
+ "0x000e00b6": {
+  "desc": "Runtime Error: Invalid or unsupported autonomous self-test configuration",
+  "name": "RUNTIME_INVALID_SELF_TEST_CONFIG",
+  "source": "CaliptraError"
+ },
+ "0x000e00b7": {
+  "desc": "OCP LOCK Error: HPKE keys were rotated due to a decapsulation or open error",
+  "name": "RUNTIME_OCP_LOCK_HPKE_KEYS_ROTATED_DUE_TO_ERROR",
+  "source": "CaliptraError"
+ },
  "0x000f0000": {
   "desc": "Machine level exception was encountered during ROM execution",
   "name": "GENERIC_EXCEPTION",
@@ -2822,6 +2837,11 @@
  "0x00f0001a": {
   "desc": "FMC Error: Regenerate FMC MLDSA key pair failed",
   "name": "FMC_REGENERATE_FMC_MLDSA_KEY_PAIR_FAILED",
+  "source": "CaliptraError"
+ },
+ "0x00f0001b": {
+  "desc": "FMC Error: Invalid firmware handoff table",
+  "name": "FMC_HANDOFF_INVALID_FHT",
   "source": "CaliptraError"
  },
  "0x01000001": {
