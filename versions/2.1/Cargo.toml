@@ -44,9 +44,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # MCU emulator. build-wasm.sh builds the MCU ROM/runtime from this same rev.
-mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "81c58651e7dbcf842ed61bee031f3358893d12f8", package = "caliptra-mcu-hw-model", default-features = false }
+mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "41f669e6ec4f623a3cde2acb50f73e1a9b332e21", package = "caliptra-mcu-hw-model", default-features = false }
 # OTP fuse map (partition and field offsets) for this release.
-mcu-registers-generated = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "81c58651e7dbcf842ed61bee031f3358893d12f8", package = "caliptra-mcu-registers-generated" }
+mcu-registers-generated = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "41f669e6ec4f623a3cde2acb50f73e1a9b332e21", package = "caliptra-mcu-registers-generated" }
 
 
 [dev-dependencies]
@@ -58,6 +58,32 @@ caliptra-test-ca = { path = "../../ca" }
 # needed by the emulator).
 [patch."https://github.com/chipsalliance/caliptra-cfi.git"]
 caliptra-cfi-lib = { path = "../../cfi-shim" }
+
+# caliptra-mcu-sw takes caliptra-sw from its core/caliptra-sw submodule, which
+# defaults to Core "latest". Use the Core 2.1 baseline from its
+# core/versions.toml, the same rev as the caliptra-sw dependencies above.
+[patch."https://github.com/swenson/caliptra-mcu-sw"]
+caliptra-api = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-api-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-auth-man-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-drivers = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-emu-bus = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-emu-cpu = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-emu-crypto = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-emu-derive = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-emu-periph = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-emu-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-error = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-hw-model = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-hw-model-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-image-fake-keys = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-image-gen = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-image-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-lms-types = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-okref = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-registers = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-registers-latest = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
+caliptra-ureg = { git = "https://github.com/chipsalliance/caliptra-sw", rev = "757b7445b18483d624612f03b195cbff2b415963" }
 
 [profile.release]
 opt-level = "s"

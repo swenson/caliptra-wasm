@@ -25,7 +25,9 @@
 #   MCU_SW_DIR_<rel>    Build that release's MCU firmware from an existing
 #                       caliptra-mcu-sw checkout instead of the build cache,
 #                       e.g. MCU_SW_DIR_2_1=~/src/caliptra-mcu-sw. It must be
-#                       at the pinned rev unless ALLOW_MCU_SW_MISMATCH=1.
+#                       at the pinned rev unless ALLOW_MCU_SW_MISMATCH=1,
+#                       with core/caliptra-sw (where present) at the
+#                       release's Core: `cargo xtask switch-version <rel>`.
 #                       MCU_SW_DIR is accepted when building one release.
 #   MCU_SW_CACHE_DIR    Parent directory for the build cache's checkouts
 #                       (default: ~/.cache/caliptra-wasm). Must be outside
@@ -137,8 +139,31 @@ mcu_checkout() {
             git -C "$dir" fetch --quiet --filter=blob:none origin "$rev" >&2
         fi
         git -C "$dir" checkout --quiet --force --detach "$rev" >&2
+        mcu_select_core "$rel" "$dir"
     fi
     echo "$dir"
+}
+
+# caliptra-mcu-sw releases that list Core versions in core/versions.toml take
+# caliptra-sw from the core/caliptra-sw submodule. Check it out at this
+# release's Core commit and install the matching lockfiles, as
+# `cargo xtask switch-version <rel>` does.
+mcu_select_core() {
+    local rel="$1" dir="$2" core_rev core
+    [ -f "$dir/core/versions.toml" ] || return 0
+    core_rev="$(sed -n "s/^\"$rel\" = \"\\([0-9a-f]\\{40\\}\\)\"/\\1/p" "$dir/core/versions.toml")"
+    if [ -z "$core_rev" ]; then
+        echo "ERROR: $dir/core/versions.toml has no Core version for $rel" >&2
+        return 1
+    fi
+    core="$dir/core/caliptra-sw"
+    git -C "$dir" submodule update --quiet --init --filter=blob:none core/caliptra-sw >&2
+    if ! git -C "$core" cat-file -e "$core_rev^{commit}" 2>/dev/null; then
+        git -C "$core" fetch --quiet --filter=blob:none origin "$core_rev" >&2
+    fi
+    git -C "$core" checkout --quiet --force --detach "$core_rev" >&2
+    cp "$dir/core/locks/$rel/workspace.lock" "$dir/Cargo.lock"
+    cp "$dir/core/locks/$rel/util-host.lock" "$dir/caliptra-util-host/Cargo.lock"
 }
 
 build_release() {
@@ -226,8 +251,16 @@ PYEOF
     echo "Using caliptra-mcu-sw $mcu_rev at $mcu_dir"
     mcu_target="$mcu_dir/target/riscv32imc-unknown-none-elf"
 
+    # Releases with core/versions.toml select their MCU hardware at build time
+    # from CALIPTRA_HW_REV; versions/<rel>/.cargo/config.toml sets the same
+    # value for the emulator.
+    local hw_rev=()
+    if [ -f "$mcu_dir/core/versions.toml" ]; then
+        hw_rev=(CALIPTRA_HW_REV="$rel")
+    fi
+
     echo "Building MCU ROM..."
-    (cd "$mcu_dir" && cargo xtask rom-build 2>&1 | tail -3)
+    (cd "$mcu_dir" && env "${hw_rev[@]}" cargo xtask rom-build 2>&1 | tail -3)
     mcu_rom="$(newest_existing "$mcu_target/release/caliptra-mcu-rom-emulator.bin" "$mcu_target/release/mcu-rom-emulator.bin")"
     if [ -z "$mcu_rom" ]; then
         echo "ERROR: MCU ROM not found under $mcu_target/release" >&2
@@ -255,7 +288,7 @@ PYEOF
     fi
 
     echo "Building MCU runtime..."
-    (cd "$mcu_dir" && cargo xtask runtime-build 2>&1 | tail -3)
+    (cd "$mcu_dir" && env "${hw_rev[@]}" cargo xtask runtime-build 2>&1 | tail -3)
     # The asset tool hashes this exact file into the SoC manifest, so the
     # served runtime must be the one found here.
     mcu_runtime="$(newest_existing "$mcu_target/devel/runtime-emulator.bin" "$mcu_target/release/runtime-emulator.bin")"

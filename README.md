@@ -155,20 +155,29 @@ Both have the wasm32 changes: optional host-only dependencies, no filesystem
 or `process::exit` in the emulated models, in-memory flash, and inspection
 hooks for the UI.
 
-Upstream caliptra-mcu-sw `main-2.1` does not build at `6bcf452c`, so 2.1 uses
-a fork branch with chipsalliance/caliptra-mcu-sw#2379 on top of it until that
-fix merges.
+Upstream caliptra-mcu-sw `main-2.1` cannot be built as a git dependency for
+the 2.1 hardware: `rom/build.rs` requires its `core/caliptra-sw` submodule to
+be at the 2.1 Core commit. 2.1 uses a fork branch with
+chipsalliance/caliptra-mcu-sw#2386, which limits that check to firmware builds,
+until it merges.
 
 | Release | Repo | Branch | Pinned at |
 | --- | --- | --- | --- |
 | 2.1 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw) | `main` | `757b7445`, the merge of chipsalliance/caliptra-sw#4401 |
-| 2.1 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/wasm32-main-2.1-pr2379) | `wasm32-main-2.1-pr2379` | `81c58651`, the head of chipsalliance/caliptra-mcu-sw#2379, on upstream `main-2.1` |
+| 2.1 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/main-2.1-rom-pin-check) | `main-2.1-rom-pin-check` | `41f669e6`, chipsalliance/caliptra-mcu-sw#2386 on upstream `main-2.1` (`b472645e`) |
 | 2.0 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw/tree/caliptra-2.0) | `caliptra-2.0` | `4a9c80c4`, the merge of chipsalliance/caliptra-sw#4402 |
 | 2.0 | [chipsalliance/caliptra-mcu-sw](https://github.com/chipsalliance/caliptra-mcu-sw) | `main` | `b16cfba6`, the merge of chipsalliance/caliptra-mcu-sw#2349 (caliptra-mcu-sw's 2.0 branch) |
 | 1.1, 1.0 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw/tree/caliptra-1.x) | `caliptra-1.x` | `3f399d9f`, the merge of chipsalliance/caliptra-sw#4403 (default features emulate 1.1 hardware, `hw-1.0` emulates 1.0) |
 
-Each caliptra-mcu-sw branch depends on the same caliptra-sw revision as its
-release's Caliptra emulator.
+Each release's MCU emulator and firmware use the same caliptra-sw revision as
+its Caliptra emulator. caliptra-mcu-sw `main` depends on that revision
+directly. `main-2.1` takes caliptra-sw from its `core/caliptra-sw` submodule,
+which defaults to the newer Core "latest". `versions/2.1/Cargo.toml` patches
+those crates to the 2.1 baseline listed in its `core/versions.toml`, and
+`build-wasm.sh` checks the submodule out at that commit before it builds the
+MCU firmware. `main-2.1` also selects the MCU hardware at build time from
+`CALIPTRA_HW_REV`, which defaults to "latest";
+`versions/2.1/.cargo/config.toml` and `build-wasm.sh` set it to `2.1`.
 
 ## Layout
 

@@ -1009,6 +1009,11 @@
   "name": "ROM_COMPONENT_SVN_MANIFEST_ERROR",
   "source": "McuError"
  },
+ "0x0005001f": {
+  "desc": "Caliptra recovery interface selection verification failed",
+  "name": "ROM_SOC_RECOVERY_INTERFACE_VERIFY_FAILED",
+  "source": "McuError"
+ },
  "0x00052000": {
   "desc": "Recovery register interface driver: Invalid CMS type",
   "name": "DRIVER_RECOVERY_INVALID_CMS_TYPE",

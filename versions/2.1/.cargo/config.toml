@@ -1,0 +1,7 @@
+# Licensed under the Apache-2.0 license
+
+# caliptra-mcu-sw main-2.1 selects the MCU register snapshot and emulator
+# capabilities at build time from CALIPTRA_HW_REV, and defaults to "latest".
+# Build the 2.1 hardware, which matches the Core 2.1 baseline.
+[env]
+CALIPTRA_HW_REV = "2.1"
