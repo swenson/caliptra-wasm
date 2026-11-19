@@ -129,6 +129,8 @@ mcu_checkout() {
             echo "Cloning $url into $dir..." >&2
             mkdir -p "$CACHE_ROOT"
             git clone --quiet --filter=blob:none --no-checkout "$url" "$dir" >&2
+        elif [ "$(git -C "$dir" remote get-url origin)" != "$url" ]; then
+            git -C "$dir" remote set-url origin "$url"
         fi
         if ! git -C "$dir" cat-file -e "$rev^{commit}" 2>/dev/null; then
             echo "Fetching caliptra-mcu-sw $rev..." >&2

@@ -150,19 +150,21 @@ Limits the flows run into, which the page explains when they happen:
 
 ## Upstream sources
 
-Every release builds its Caliptra emulator from upstream caliptra-sw, which
-has the wasm32 changes (optional host-only dependencies, plus a few inspection
-hooks for the UI). The 2.x MCU emulators still come from caliptra-mcu-sw fork
-branches: upstream `main-2.1` or `main` plus the wasm32 changes (no filesystem
-or `process::exit`, in-memory flash, more inspection hooks), until those are
-merged.
+Every release builds from upstream caliptra-sw and, for 2.x, caliptra-mcu-sw.
+Both have the wasm32 changes: optional host-only dependencies, no filesystem
+or `process::exit` in the emulated models, in-memory flash, and inspection
+hooks for the UI.
+
+Upstream caliptra-mcu-sw `main-2.1` does not build at `6bcf452c`, so 2.1 uses
+a fork branch with chipsalliance/caliptra-mcu-sw#2379 on top of it until that
+fix merges.
 
 | Release | Repo | Branch | Pinned at |
 | --- | --- | --- | --- |
 | 2.1 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw) | `main` | `757b7445`, the merge of chipsalliance/caliptra-sw#4401 |
-| 2.1 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/wasm32-main-2.1) | `wasm32-main-2.1` | `c6c7ecd5`, on upstream `main-2.1` |
+| 2.1 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/wasm32-main-2.1-pr2379) | `wasm32-main-2.1-pr2379` | `81c58651`, the head of chipsalliance/caliptra-mcu-sw#2379, on upstream `main-2.1` |
 | 2.0 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw/tree/caliptra-2.0) | `caliptra-2.0` | `4a9c80c4`, the merge of chipsalliance/caliptra-sw#4402 |
-| 2.0 | [swenson/caliptra-mcu-sw](https://github.com/swenson/caliptra-mcu-sw/tree/wasm32-main) | `wasm32-main` | `a27f8c38`, on upstream `main` (caliptra-mcu-sw's 2.0 branch) |
+| 2.0 | [chipsalliance/caliptra-mcu-sw](https://github.com/chipsalliance/caliptra-mcu-sw) | `main` | `b16cfba6`, the merge of chipsalliance/caliptra-mcu-sw#2349 (caliptra-mcu-sw's 2.0 branch) |
 | 1.1, 1.0 | [chipsalliance/caliptra-sw](https://github.com/chipsalliance/caliptra-sw/tree/caliptra-1.x) | `caliptra-1.x` | `3f399d9f`, the merge of chipsalliance/caliptra-sw#4403 (default features emulate 1.1 hardware, `hw-1.0` emulates 1.0) |
 
 Each caliptra-mcu-sw branch depends on the same caliptra-sw revision as its

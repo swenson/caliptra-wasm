@@ -44,9 +44,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # MCU emulator. build-wasm.sh builds the MCU ROM/runtime from this same rev.
-mcu-hw-model = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "a27f8c3809e8aae46c64b8d21d75d75cbc9adcb4", package = "caliptra-mcu-hw-model", default-features = false }
+mcu-hw-model = { git = "https://github.com/chipsalliance/caliptra-mcu-sw", rev = "b16cfba64154222aa3ac811de94495b26e657b29", package = "caliptra-mcu-hw-model", default-features = false }
 # OTP fuse map (partition and field offsets) for this release.
-mcu-registers-generated = { git = "https://github.com/swenson/caliptra-mcu-sw", rev = "a27f8c3809e8aae46c64b8d21d75d75cbc9adcb4", package = "caliptra-mcu-registers-generated" }
+mcu-registers-generated = { git = "https://github.com/chipsalliance/caliptra-mcu-sw", rev = "b16cfba64154222aa3ac811de94495b26e657b29", package = "caliptra-mcu-registers-generated" }
 
 
 [dev-dependencies]

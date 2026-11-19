@@ -64,8 +64,8 @@ jobs:
 
       - name: Build site
         env:
-          # For each release, build-wasm.sh clones swenson/caliptra-mcu-sw at
-          # the rev pinned in versions/<release>/Cargo.toml and builds the MCU
+          # For each release, build-wasm.sh clones caliptra-mcu-sw from the repo and
+          # rev pinned in versions/<release>/Cargo.toml and builds the MCU
           # ROM/runtime from it. The checkouts must be outside this repo (their
           # builds would otherwise find our manifests above them);
           # $RUNNER_TEMP is.
